@@ -518,8 +518,6 @@ public final class OBDManager: NSObject, ObservableObject {
         }
     }
 
-    private var pendingSequenceHandler: ((String) -> Void)? = nil
-
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Robust Initialization Sequence
     // ─────────────────────────────────────────────────────────────────────────
