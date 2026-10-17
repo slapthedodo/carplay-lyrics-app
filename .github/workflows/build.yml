@@ -1,4 +1,4 @@
-name: Build CarLyrics IPA
+name: Build CarLyrics & OBDTester IPA
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build & Package CarLyrics IPA
+    name: Build & Package CarLyrics and OBDTester
     runs-on: macos-14
 
     steps:
@@ -17,16 +17,19 @@ jobs:
       - name: Show Xcode Version & List Schemes
         run: |
           xcodebuild -version
+          echo "=== CarLyrics Schemes ==="
           xcodebuild -project CarLyrics.xcodeproj -list
+          echo "=== OBDTester Schemes ==="
+          xcodebuild -project OBDTester/OBDTester.xcodeproj -list
 
-      - name: Build iOS App & Widget (Ad-Hoc Signed for Device)
+      - name: Build CarLyrics App & Widgets (Ad-Hoc Signed)
         run: |
           set -o pipefail
           xcodebuild -project CarLyrics.xcodeproj \
                      -scheme CarLyrics \
                      -configuration Release \
                      -destination 'generic/platform=iOS' \
-                     -derivedDataPath build \
+                     -derivedDataPath build_carlyrics \
                      CODE_SIGN_STYLE=Manual \
                      CODE_SIGN_IDENTITY="-" \
                      CODE_SIGNING_REQUIRED=NO \
@@ -34,16 +37,45 @@ jobs:
                      PROVISIONING_PROFILE_SPECIFIER="" \
                      clean build
 
-      - name: Package into IPA
+      - name: Package CarLyrics IPA
         run: |
           mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/CarLyrics.app Payload/
+          cp -r build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app Payload/
           zip -r CarLyrics.ipa Payload
           rm -rf Payload
 
-      - name: Upload IPA Artifact
+      - name: Build Standalone OBD Tester App (Ad-Hoc Signed)
+        run: |
+          set -o pipefail
+          xcodebuild -project OBDTester/OBDTester.xcodeproj \
+                     -scheme OBDTester \
+                     -configuration Release \
+                     -destination 'generic/platform=iOS' \
+                     -derivedDataPath build_obd \
+                     CODE_SIGN_STYLE=Manual \
+                     CODE_SIGN_IDENTITY="-" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     AD_HOC_CODE_SIGNING_ALLOWED=YES \
+                     PROVISIONING_PROFILE_SPECIFIER="" \
+                     clean build
+
+      - name: Package OBDTester IPA
+        run: |
+          mkdir -p PayloadOBD
+          cp -r build_obd/Build/Products/Release-iphoneos/OBDTester.app PayloadOBD/
+          zip -r OBDTester.ipa PayloadOBD
+          rm -rf PayloadOBD
+
+      - name: Upload CarLyrics IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CarLyrics-iOS-App
           path: CarLyrics.ipa
+          retention-days: 14
+
+      - name: Upload OBDTester Standalone IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OBDTester-Standalone-App
+          path: OBDTester.ipa
           retention-days: 14

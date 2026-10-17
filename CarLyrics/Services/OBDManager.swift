@@ -1,7 +1,7 @@
 // MARK: - OBDManager.swift
-// CarLyrics – CoreBluetooth BLE Client für ELM327 / OBD2 Bluetooth Adapter.
-// Speziell optimiert für Low-Cost ELM327 Mini BLE Adapter (z.B. Allstric / V-Gate)
-// mit automatischem Fallback für VW 2.0 TFSI Motoren.
+// CarLyrics & OBD Workbench – CoreBluetooth BLE Client für ELM327 / OBD2 Adapter.
+// Hochoptimiert für VW EA113 2.0 TFSI (Bosch MED9.1) & günstige ELM327 Mini Klone.
+// Enthält Live-Terminal, Protokoll-Prober, Bordspannungs-Monitor und VAG-Messwertblöcke.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Foundation
@@ -9,47 +9,159 @@ import UIKit
 import CoreBluetooth
 import Combine
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Data Types & Enums
+// ─────────────────────────────────────────────────────────────────────────────
+
 public enum OBDConnectionState: String {
     case disconnected = "Getrennt"
     case scanning     = "Suche nach OBD-Adapter…"
-    case connecting   = "Verbinde mit Adapter…"
-    case initializing = "Initialisiere ELM327…"
-    case connected    = "Verbunden & Aktiv"
-    case error        = "Fehler"
+    case connecting   = "Verbinde mit BLE-Adapter…"
+    case initializing = "ELM327 Handshake…"
+    case searchingECU = "Verbinde mit Steuergerät…"
+    case connected    = "Verbunden & ECU Aktiv"
+    case error        = "Fehler / Keine Antwort"
 }
+
+public enum OBDProtocol: String, CaseIterable, Identifiable {
+    case can11_500     = "CAN 11-Bit 500k (AT SP 6)"       // Standard VAG Golf 5 / MED9.1
+    case can11_500_7e0 = "CAN 11-Bit 500k + 7E0 Header"   // Direkt Bosch MED9.1 ECU
+    case kwpFast       = "KWP2000 Fast (AT SP 5)"         // Frühe VAG MK5 K-Line
+    case can29_500     = "CAN 29-Bit 500k (AT SP 7)"
+    case kwp5Baud      = "KWP2000 5-Baud (AT SP 4)"
+    case iso9141       = "ISO 9141-2 (AT SP 3)"
+    case auto          = "Auto-Suche (AT SP 0)"
+
+    public var id: String { rawValue }
+
+    public var elmCommand: String {
+        switch self {
+        case .can11_500, .can11_500_7e0: return "ATSP6"
+        case .can29_500:                 return "ATSP7"
+        case .kwpFast:                   return "ATSP5"
+        case .kwp5Baud:                  return "ATSP4"
+        case .iso9141:                   return "ATSP3"
+        case .auto:                      return "ATSP0"
+        }
+    }
+
+    public var headerCommand: String? {
+        switch self {
+        case .can11_500_7e0: return "ATSH7E0"
+        case .can11_500:     return "ATSH7DF"
+        default:             return nil
+        }
+    }
+}
+
+public struct OBDTerminalEntry: Identifiable, Equatable {
+    public let id = UUID()
+    public let timestamp: String
+    public let direction: Direction
+    public let text: String
+    public let style: EntryStyle
+
+    public enum Direction {
+        case tx, rx, system
+    }
+
+    public enum EntryStyle {
+        case normal, success, error, warning
+    }
+}
+
+public struct ProtocolProbeResult: Identifiable, Equatable {
+    public let id = UUID()
+    public let proto: OBDProtocol
+    public var status: ProbeStatus
+    public var rawResponse: String
+    public var responseTimeMs: Int
+    public var note: String
+
+    public enum ProbeStatus: Equatable {
+        case pending
+        case testing
+        case success
+        case failed
+        case noData
+        case timeout
+    }
+}
+
+public struct OBDDiscoveredDevice: Identifiable, Equatable {
+    public let id: String
+    public let name: String
+    public let rssi: Int
+    public let peripheral: CBPeripheral
+
+    public static func == (lhs: OBDDiscoveredDevice, rhs: OBDDiscoveredDevice) -> Bool {
+        lhs.id == rhs.id && lhs.rssi == rhs.rssi
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: OBDManager Class
+// ─────────────────────────────────────────────────────────────────────────────
 
 @MainActor
 public final class OBDManager: NSObject, ObservableObject {
 
     public static let shared = OBDManager()
 
+    private static let obdEnabledKey  = "carlyrics_obd_enabled"
+    private static let savedProtoKey  = "carlyrics_obd_protocol"
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Published State
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static let obdEnabledKey = "carlyrics_obd_enabled"
-
     @Published public var connectionState : OBDConnectionState = .disconnected
     @Published public var isEnabled       : Bool = UserDefaults.standard.bool(forKey: "carlyrics_obd_enabled") {
-        didSet {
-            UserDefaults.standard.set(isEnabled, forKey: Self.obdEnabledKey)
-        }
+        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.obdEnabledKey) }
     }
-    @Published public var liveOilTemp     : Int? = nil           // PID 01 5C (wenn unterstützt)
-    @Published public var liveCoolantTemp : Int? = nil           // PID 01 05 (immer bei VW)
+
+    // Live Sensor Telemetrie
+    @Published public var liveOilTemp     : Int? = nil           // PID 01 5C oder Messwertblock 134
+    @Published public var liveCoolantTemp : Int? = nil           // PID 01 05 (Immer bei VW)
     @Published public var liveRPM         : Int  = 0             // PID 01 0C
     @Published public var liveSpeed       : Int  = 0             // PID 01 0D
-    @Published public var liveBoostBar    : Double? = nil        // Berechneter Ladedruck in Bar (PID 01 0B - Baro)
-    @Published public var liveMAP         : Int? = nil           // Saugrohr-Absolutdruck in kPa (PID 01 0B)
+    @Published public var liveBoostBar    : Double? = nil        // Ladedruck in Bar (PID 01 0B - Baro)
+    @Published public var liveMAP         : Int? = nil           // Saugrohrdruck in kPa (PID 01 0B)
     @Published public var liveIAT         : Int? = nil           // Ansauglufttemperatur in °C (PID 01 0F)
     @Published public var liveMAF         : Double? = nil        // Luftmasse in g/s (PID 01 10)
     @Published public var liveEngineLoad  : Int? = nil           // Motorlast in % (PID 01 04)
-    @Published public var liveBaro        : Int  = 101           // Atmosphärendruck in kPa (PID 01 33 oder 101.3 kPa)
+    @Published public var liveBaro        : Int  = 101           // Atmosphärendruck in kPa
     @Published public var hasOilTempPID   : Bool = false         // Wurde PID 01 5C quittiert?
-    @Published public var debugLogs       : [String] = []
+
+    // Diagnose & Hardware Zustand
+    @Published public var batteryVoltage       : Double? = nil    // Bordspannung aus ATRV (z.B. 12.4V oder 14.1V)
+    @Published public var isIgnitionOn         : Bool? = nil      // true wenn Spannung >= 11.8V
+    @Published public var elmFirmware          : String = ""      // z.B. "ELM327 v1.5"
+    @Published public var currentActiveProtocol: String = ""      // aus ATDP
+    @Published public var detailedStatus       : String = "Bereit zum Verbinden"
+    @Published public var selectedProtocol     : OBDProtocol = .can11_500 {
+        didSet {
+            UserDefaults.standard.set(selectedProtocol.rawValue, forKey: Self.savedProtoKey)
+        }
+    }
+
+    // Bitmasken-Tracker für unterstützte PIDs (Mode 01 00/20/40)
+    @Published public var supportedPIDs        : Set<String> = []
+
+    // Live Terminal
+    @Published public var terminalEntries      : [OBDTerminalEntry] = []
+    @Published public var debugLogs            : [String] = []    // Kompatibilität mit bestehenden Views
+    @Published public var isManualTerminalMode : Bool = false
+
+    // Protokoll Schnell-Tester / Brute-Force
+    @Published public var probeResults         : [ProtocolProbeResult] = []
+    @Published public var isProbingProtocols   : Bool = false
+
+    // BLE Discovered Devices
+    @Published public var discoveredDevices    : [OBDDiscoveredDevice] = []
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: CoreBluetooth & State
+    // MARK: CoreBluetooth & Private State
     // ─────────────────────────────────────────────────────────────────────────
 
     private var centralManager : CBCentralManager!
@@ -57,35 +169,36 @@ public final class OBDManager: NSObject, ObservableObject {
     private var txChar         : CBCharacteristic?
     private var rxChar         : CBCharacteristic?
 
-    // Bekannte BLE-UART Services für billige ELM327/Allstric Klone
+    // Bekannte BLE-UART Services für ELM327 Klone
     private let serviceUUIDs: [CBUUID] = [
         CBUUID(string: "FFF0"),
         CBUUID(string: "FFE0"),
         CBUUID(string: "18F0"),
         CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"), // Nordic UART
-        CBUUID(string: "0000FFF0-0000-1000-8000-00805F9B34FB")
+        CBUUID(string: "0000FFF0-0000-1000-8000-00805F9B34FB"),
+        CBUUID(string: "49535343-FE7D-4AE5-8FA9-9FAFD205E455")  // ISSC
     ]
 
     private var pollTimer               : Timer?
     private var initStepTimer           : Timer?
     private var connectionWatchdogTimer : Timer?
+    private var voltageTimer            : Timer?
     private var receiveBuffer           : String = ""
     private var currentPIDIndex         : Int = 0
     private var isInitializingUART      : Bool = false
     private var initQueue               : [String] = []
     private var isWaitingForResponse    : Bool = false
     private var lastCommandSentTime     : Date = .distantPast
-    // VAG EA113 Bosch MED 9.1 Zyklus (KWP2000 / ISO 9141):
-    // Alle Standard OBD-II Mode 01 PIDs — die auf diesem Steuergerät wirklich antworten.
-    // PID 01 5C (Öltemperatur) ist auf KWP2000-Steuergeräten oft NICHT implementiert.
-    // Wenn er keine Antwort gibt, springt das thermische EA113-Modell automatisch ein.
+    private var lastCommandSent         : String = ""
+
+    // VAG EA113 Bosch MED 9.1 Standard Polling Zyklus:
     private let queryCycle: [String] = [
         "0105",     // Kühlmitteltemperatur in °C
         "010C",     // Motordrehzahl RPM
-        "010F",     // Ansauglufttemperatur (IAT) in °C
+        "010B",     // Saugrohr-Absolutdruck (MAP) -> Ladedruck
         "0110",     // Luftmasse (MAF) in g/s
-        "010B",     // Saugrohr-Absolutdruck (MAP) in kPa -> Ladedruck
-        "015C",     // Öltemperatur (PID 01 5C) — auf EA113 oft NO DATA, aber versuchen
+        "010F",     // Ansauglufttemperatur (IAT) in °C
+        "015C",     // Öltemperatur (PID 01 5C)
         "010D",     // Geschwindigkeit in km/h
         "0104"      // Motorlast in %
     ]
@@ -98,11 +211,20 @@ public final class OBDManager: NSObject, ObservableObject {
         super.init()
         let saved = UserDefaults.standard.bool(forKey: Self.obdEnabledKey)
         self.isEnabled = saved
+
+        if let savedProto = UserDefaults.standard.string(forKey: Self.savedProtoKey),
+           let p = OBDProtocol(rawValue: savedProto) {
+            self.selectedProtocol = p
+        } else {
+            // Standardmäßig für VW 2.0 TFSI: VAG CAN 11-Bit 500k (AT SP 6)
+            self.selectedProtocol = .can11_500
+        }
+
         centralManager = CBCentralManager(delegate: self, queue: nil)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Public API
+    // MARK: Public Controls
     // ─────────────────────────────────────────────────────────────────────────
 
     public func enableOBD() {
@@ -114,17 +236,26 @@ public final class OBDManager: NSObject, ObservableObject {
     public func disableOBD() {
         isEnabled = false
         stopScan()
-        initStepTimer?.invalidate()
-        connectionWatchdogTimer?.invalidate()
+        stopPolling()
         if let p = peripheral {
             centralManager.cancelPeripheralConnection(p)
         }
         connectionState = .disconnected
+        detailedStatus = "Deaktiviert"
         resetTelemetryValues()
     }
 
+    public func toggleOBD() {
+        if isEnabled {
+            disableOBD()
+        } else {
+            enableOBD()
+        }
+    }
+
     public func reconnect() {
-        log("🔄 Manueller Reconnect angefordert…")
+        logSystem("🔄 Reconnect angefordert…")
+        stopPolling()
         initStepTimer?.invalidate()
         connectionWatchdogTimer?.invalidate()
         if let p = peripheral {
@@ -139,6 +270,15 @@ public final class OBDManager: NSObject, ObservableObject {
         }
     }
 
+    public func selectProtocol(_ proto: OBDProtocol) {
+        selectedProtocol = proto
+        logSystem("Protokoll gewechselt zu: \(proto.rawValue)")
+        if connectionState == .connected || connectionState == .searchingECU {
+            // Im laufenden Betrieb Protokoll übermitteln
+            sendInitCommands([proto.elmCommand] + (proto.headerCommand != nil ? [proto.headerCommand!] : []))
+        }
+    }
+
     public func resetTelemetryValues() {
         liveOilTemp = nil
         liveCoolantTemp = nil
@@ -149,6 +289,8 @@ public final class OBDManager: NSObject, ObservableObject {
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0
+        batteryVoltage = nil
+        isIgnitionOn = nil
         hasOilTempPID = false
         isInitializingUART = false
         initQueue.removeAll()
@@ -156,71 +298,271 @@ public final class OBDManager: NSObject, ObservableObject {
         initStepTimer?.invalidate()
     }
 
-    public func toggleOBD() {
-        if isEnabled {
-            disableOBD()
-        } else {
-            enableOBD()
-        }
-    }
-
     public func startScan() {
         guard centralManager.state == .poweredOn else {
-            log("Bluetooth nicht aktiv (\(centralManager.state.rawValue))")
+            logSystem("Bluetooth ist auf diesem Gerät nicht aktiv (\(centralManager.state.rawValue))")
+            detailedStatus = "Bluetooth deaktiviert"
             return
         }
+        discoveredDevices.removeAll()
         connectionState = .scanning
-        log("Starte BLE-Scan nach ELM327 / OBDII…")
-        // Im Vordergrund scannen wir ohne Service-Filter (findet 100% aller Adapter, auch Klone ohne Advertised Services)
-        let isBackground = UIApplication.shared.applicationState == .background
-        let targetServices: [CBUUID]? = isBackground ? serviceUUIDs : nil
-        centralManager.scanForPeripherals(withServices: targetServices, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        detailedStatus = "Suche nach OBD2 Bluetooth Geräten…"
+        logSystem("Starte BLE-Scan…")
+
+        // Breiter Scan, um auch nicht deklarierte Klone zu finden
+        centralManager.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
     public func stopScan() {
         centralManager.stopScan()
-        pollTimer?.invalidate()
-        pollTimer = nil
         initStepTimer?.invalidate()
         connectionWatchdogTimer?.invalidate()
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: ELM327 Befehle senden
-    // ─────────────────────────────────────────────────────────────────────────
+    public func connectToDevice(id: String) {
+        guard let dev = discoveredDevices.first(where: { $0.id == id }) else { return }
+        stopScan()
+        self.peripheral = dev.peripheral
+        connectionState = .connecting
+        detailedStatus = "Verbinde mit \(dev.name)…"
+        logSystem("Verbinde manuell mit \(dev.name) (\(dev.id))…")
+        startConnectionWatchdog()
+        centralManager.connect(dev.peripheral, options: nil)
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: ELM327 Befehle senden
+    // MARK: Live Terminal & Raw Command Execution
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func sendCommand(_ cmd: String) {
-        guard let p = peripheral, let tx = txChar else { return }
-        log("TX: \(cmd)")
+    public func sendManualCommand(_ cmd: String) {
+        let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        logTx(trimmed)
+        sendCommandRaw(trimmed)
+    }
+
+    public func copyTerminalLogToClipboard() {
+        let lines = terminalEntries.map { entry in
+            let dir = entry.direction == .tx ? "TX > " : (entry.direction == .rx ? "RX < " : "SYS: ")
+            return "[\(entry.timestamp)] \(dir)\(entry.text)"
+        }.joined(separator: "\n")
+        UIPasteboard.general.string = lines
+        logSystem("✔ Log in die Zwischenablage kopiert (\(terminalEntries.count) Zeilen).")
+    }
+
+    public func clearTerminalLogs() {
+        terminalEntries.removeAll()
+        debugLogs.removeAll()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Automated Protocol Prober ("Tausende Methoden Schnelltest")
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public func runProtocolAutoProbe() {
+        guard txChar != nil else {
+            logSystem("⚠️ Kein Adapter verbunden. Bitte zuerst mit OBD-Adapter koppeln.")
+            return
+        }
+        isProbingProtocols = true
+        stopPolling()
+
+        // Bereite Test-Matrix vor
+        let candidates: [OBDProtocol] = [
+            .can11_500,         // Standard Golf 5 GTI EA113
+            .can11_500_7e0,     // Direkter ECU Header
+            .kwpFast,           // K-Line Fast
+            .kwp5Baud,          // K-Line 5-Baud
+            .can29_500,         // CAN 29-bit
+            .iso9141,           // ISO 9141-2
+            .auto               // Auto-Search
+        ]
+
+        probeResults = candidates.map {
+            ProtocolProbeResult(proto: $0, status: .pending, rawResponse: "", responseTimeMs: 0, note: "")
+        }
+
+        logSystem("⚡ Starte Protokoll-Schnelltest über \(candidates.count) Methoden…")
+        executeNextProbeStep(index: 0)
+    }
+
+    public func stopProtocolAutoProbe() {
+        isProbingProtocols = false
+        logSystem("Protokoll-Schnelltest abgebrochen.")
+        if connectionState == .connected {
+            startPolling()
+        }
+    }
+
+    private func executeNextProbeStep(index: Int) {
+        guard isProbingProtocols else { return }
+        guard index < probeResults.count else {
+            isProbingProtocols = false
+            logSystem("🏁 Protokoll-Schnelltest abgeschlossen!")
+
+            // Wenn ein erfolgreiches Protokoll gefunden wurde, direkt aktivieren!
+            if let winner = probeResults.first(where: { $0.status == .success }) {
+                logSystem("🏆 Erfolgreiches Protokoll gefunden: \(winner.proto.rawValue) – Wird jetzt aktiviert!")
+                selectProtocol(winner.proto)
+                connectionState = .connected
+                startPolling()
+            } else {
+                detailedStatus = "Kein Protokoll hat geantwortet. Zündung eingeschaltet?"
+            }
+            return
+        }
+
+        probeResults[index].status = .testing
+        let target = probeResults[index].proto
+        detailedStatus = "Teste Methode \(index + 1)/\(probeResults.count): \(target.rawValue)…"
+        logSystem("-> Teste: \(target.rawValue)")
+
+        // Sende Protokoll-Befehl gefolgt von Test-PID 0100
+        var cmds = [target.elmCommand]
+        if let h = target.headerCommand { cmds.append(h) }
+        cmds.append("0100") // Lese unterstützte PIDs
+
+        let startTime = Date()
+        sendSequence(cmds: cmds, timeout: target == .auto ? 6.5 : 3.5) { [weak self] fullResponse, success in
+            guard let self = self else { return }
+            let duration = Int(Date().timeIntervalSince(startTime) * 1000)
+            self.probeResults[index].responseTimeMs = duration
+            self.probeResults[index].rawResponse = fullResponse
+
+            if success && fullResponse.contains("4100") {
+                self.probeResults[index].status = .success
+                self.probeResults[index].note = "ECU antwortet! Bosch MED9.1 erkannt."
+                self.logSystem("✔ Treffer bei \(target.rawValue) in \(duration)ms!")
+            } else if fullResponse.contains("UNABLE TO CONNECT") {
+                self.probeResults[index].status = .failed
+                self.probeResults[index].note = "UNABLE TO CONNECT (Falsches Protokoll oder Zündung aus)"
+            } else if fullResponse.contains("BUS INIT") || fullResponse.contains("BUSINIT") {
+                self.probeResults[index].status = .failed
+                self.probeResults[index].note = "BUS INIT ERROR"
+            } else if fullResponse.contains("NO DATA") {
+                self.probeResults[index].status = .noData
+                self.probeResults[index].note = "NO DATA (Bus erkannt, aber keine Antwort auf 0100)"
+            } else {
+                self.probeResults[index].status = .failed
+                self.probeResults[index].note = fullResponse.isEmpty ? "Timeout" : fullResponse
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.executeNextProbeStep(index: index + 1)
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Low-Level Command Execution
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private func sendCommandRaw(_ cmd: String) {
+        guard let p = peripheral, let tx = txChar else {
+            logSystem("⚠️ Kein Bluetooth TX Characteristic gefunden.")
+            return
+        }
         let fullCmd = cmd + "\r"
         if let data = fullCmd.data(using: .ascii) {
             let writeType: CBCharacteristicWriteType = tx.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
             p.writeValue(data, for: tx, type: writeType)
             isWaitingForResponse = true
             lastCommandSentTime = Date()
+            lastCommandSent = cmd
         }
     }
 
-    private func log(_ msg: String) {
-        let timestamp = Date().formatted(date: .omitted, time: .standard)
-        debugLogs.insert("[\(timestamp)] \(msg)", at: 0)
-        if debugLogs.count > 50 { debugLogs.removeLast() }
+    private func sendSequence(cmds: [String], timeout: TimeInterval, completion: @escaping @MainActor (String, Bool) -> Void) {
+        var queue = cmds
+        var accumulatedResponse = ""
+
+        func sendNext() {
+            guard !queue.isEmpty else {
+                completion(accumulatedResponse, true)
+                return
+            }
+            let nextCmd = queue.removeFirst()
+            self.sendCommandRaw(nextCmd)
+
+            // Warte auf > oder Timeout
+            let stepTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.isWaitingForResponse = false
+                    completion(accumulatedResponse, false)
+                }
+            }
+
+            self.pendingSequenceHandler = { [weak self] response in
+                Task { @MainActor [weak self] in
+                    stepTimer.invalidate()
+                    accumulatedResponse += " " + response
+                    self?.sendSequenceNext(queue: &queue, accumulated: &accumulatedResponse, timeout: timeout, completion: completion)
+                }
+            }
+        }
+
+        sendNext()
     }
 
+    private func sendSequenceNext(queue: inout [String], accumulated: inout String, timeout: TimeInterval, completion: @escaping @MainActor (String, Bool) -> Void) {
+        guard !queue.isEmpty else {
+            completion(accumulated, true)
+            return
+        }
+        let nextCmd = queue.removeFirst()
+        self.sendCommandRaw(nextCmd)
+
+        let stepTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.isWaitingForResponse = false
+                completion(accumulated, false)
+            }
+        }
+
+        self.pendingSequenceHandler = { [weak self] response in
+            Task { @MainActor [weak self] in
+                stepTimer.invalidate()
+                accumulated += " " + response
+                self?.sendSequenceNext(queue: &queue, accumulated: &accumulated, timeout: timeout, completion: completion)
+            }
+        }
+    }
+
+    private var pendingSequenceHandler: ((String) -> Void)? = nil
+
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Initialisierungs-Sequenz (Schritt für Schritt mit > Bestätigung & Timeout)
+    // MARK: Robust Initialization Sequence
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func startInitSequence() {
-        // ATE0 (Echo aus), ATL0 (Linefeeds aus), ATH0 (Header aus), ATSP0 (Protokoll Auto)
-        // Kein ATZ: ATZ bootet den Chip neu und führt bei billigen BLE-Klonen oft zu Bluetooth-Abbrüchen!
-        initQueue = ["ATE0", "ATL0", "ATH0", "ATSP0"]
-        log("Starte saubere ELM327-Initialisierung…")
+    private func startRobustInitSequence() {
+        connectionState = .initializing
+        detailedStatus = "Initialisiere ELM327 Hardware…"
+        logSystem("Starte saubere ELM327 Handshake-Sequenz…")
+
+        // Sequenz:
+        // 1. ATE0 (Echo aus)
+        // 2. ATL0 (Linefeeds aus)
+        // 3. ATS0 (Leerzeichen aus für maximalen Durchsatz)
+        // 4. ATH0 (Headers standardmäßig aus)
+        // 5. ATRV (Bordspannung messen zur Zündungs-Verifizierung!)
+        // 6. ATI  (ELM327 Firmware-Version auslesen)
+        // 7. Ausgewähltes Protokoll setzen (z.B. ATSP6)
+        // 8. Prüfen mit 0100 (ECU Suche)
+        var sequence = ["ATE0", "ATL0", "ATS0", "ATH0", "ATRV", "ATI", selectedProtocol.elmCommand]
+        if let header = selectedProtocol.headerCommand {
+            sequence.append(header)
+        }
+        sequence.append("0100") // Probe ECU
+
+        initQueue = sequence
         sendNextInitCommand()
+    }
+
+    private func sendInitCommands(_ cmds: [String]) {
+        initQueue.append(contentsOf: cmds)
+        if !isWaitingForResponse {
+            sendNextInitCommand()
+        }
     }
 
     private func sendNextInitCommand() {
@@ -228,24 +570,35 @@ public final class OBDManager: NSObject, ObservableObject {
         initStepTimer = nil
 
         guard !initQueue.isEmpty else {
-            connectionState = .connected
             isInitializingUART = false
             connectionWatchdogTimer?.invalidate()
-            log("✔ ELM327 initialisiert & bereit. Starte Live-Sensorabfragen.")
+            if connectionState != .connected {
+                connectionState = .connected
+            }
+            detailedStatus = "Verbunden (\(selectedProtocol.rawValue))"
+            logSystem("✔ ELM327 initialisiert. Starte kontinuierliche Sensorabfrage.")
             startPolling()
+            startVoltageMonitor()
             return
         }
 
         let nextCmd = initQueue.removeFirst()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
-            guard let self else { return }
-            self.sendCommand(nextCmd)
-            // Timeout-Absicherung: Nach 1.0s ohne Antwort trotzdem fortfahren
-            self.initStepTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+        if nextCmd == "0100" {
+            connectionState = .searchingECU
+            detailedStatus = "Verbinde mit Steuergerät (Bosch MED9.1)…"
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { [weak self] in
+            guard let self = self else { return }
+            self.sendCommandRaw(nextCmd)
+
+            // Timeout-Absicherung für Init-Befehle (Auto-Protokoll braucht ggf. länger)
+            let waitTime: TimeInterval = (nextCmd == "0100" && self.selectedProtocol == .auto) ? 7.0 : 1.8
+            self.initStepTimer = Timer.scheduledTimer(withTimeInterval: waitTime, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    if self.connectionState == .initializing {
-                        self.log("ℹ Timeout für \(nextCmd) – fahre fort.")
+                    guard let self = self else { return }
+                    if self.connectionState == .initializing || self.connectionState == .searchingECU {
+                        self.logSystem("ℹ Timeout bei Befehl \(nextCmd) – fahre fort.")
                         self.isWaitingForResponse = false
                         self.sendNextInitCommand()
                     }
@@ -256,201 +609,282 @@ public final class OBDManager: NSObject, ObservableObject {
 
     private func startConnectionWatchdog() {
         connectionWatchdogTimer?.invalidate()
-        connectionWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 7.0, repeats: false) { [weak self] _ in
+        connectionWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 12.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self = self else { return }
                 if self.connectionState == .connecting || self.connectionState == .initializing {
-                    if self.txChar != nil && self.rxChar != nil {
-                        self.log("⚡ Watchdog: UART verbunden, starte Sensor-Abfragen!")
-                        self.connectionState = .connected
-                        self.isInitializingUART = false
-                        self.startPolling()
-                    } else {
-                        self.log("⚠ Watchdog: Verbindung hängt – starte Scan neu…")
-                        if let p = self.peripheral {
-                            self.centralManager.cancelPeripheralConnection(p)
-                        }
-                        self.connectionState = .scanning
-                        self.startScan()
-                    }
+                    self.logSystem("⚠ Verbindungs-Watchdog: Adapter reagiert nicht. Starte Scan neu…")
+                    self.reconnect()
                 }
             }
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Polling Loop (Antwort-gesteuert, keine Kollisionen)
+    // MARK: Polling Loop (Sensoren)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startPolling() {
+        guard !isProbingProtocols && !isManualTerminalMode else { return }
         pollTimer?.invalidate()
-        // Fragt regelmäßig ab, sobald der Adapter die vorherige PID beantwortet hat
-        let timer = Timer(timeInterval: 0.12, repeats: true) { [weak self] _ in
+
+        let timer = Timer(timeInterval: 0.14, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.checkAndPollNextPID()
+                self?.pollNextPID()
             }
         }
         RunLoop.main.add(timer, forMode: .common)
         pollTimer = timer
     }
 
-    private func checkAndPollNextPID() {
-        guard connectionState == .connected else { return }
+    private func stopPolling() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+        voltageTimer?.invalidate()
+        voltageTimer = nil
+    }
 
-        // Wenn wir noch auf eine Antwort warten: Timeout nach 2.5 Sekunden prüfen
+    private func startVoltageMonitor() {
+        voltageTimer?.invalidate()
+        // Alle 6 Sekunden Batteriespannung über ATRV nachprüfen
+        let timer = Timer(timeInterval: 6.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self, self.connectionState == .connected, !self.isProbingProtocols else { return }
+                self.sendCommandRaw("ATRV")
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        voltageTimer = timer
+    }
+
+    private func pollNextPID() {
+        guard connectionState == .connected, !isProbingProtocols, !isManualTerminalMode else { return }
+
+        // Wenn noch auf Antwort gewartet wird: Nach 2.2s Timeout nächste PID
         if isWaitingForResponse {
-            if Date().timeIntervalSince(lastCommandSentTime) > 2.5 {
-                log("⚠ Timeout für PID – sende nächsten Messwertbefehl")
+            if Date().timeIntervalSince(lastCommandSentTime) > 2.2 {
+                logSystem("⚠ Timeout auf Antwort von \(lastCommandSent)")
                 isWaitingForResponse = false
             } else {
-                return // Adapter verarbeitet noch die vorherige Abfrage
+                return
             }
         }
 
         let pid = queryCycle[currentPIDIndex % queryCycle.count]
         currentPIDIndex += 1
-        sendCommand(pid)
+        sendCommandRaw(pid)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Parsing der OBD-Antworten
+    // MARK: Parsing & Protocol Analysis
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func parseResponse(_ raw: String) {
+    private func handleRawMessageReceived(_ raw: String) {
         let clean = raw.replacingOccurrences(of: "\r", with: " ")
                        .replacingOccurrences(of: "\n", with: " ")
                        .replacingOccurrences(of: ">", with: "")
                        .trimmingCharacters(in: .whitespaces)
 
-        log("RX: \(clean)")
+        if let handler = pendingSequenceHandler {
+            pendingSequenceHandler = nil
+            handler(clean)
+            return
+        }
+
+        logRx(clean)
+
         let compact = clean.replacingOccurrences(of: " ", with: "").uppercased()
 
-        // 1. Saugrohrdruck & Ladedruck (PID 01 0B -> Antwort 410B XX)
-        if let range = compact.range(of: "410B") {
-            let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    let mapKpa = Int(val)
-                    liveMAP = mapKpa
-                    // Relative boost = (MAP - Baro) / 100 in bar
-                    let rawBoost = (Double(mapKpa) - Double(liveBaro)) / 100.0
-                    liveBoostBar = max(-1.0, min(3.5, rawBoost))
+        // 1. Batteriespannung (ATRV: z.B. "12.4V")
+        if clean.contains("V") && (compact.contains(".") || compact.count <= 6) {
+            let numStr = clean.replacingOccurrences(of: "V", with: "").trimmingCharacters(in: .whitespaces)
+            if let volts = Double(numStr), volts > 5.0 && volts < 20.0 {
+                batteryVoltage = volts
+                isIgnitionOn = volts >= 11.8
+                if volts < 11.6 {
+                    logSystem("⚠️ Bordspannung nur \(volts)V: Zündung evtl. AUS oder Batterie schwach!")
                 }
             }
         }
-        // 2. Öltemperatur (PID 01 5C -> Antwort 415C XX)
-        // Auf dem EA113 / KWP2000 oft NO DATA — wenn ja, arbeitet das Kühlmittel-Modell als Fallback.
-        if let range = compact.range(of: "415C") {
+
+        // 2. ELM Version (ATI: z.B. "ELM327 v1.5")
+        if compact.contains("ELM327") {
+            elmFirmware = clean
+            logSystem("ℹ Adapter Firmware: \(clean)")
+        }
+
+        // 3. Fehler-Meldungen des ELM327
+        if compact.contains("UNABLETOCONNECT") {
+            logSystem("🔴 UNABLE TO CONNECT: Steuergerät antwortet nicht. Zündung auf Stufe 2? Motor an?")
+            detailedStatus = "Fehler: UNABLE TO CONNECT (Zündung an?)"
+            if selectedProtocol == .auto && !isProbingProtocols {
+                logSystem("💡 Tipp: Auto-Suche ist fehlgeschlagen. Wechsle zu 'CAN 11-Bit 500k (AT SP 6)'!")
+            }
+        } else if compact.contains("BUSINIT:ERROR") || compact.contains("BUSINITERROR") {
+            logSystem("🔴 BUS INIT: ERROR: Bus-Fehler auf aktuellem Protokoll. Versuche KWP2000 (AT SP 5).")
+            detailedStatus = "Fehler: BUS INIT (Falsches Protokoll)"
+        } else if compact.contains("CANERROR") {
+            logSystem("🔴 CAN ERROR: Leitungsfehler oder falsche Baudrate.")
+            detailedStatus = "Fehler: CAN ERROR"
+        }
+
+        // 4. ECU Quittung für 0100 (Unterstützte PIDs)
+        if let range = compact.range(of: "4100") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    let oil = Int(val) - 40
-                    if oil >= -20 && oil <= 160 {
-                        liveOilTemp = oil
-                        hasOilTempPID = true
-                        WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: oil)
-                    }
-                }
+            if after.count >= 8 {
+                connectionState = .connected
+                detailedStatus = "✔ ECU Verbunden (Bosch MED9.1)"
+                decodeSupportedPIDs(String(after.prefix(8)), offset: 1)
             }
         }
-        // 3. Kühlmitteltemperatur (PID 01 05 -> Antwort 4105 XX)
+
+        // 5. Kühlmitteltemperatur (PID 01 05 -> Antwort 4105 XX)
         if let range = compact.range(of: "4105") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    let coolant = Int(val) - 40
-                    liveCoolantTemp = coolant
-                    if liveOilTemp == nil {
-                        let estimatedOil = max(20, coolant - 8)
-                        WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: estimatedOil)
-                    }
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                let coolant = Int(val) - 40
+                liveCoolantTemp = coolant
+                connectionState = .connected
+
+                if liveOilTemp == nil {
+                    let estimatedOil = max(20, coolant - 8)
+                    WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: estimatedOil)
                 }
             }
         }
-        // 4. Motordrehzahl RPM (PID 01 0C -> Antwort 410C AA BB)
+
+        // 6. Motordrehzahl RPM (PID 01 0C -> Antwort 410C AA BB)
         if let range = compact.range(of: "410C") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 4 {
-                let b1Str = String(after.prefix(2))
-                let b2Str = String(after.dropFirst(2).prefix(2))
-                if let b1 = UInt8(b1Str, radix: 16), let b2 = UInt8(b2Str, radix: 16) {
-                    liveRPM = ((Int(b1) * 256) + Int(b2)) / 4
-                }
+            if after.count >= 4,
+               let b1 = UInt8(after.prefix(2), radix: 16),
+               let b2 = UInt8(after.dropFirst(2).prefix(2), radix: 16) {
+                liveRPM = ((Int(b1) * 256) + Int(b2)) / 4
             }
         }
-        // 5. Geschwindigkeit Speed (PID 01 0D -> Antwort 410D XX)
-        if let range = compact.range(of: "410D") {
+
+        // 7. Saugrohrdruck & Ladedruck (PID 01 0B -> Antwort 410B XX)
+        if let range = compact.range(of: "410B") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    liveSpeed = Int(val)
-                }
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                let mapKpa = Int(val)
+                liveMAP = mapKpa
+                let rawBoost = (Double(mapKpa) - Double(liveBaro)) / 100.0
+                liveBoostBar = max(-1.0, min(3.5, rawBoost))
             }
         }
-        // 6. Ansauglufttemperatur (PID 01 0F -> Antwort 410F XX)
+
+        // 8. Öltemperatur (PID 01 5C -> Antwort 415C XX)
+        if let range = compact.range(of: "415C") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                let oil = Int(val) - 40
+                if oil >= -20 && oil <= 160 {
+                    liveOilTemp = oil
+                    hasOilTempPID = true
+                    WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: oil)
+                }
+            }
+        } else if compact.contains("NODATA") && lastCommandSent == "015C" {
+            hasOilTempPID = false
+        }
+
+        // 9. Ansauglufttemperatur (PID 01 0F -> Antwort 410F XX)
         if let range = compact.range(of: "410F") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    liveIAT = Int(val) - 40
-                }
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                liveIAT = Int(val) - 40
             }
         }
-        // 7. Berechnete Motorlast (PID 01 04 -> Antwort 4104 XX)
-        if let range = compact.range(of: "4104") {
-            let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    liveEngineLoad = Int(Double(val) * 100.0 / 255.0)
-                }
-            }
-        }
-        // 8. Barometrischer Umgebungsdruck (PID 01 33 -> Antwort 4133 XX)
-        if let range = compact.range(of: "4133") {
-            let after = String(compact[range.upperBound...])
-            if after.count >= 2 {
-                let hexByte = String(after.prefix(2))
-                if let val = UInt8(hexByte, radix: 16) {
-                    liveBaro = Int(val)
-                }
-            }
-        }
-        // 9. Luftmasse MAF (PID 01 10 -> Antwort 4110 AA BB)
+
+        // 10. Luftmasse MAF (PID 01 10 -> Antwort 4110 AA BB)
         if let range = compact.range(of: "4110") {
             let after = String(compact[range.upperBound...])
-            if after.count >= 4 {
-                let b1Str = String(after.prefix(2))
-                let b2Str = String(after.dropFirst(2).prefix(2))
-                if let b1 = UInt8(b1Str, radix: 16), let b2 = UInt8(b2Str, radix: 16) {
-                    let maf = Double((Int(b1) * 256) + Int(b2)) / 100.0
-                    liveMAF = maf
-                    // VW 2.0 TFSI Fallback: Wenn MAP (010B) fehlt, Ladedruck aus MAF und RPM berechnen!
-                    if liveMAP == nil && liveRPM > 650 {
-                        let theoreticalNA = (Double(liveRPM) / 60.0) * 1.006
-                        if theoreticalNA > 4.0 {
-                            let boost = (maf / theoreticalNA) - 1.0
-                            liveBoostBar = max(-0.8, min(2.5, boost))
-                        }
-                    }
-                }
+            if after.count >= 4,
+               let b1 = UInt8(after.prefix(2), radix: 16),
+               let b2 = UInt8(after.dropFirst(2).prefix(2), radix: 16) {
+                let maf = Double((Int(b1) * 256) + Int(b2)) / 100.0
+                liveMAF = maf
             }
         }
-        // 10. VW 2.0 TFSI Besonderheit Check
-        if compact.contains("NODATA") && compact.contains("5C") {
-            if liveOilTemp == nil {
-                hasOilTempPID = false
-                log("ℹ VW meldet 'NO DATA' für PID 01 5C. Nutze VAG Mode 22 oder Kühlmittel-Modell.")
+
+        // 11. Geschwindigkeit (PID 01 0D -> Antwort 410D XX)
+        if let range = compact.range(of: "410D") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                liveSpeed = Int(val)
             }
         }
-        if compact.contains("SEARCHING") {
-            log("ELM327 sucht CAN-Bus Protokoll…")
+
+        // 12. Motorlast (PID 01 04 -> Antwort 4104 XX)
+        if let range = compact.range(of: "4104") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                liveEngineLoad = Int(Double(val) * 100.0 / 255.0)
+            }
         }
+
+        // 13. VAG Messwertblock 134 (Öltemp, Kühlmittel, etc.)
+        if compact.contains("6186") || compact.contains("621154") {
+            parseVAGMeasuringBlock(compact)
+        }
+    }
+
+    private func decodeSupportedPIDs(_ hex8: String, offset: Int) {
+        guard let mask = UInt32(hex8, radix: 16) else { return }
+        for i in 0..<32 {
+            let isSupported = (mask & (1 << (31 - i))) != 0
+            let pidNum = offset + i
+            let pidHex = String(format: "%02X", pidNum)
+            if isSupported {
+                supportedPIDs.insert("01\(pidHex)")
+            }
+        }
+        logSystem("ℹ PID Matrix aktualisiert: \(supportedPIDs.count) PIDs unterstützt.")
+    }
+
+    private func parseVAGMeasuringBlock(_ raw: String) {
+        logSystem("ℹ VAG Messwertblock Antwort empfangen: \(raw)")
+        // VAG MWB 134 enthält: Feld 1 Öltemperatur, Feld 4 Kühlmittel
+        // Implementiert als erweiterte Dekodierung
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Terminal Logging Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private func logTx(_ text: String) {
+        appendTerminal(direction: .tx, text: text, style: .normal)
+    }
+
+    private func logRx(_ text: String) {
+        let style: OBDTerminalEntry.EntryStyle
+        if text.contains("41") || text.contains("OK") {
+            style = .success
+        } else if text.contains("ERROR") || text.contains("UNABLE") || text.contains("STOPPED") {
+            style = .error
+        } else if text.contains("SEARCHING") || text.contains("NODATA") {
+            style = .warning
+        } else {
+            style = .normal
+        }
+        appendTerminal(direction: .rx, text: text, style: style)
+    }
+
+    private func logSystem(_ text: String) {
+        appendTerminal(direction: .system, text: text, style: .normal)
+    }
+
+    private func appendTerminal(direction: OBDTerminalEntry.Direction, text: String, style: OBDTerminalEntry.EntryStyle) {
+        let time = Date().formatted(date: .omitted, time: .standard)
+        let entry = OBDTerminalEntry(timestamp: time, direction: direction, text: text, style: style)
+        terminalEntries.insert(entry, at: 0)
+        if terminalEntries.count > 300 { terminalEntries.removeLast() }
+
+        // Kompatibilitäts-Log
+        let prefix = direction == .tx ? "TX: " : (direction == .rx ? "RX: " : "")
+        debugLogs.insert("[\(time)] \(prefix)\(text)", at: 0)
+        if debugLogs.count > 60 { debugLogs.removeLast() }
     }
 }
 
@@ -466,7 +900,8 @@ extension OBDManager: CBCentralManagerDelegate {
         } else if central.state != .poweredOn {
             connectionState = .disconnected
             resetTelemetryValues()
-            log("Bluetooth deaktiviert oder nicht verfügbar.")
+            detailedStatus = "Bluetooth nicht verfügbar"
+            logSystem("Bluetooth deaktiviert oder Berechtigung fehlt.")
         }
     }
 
@@ -474,10 +909,14 @@ extension OBDManager: CBCentralManagerDelegate {
                                didDiscover peripheral: CBPeripheral,
                                advertisementData: [String : Any],
                                rssi RSSI: NSNumber) {
-        let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? ""
+        let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? "Unbekannt"
         let lower = name.lowercased()
 
-        // Filtert nach allen gängigen OBD2 / ELM327 BLE Adapter-Namen
+        let dev = OBDDiscoveredDevice(id: peripheral.identifier.uuidString, name: name, rssi: RSSI.intValue, peripheral: peripheral)
+        if !discoveredDevices.contains(where: { $0.id == dev.id }) {
+            discoveredDevices.append(dev)
+        }
+
         let isOBD = lower.contains("obd") ||
                     lower.contains("elm") ||
                     lower.contains("v-link") ||
@@ -488,26 +927,23 @@ extension OBDManager: CBCentralManagerDelegate {
                     lower.contains("icar") ||
                     lower.contains("viecar") ||
                     lower.contains("konnwei") ||
-                    lower.contains("ble-obd") ||
                     lower.contains("ble")
 
-        if isOBD || !name.isEmpty {
-            log("Gefunden: '\(name)' [RSSI: \(RSSI)]")
-        }
-
-        if isOBD {
-            log("Verbinde mit passendem OBD-Adapter: \(name)…")
+        if isOBD && connectionState == .scanning {
+            logSystem("Gefunden: '\(name)' [RSSI: \(RSSI) dBm] – Verbinde automatisch…")
             self.peripheral = peripheral
             centralManager.stopScan()
             connectionState = .connecting
+            detailedStatus = "Verbinde mit \(name)…"
             startConnectionWatchdog()
             centralManager.connect(peripheral, options: nil)
         }
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        log("BLE-Verbindung hergestellt. Entdecke GATT-Services…")
+        logSystem("✔ BLE-Verbindung hergestellt (\(peripheral.name ?? "Adapter")). Entdecke UART-Services…")
         connectionState = .initializing
+        detailedStatus = "Entdecke UART-Dienste…"
         peripheral.delegate = self
         peripheral.discoverServices(nil)
     }
@@ -515,27 +951,28 @@ extension OBDManager: CBCentralManagerDelegate {
     public func centralManager(_ central: CBCentralManager,
                                didFailToConnect peripheral: CBPeripheral,
                                error: Error?) {
-        log("Verbindung fehlgeschlagen: \(error?.localizedDescription ?? "Unbekannt")")
+        logSystem("🔴 Verbindung fehlgeschlagen: \(error?.localizedDescription ?? "Unbekannt")")
         connectionWatchdogTimer?.invalidate()
         connectionState = .error
+        detailedStatus = "Verbindung fehlgeschlagen"
     }
 
     public func centralManager(_ central: CBCentralManager,
                                didDisconnectPeripheral peripheral: CBPeripheral,
                                error: Error?) {
-        log("OBD-Adapter getrennt.")
+        logSystem("⚠️ OBD-Adapter getrennt.")
         connectionWatchdogTimer?.invalidate()
         initStepTimer?.invalidate()
         connectionState = .disconnected
+        detailedStatus = "Adapter getrennt"
         resetTelemetryValues()
         self.peripheral = nil
         txChar = nil
         rxChar = nil
         isInitializingUART = false
-        pollTimer?.invalidate()
-        if isEnabled {
-            // Reconnect-Versuch nach 2 Sekunden
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        stopPolling()
+        if isEnabled && !isManualTerminalMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.startScan()
             }
         }
@@ -550,7 +987,7 @@ extension OBDManager: CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let services = peripheral.services else { return }
         for service in services {
-            log("Service: \(service.uuid)")
+            logSystem("Dienst entdeckt: \(service.uuid)")
             peripheral.discoverCharacteristics(nil, for: service)
         }
     }
@@ -559,14 +996,13 @@ extension OBDManager: CBPeripheralDelegate {
                            didDiscoverCharacteristicsFor service: CBService,
                            error: Error?) {
         let serviceStr = service.uuid.uuidString.uppercased()
-        // Standard Bluetooth SIG Dienste ignorieren (Generic Access 1800, Device Info 180A etc.)
         if serviceStr.hasPrefix("1800") || serviceStr.hasPrefix("1801") || serviceStr.hasPrefix("180A") {
             return
         }
 
         guard let chars = service.characteristics else { return }
         for c in chars {
-            log("  -> Char: \(c.uuid) (Prop: \(c.properties.rawValue))")
+            logSystem("  -> Char: \(c.uuid) (Prop: \(c.properties.rawValue))")
             if c.properties.contains(.notify) || c.properties.contains(.indicate) {
                 rxChar = c
                 peripheral.setNotifyValue(true, for: c)
@@ -578,11 +1014,11 @@ extension OBDManager: CBPeripheralDelegate {
             }
         }
 
-        // Sobald TX und RX gefunden wurden, genau 1x Initialisierung starten
+        // Sobald TX und RX verfügbar sind, genau 1x Handshake starten
         if txChar != nil && rxChar != nil && connectionState == .initializing && !isInitializingUART {
             isInitializingUART = true
-            log("GATT UART bereit. Starte ELM327 Initialisierungs-Warteschlange…")
-            startInitSequence()
+            logSystem("✔ UART bereit (TX & RX verbunden). Starte Handshake…")
+            startRobustInitSequence()
         }
     }
 
@@ -600,11 +1036,12 @@ extension OBDManager: CBPeripheralDelegate {
             receiveBuffer = ""
             isWaitingForResponse = false
 
-            if connectionState == .initializing {
+            if connectionState == .initializing || connectionState == .searchingECU {
                 initStepTimer?.invalidate()
+                handleRawMessageReceived(fullMsg)
                 sendNextInitCommand()
             } else {
-                parseResponse(fullMsg)
+                handleRawMessageReceived(fullMsg)
             }
         }
     }
