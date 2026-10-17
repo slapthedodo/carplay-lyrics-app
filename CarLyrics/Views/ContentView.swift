@@ -1275,8 +1275,9 @@ struct CockpitButtonStyle: ButtonStyle {
     }
 }
 
-private func gColor(_ g: Double, maxG: Double = MotionManager.shared.maxG) -> Color {
-    let limit = max(0.3, maxG)
+@MainActor
+private func gColor(_ g: Double, maxG: Double? = nil) -> Color {
+    let limit = max(0.3, maxG ?? MotionManager.shared.maxG)
     let ratio = g / limit
     if ratio < 0.35 {
         return .white
