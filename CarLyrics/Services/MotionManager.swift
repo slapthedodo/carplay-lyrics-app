@@ -31,6 +31,19 @@ public final class MotionManager: ObservableObject {
     @Published public var peakG     : Double = 0    // session maximum
     @Published public var isActive  : Bool   = false
 
+    /// Konfigurierbare maximale G-Kraft (Skalierung und Plausibilitäts-Grenze)
+    @Published public var maxG: Double = {
+        let saved = UserDefaults.standard.double(forKey: "carlyrics_max_g_scale")
+        return saved > 0.1 ? saved : 1.2
+    }() {
+        didSet {
+            UserDefaults.standard.set(maxG, forKey: "carlyrics_max_g_scale")
+            if peakG > maxG {
+                peakG = maxG
+            }
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Private state
     // ─────────────────────────────────────────────────────────────────────────
@@ -105,13 +118,17 @@ public final class MotionManager: ObservableObject {
         // Kombinierte G-Kraft im 2D-Fahrzeugvektor
         let combined = sqrt(calX * calX + calY * calY)
 
-        gX = calX
-        gY = calY
-        currentG = combined
+        let limit = max(0.3, maxG)
+        // Begrenzung auf das konfigurierte Maximum (fängt unrealistische Stoß- und Schlaglochspitzen ab)
+        let clampedCombined = min(limit, combined)
 
-        // Peak tracking – unbegrenzt, erfasst alle tatsächlichen Kräfte
-        if combined > peakG {
-            peakG = combined
+        gX = min(limit, max(-limit, calX))
+        gY = min(limit, max(-limit, calY))
+        currentG = clampedCombined
+
+        // Peak tracking – bis zum konfigurierten Limit
+        if clampedCombined > peakG {
+            peakG = clampedCombined
         }
     }
 }
@@ -122,10 +139,10 @@ public final class MotionManager: ObservableObject {
 
 public extension MotionManager {
 
-    var currentGFormatted: String { String(format: "%.1f G", currentG) }
-    var peakGFormatted:    String { String(format: "%.1f G", peakG) }
+    var currentGFormatted: String { String(format: "%.2f G", currentG) }
+    var peakGFormatted:    String { String(format: "%.2f G", peakG) }
 
-    /// Normalized vectors clamped to −1 … +1 for UI crosshair
-    var normalizedX: Double { max(-1, min(1, gX / 1.5)) }
-    var normalizedY: Double { max(-1, min(1, gY / 1.5)) }
+    /// Normalized vectors clamped to −1 … +1 for UI crosshair based on maxG
+    var normalizedX: Double { max(-1, min(1, gX / max(0.3, maxG))) }
+    var normalizedY: Double { max(-1, min(1, gY / max(0.3, maxG))) }
 }

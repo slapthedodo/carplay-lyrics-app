@@ -337,7 +337,63 @@ struct SettingsTab: View {
                     }
                 }
 
-                // 3. Spotify Verbindung
+                // 3. G-Kraft Sensor & Maximalwert Slider
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("G-Kraft Sensor & Maximalwert", systemImage: "gyroscope")
+                            .font(.headline)
+                            .foregroundStyle(.cyan)
+
+                        Text("Stelle die maximale G-Kraft passend zu deinem Fahrzeug ein. Erschütterungen über diesem Wert (z. B. Schlaglöcher) werden gefiltert, und der G-Meter (G-Ball) skaliert sich dynamisch darauf.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Text("Max. G-Kraft Limit:")
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Text(String(format: "%.2f G", MotionManager.shared.maxG))
+                                .font(.system(.title3, design: .monospaced, weight: .bold))
+                                .foregroundStyle(.cyan)
+                        }
+
+                        Slider(value: Binding(
+                            get: { MotionManager.shared.maxG },
+                            set: { MotionManager.shared.maxG = $0 }
+                        ), in: 0.5...3.0, step: 0.05)
+                        .tint(.cyan)
+
+                        HStack {
+                            Text("0.5G (Komfort)").font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Text("1.2G (TFSI Serie)").font(.caption2.bold()).foregroundStyle(.cyan)
+                            Spacer()
+                            Text("3.0G (Rennstrecke)").font(.caption2).foregroundStyle(.secondary)
+                        }
+
+                        HStack {
+                            Button {
+                                MotionManager.shared.resetPeak()
+                            } label: {
+                                Label("Peak Reset", systemImage: "arrow.counterclockwise")
+                                    .font(.caption.bold())
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: .secondary))
+
+                            Spacer()
+
+                            Button {
+                                MotionManager.shared.calibrate()
+                            } label: {
+                                Label("Nullpunkt kalibrieren", systemImage: "scope")
+                                    .font(.caption.bold())
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: .cyan))
+                        }
+                    }
+                }
+
+                // 4. Spotify Verbindung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Spotify Web API", systemImage: "waveform.circle.fill")
@@ -802,25 +858,74 @@ struct GForceCard: View {
     var body: some View {
         GlassCard {
             VStack(spacing: 16) {
-                Label("G-Kräfte (Auto-Kalibrierend)", systemImage: "gyroscope")
+                Label("G-Kräfte Telemetrie", systemImage: "gyroscope")
                     .font(.headline).foregroundStyle(.cyan)
 
-                GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG)
+                GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG, maxG: motion.maxG)
                     .frame(width: 200, height: 200)
 
-                HStack(spacing: 24) {
+                HStack(spacing: 20) {
                     VStack {
                         Text("AKTUELL").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                         Text(motion.currentGFormatted)
-                            .font(.system(size: 22, weight: .bold, design: .monospaced))
-                            .foregroundStyle(gColor(motion.currentG))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
                     }
                     VStack {
                         Text("PEAK").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                         Text(motion.peakGFormatted)
-                            .font(.system(size: 22, weight: .bold, design: .monospaced))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                     }
+                    VStack {
+                        Text("MAX LIMIT").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                        Text(String(format: "%.2f G", motion.maxG))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    }
+                }
+
+                Divider().background(Color.white.opacity(0.1))
+
+                // ── Slider für maximale G-Kräfte ────────────────────────────
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Maximale G-Kraft (Skala & Limit):")
+                            .font(.caption).bold().foregroundStyle(.secondary)
+                        Spacer()
+                        Text(String(format: "%.2f G", motion.maxG))
+                            .font(.system(size: 14, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    }
+
+                    Slider(value: $motion.maxG, in: 0.5...3.0, step: 0.05)
+                        .tint(.cyan)
+
+                    HStack {
+                        Text("0.5G (Komfort)").font(.system(size: 8)).foregroundStyle(.secondary)
+                        Spacer()
+                        Text("1.2G (TFSI Serie)").font(.system(size: 8).bold()).foregroundStyle(.cyan)
+                        Spacer()
+                        Text("3.0G (Track)").font(.system(size: 8)).foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    Button {
+                        motion.resetPeak()
+                    } label: {
+                        Label("Peak Reset", systemImage: "arrow.counterclockwise")
+                            .font(.caption.bold())
+                    }
+                    .buttonStyle(CockpitButtonStyle(color: .secondary))
+
+                    Button {
+                        motion.calibrate()
+                    } label: {
+                        Label("Nullpunkt setzen", systemImage: "scope")
+                            .font(.caption.bold())
+                    }
+                    .buttonStyle(CockpitButtonStyle(color: .cyan))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -832,6 +937,7 @@ struct GBallView: View {
     let x        : Double
     let y        : Double
     let currentG : Double
+    var maxG     : Double = 1.2
 
     var body: some View {
         GeometryReader { geo in
@@ -849,13 +955,21 @@ struct GBallView: View {
                 Rectangle().fill(Color.white.opacity(0.08)).frame(width: r * 2, height: 1)
                 Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1, height: r * 2)
 
-                Text("ACC").font(.system(size: 8)).foregroundStyle(.secondary).offset(y: -(r - 6))
-                Text("BRK").font(.system(size: 8)).foregroundStyle(.secondary).offset(y: r - 6)
+                Text("ACC").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary).offset(y: -(r - 6))
+                Text("BRK").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary).offset(y: r - 6)
+                Text("L").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary).offset(x: -(r - 6))
+                Text("R").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary).offset(x: r - 6)
+
+                // Skalenwert für den äußeren Ring
+                Text(String(format: "%.1fG", maxG))
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.cyan.opacity(0.6))
+                    .offset(x: r - 16, y: -(r - 16))
 
                 Circle()
-                    .fill(gColor(currentG))
+                    .fill(gColor(currentG, maxG: maxG))
                     .frame(width: 18, height: 18)
-                    .shadow(color: gColor(currentG).opacity(0.8), radius: 8)
+                    .shadow(color: gColor(currentG, maxG: maxG).opacity(0.8), radius: 8)
                     .offset(x: CGFloat(x) * r, y: -CGFloat(y) * r)
                     .animation(.interactiveSpring(response: 0.15), value: x)
                     .animation(.interactiveSpring(response: 0.15), value: y)
@@ -1161,12 +1275,17 @@ struct CockpitButtonStyle: ButtonStyle {
     }
 }
 
-private func gColor(_ g: Double) -> Color {
-    switch g {
-    case ..<0.3:  return .white
-    case ..<0.6:  return .yellow
-    case ..<0.9:  return .orange
-    default:      return .red
+private func gColor(_ g: Double, maxG: Double = MotionManager.shared.maxG) -> Color {
+    let limit = max(0.3, maxG)
+    let ratio = g / limit
+    if ratio < 0.35 {
+        return .white
+    } else if ratio < 0.65 {
+        return .yellow
+    } else if ratio < 0.88 {
+        return .orange
+    } else {
+        return .red
     }
 }
 
