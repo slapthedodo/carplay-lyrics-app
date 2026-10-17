@@ -70,6 +70,9 @@ public final class OBDManager: NSObject, ObservableObject {
     private var receiveBuffer      : String = ""
     private var currentPIDIndex    : Int = 0
     private var isInitializingUART : Bool = false
+    private var initQueue          : [String] = []
+    private var isWaitingForResponse: Bool = false
+    private var lastCommandSentTime: Date = .distantPast
     // VAG EA113 Bosch MED 9.1 Zyklus (KWP2000 / ISO 9141):
     // Alle Standard OBD-II Mode 01 PIDs — die auf diesem Steuergerät wirklich antworten.
     // PID 01 5C (Öltemperatur) ist auf KWP2000-Steuergeräten oft NICHT implementiert.
@@ -128,6 +131,8 @@ public final class OBDManager: NSObject, ObservableObject {
         liveSpeed = 0
         hasOilTempPID = false
         isInitializingUART = false
+        initQueue.removeAll()
+        isWaitingForResponse = false
     }
 
     public func toggleOBD() {
@@ -161,12 +166,19 @@ public final class OBDManager: NSObject, ObservableObject {
     // MARK: ELM327 Befehle senden
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: ELM327 Befehle senden
+    // ─────────────────────────────────────────────────────────────────────────
+
     private func sendCommand(_ cmd: String) {
         guard let p = peripheral, let tx = txChar else { return }
+        log("TX: \(cmd)")
         let fullCmd = cmd + "\r"
         if let data = fullCmd.data(using: .ascii) {
             let writeType: CBCharacteristicWriteType = tx.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
             p.writeValue(data, for: tx, type: writeType)
+            isWaitingForResponse = true
+            lastCommandSentTime = Date()
         }
     }
 
@@ -177,23 +189,61 @@ public final class OBDManager: NSObject, ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Polling Loop
+    // MARK: Initialisierungs-Sequenz (Schritt für Schritt mit > Bestätigung)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private func startInitSequence() {
+        initQueue = ["ATZ", "ATE0", "ATL0", "ATH0", "ATSP0"]
+        log("Starte saubere ELM327-Initialisierung…")
+        sendNextInitCommand()
+    }
+
+    private func sendNextInitCommand() {
+        guard !initQueue.isEmpty else {
+            connectionState = .connected
+            isInitializingUART = false
+            log("✔ ELM327 initialisiert & bereit. Starte Live-Sensorabfragen.")
+            startPolling()
+            return
+        }
+
+        let nextCmd = initQueue.removeFirst()
+        // Kurze Pause vor ATZ bzw. zwischen Initialisierungsbefehlen
+        let delay: Double = (nextCmd == "ATZ") ? 0.35 : 0.12
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.sendCommand(nextCmd)
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Polling Loop (Antwort-gesteuert, keine Kollisionen)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startPolling() {
         pollTimer?.invalidate()
-        // Fragt alle 500ms abwechselnd Öltemperatur, Kühlmittel und Drehzahl ab (auch bei minimierter App)
-        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+        // Fragt regelmäßig ab, sobald der Adapter die vorherige PID beantwortet hat
+        let timer = Timer(timeInterval: 0.12, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.pollNextPID()
+                self?.checkAndPollNextPID()
             }
         }
         RunLoop.main.add(timer, forMode: .common)
         pollTimer = timer
     }
 
-    private func pollNextPID() {
+    private func checkAndPollNextPID() {
         guard connectionState == .connected else { return }
+
+        // Wenn wir noch auf eine Antwort warten: Timeout nach 2.5 Sekunden prüfen
+        if isWaitingForResponse {
+            if Date().timeIntervalSince(lastCommandSentTime) > 2.5 {
+                log("⚠ Timeout für PID – sende nächsten Messwertbefehl")
+                isWaitingForResponse = false
+            } else {
+                return // Adapter verarbeitet noch die vorherige Abfrage
+            }
+        }
+
         let pid = queryCycle[currentPIDIndex % queryCycle.count]
         currentPIDIndex += 1
         sendCommand(pid)
@@ -453,22 +503,11 @@ extension OBDManager: CBPeripheralDelegate {
             }
         }
 
-        // Sobald TX und RX gefunden wurden, genau 1x initialisieren
+        // Sobald TX und RX gefunden wurden, genau 1x Initialisierung starten
         if txChar != nil && rxChar != nil && connectionState == .initializing && !isInitializingUART {
             isInitializingUART = true
-            log("GATT UART bereit. Sende ELM327 Init-Sequenz…")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.sendCommand("ATZ")   // Reset
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self?.sendCommand("ATE0")  // Echo off
-                    self?.sendCommand("ATL0")  // Linefeeds off
-                    self?.sendCommand("ATSP0") // Auto Protocol (KWP2000 ISO 9141 / CAN)
-                    self?.connectionState = .connected
-                    self?.isInitializingUART = false
-                    self?.log("ELM327 initialisiert. Starte PID-Abfragen.")
-                    self?.startPolling()
-                }
-            }
+            log("GATT UART bereit. Starte ELM327 Initialisierungs-Warteschlange…")
+            startInitSequence()
         }
     }
 
@@ -484,7 +523,14 @@ extension OBDManager: CBPeripheralDelegate {
         if receiveBuffer.contains(">") {
             let fullMsg = receiveBuffer
             receiveBuffer = ""
-            parseResponse(fullMsg)
+            isWaitingForResponse = false
+
+            if connectionState == .initializing {
+                // Nächsten Initialisierungs-Befehl senden
+                sendNextInitCommand()
+            } else {
+                parseResponse(fullMsg)
+            }
         }
     }
 }

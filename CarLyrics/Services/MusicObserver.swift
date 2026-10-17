@@ -478,21 +478,22 @@ public final class MusicObserver: ObservableObject {
                     oilTemp = estimatedOil
                     isEngineWarm = estimatedOil >= 80
                 } else {
-                    oilTemp = nil
+                    oilTemp = wm?.oilTempInt ?? 20
                     isEngineWarm = false
                 }
-                effectiveBoost = obd.liveBoostBar
-                effectiveCoolant = obd.liveCoolantTemp
-                effectiveIAT = obd.liveIAT
-                effectiveMAF = obd.liveMAF
+                effectiveBoost = obd.liveBoostBar ?? 0.0
+                effectiveCoolant = obd.liveCoolantTemp ?? (wm?.oilTempInt.map { max(20, $0 + 10) } ?? 30)
+                effectiveIAT = obd.liveIAT ?? 20
+                effectiveMAF = obd.liveMAF ?? 3.5
             } else {
-                // OBD ist aktiviert, aber noch nicht verbunden oder wartet auf Daten -> direkt "--"
-                oilTemp = nil
-                isEngineWarm = false
-                effectiveBoost = nil
-                effectiveCoolant = nil
-                effectiveIAT = nil
-                effectiveMAF = nil
+                // Solange OBD noch sucht oder verbindet: Sanfter Übergang mit Standby-Werten
+                let simOil = wm?.oilTempInt ?? 20
+                oilTemp = simOil
+                isEngineWarm = wm?.isEngineWarm ?? false
+                effectiveBoost = 0.0
+                effectiveCoolant = simOil > 70 ? 90 : max(20, simOil + 10)
+                effectiveIAT = 20
+                effectiveMAF = 3.5
             }
         } else {
             // Reines TFSI Simulationsmodell
