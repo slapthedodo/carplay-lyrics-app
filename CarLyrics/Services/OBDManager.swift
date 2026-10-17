@@ -127,8 +127,8 @@ public final class OBDManager: NSObject, ObservableObject {
         }
         connectionState = .scanning
         log("Starte BLE-Scan nach ELM327 / OBDII…")
-        // Scan nach bekannten UUIDs oder generell nach Geräten mit Namen
-        centralManager.scanForPeripherals(withServices: nil, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        // Scan nach bekannten UUIDs (erforderlich für Hintergrund-Betrieb)
+        centralManager.scanForPeripherals(withServices: serviceUUIDs, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
     public func stopScan() {
@@ -162,12 +162,14 @@ public final class OBDManager: NSObject, ObservableObject {
 
     private func startPolling() {
         pollTimer?.invalidate()
-        // Fragt alle 500ms abwechselnd Öltemperatur, Kühlmittel und Drehzahl ab
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // Fragt alle 500ms abwechselnd Öltemperatur, Kühlmittel und Drehzahl ab (auch bei minimierter App)
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.pollNextPID()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
     }
 
     private func pollNextPID() {

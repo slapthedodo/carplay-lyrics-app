@@ -281,6 +281,7 @@ struct SettingsTab: View {
                                     await observer.endAllLiveActivities()
                                     BackgroundKeepAliveManager.shared.stop()
                                     MotionManager.shared.stop()
+                                    WarmupManager.shared.stop()
                                 }
                             } label: {
                                 Label("Jetzt beenden (Aus)", systemImage: "stop.circle.fill")
@@ -292,6 +293,7 @@ struct SettingsTab: View {
                                 Task {
                                     BackgroundKeepAliveManager.shared.start()
                                     MotionManager.shared.start()
+                                    WarmupManager.shared.start()
                                     await observer.reattachOrCreateLiveActivity()
                                     observer.startTelemetryHeartbeat()
                                 }

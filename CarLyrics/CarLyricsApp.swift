@@ -28,11 +28,13 @@ struct CarLyricsApp: App {
                 await MusicObserver.shared.endAllLiveActivities()
                 BackgroundKeepAliveManager.shared.stop()
                 MotionManager.shared.stop()
+                WarmupManager.shared.stop()
             }
         } else if host == "start" || host == "start-live-activity" || path.contains("start") {
             Task { @MainActor in
                 BackgroundKeepAliveManager.shared.start()
                 MotionManager.shared.start()
+                WarmupManager.shared.start()
                 await MusicObserver.shared.reattachOrCreateLiveActivity()
                 MusicObserver.shared.startTelemetryHeartbeat()
             }
@@ -42,9 +44,11 @@ struct CarLyricsApp: App {
                     await MusicObserver.shared.endAllLiveActivities()
                     BackgroundKeepAliveManager.shared.stop()
                     MotionManager.shared.stop()
+                    WarmupManager.shared.stop()
                 } else {
                     BackgroundKeepAliveManager.shared.start()
                     MotionManager.shared.start()
+                    WarmupManager.shared.start()
                     await MusicObserver.shared.reattachOrCreateLiveActivity()
                     MusicObserver.shared.startTelemetryHeartbeat()
                 }
@@ -68,6 +72,7 @@ public struct StartDynamicIslandIntent: AppIntent {
     public func perform() async throws -> some IntentResult {
         BackgroundKeepAliveManager.shared.start()
         MotionManager.shared.start()
+        WarmupManager.shared.start()
         await MusicObserver.shared.reattachOrCreateLiveActivity()
         MusicObserver.shared.startTelemetryHeartbeat()
         return .result()
@@ -86,6 +91,7 @@ public struct StopDynamicIslandIntent: AppIntent {
         await MusicObserver.shared.endAllLiveActivities()
         BackgroundKeepAliveManager.shared.stop()
         MotionManager.shared.stop()
+        WarmupManager.shared.stop()
         return .result()
     }
 }
@@ -103,9 +109,11 @@ public struct ToggleDynamicIslandIntent: AppIntent {
             await MusicObserver.shared.endAllLiveActivities()
             BackgroundKeepAliveManager.shared.stop()
             MotionManager.shared.stop()
+            WarmupManager.shared.stop()
         } else {
             BackgroundKeepAliveManager.shared.start()
             MotionManager.shared.start()
+            WarmupManager.shared.start()
             await MusicObserver.shared.reattachOrCreateLiveActivity()
             MusicObserver.shared.startTelemetryHeartbeat()
         }

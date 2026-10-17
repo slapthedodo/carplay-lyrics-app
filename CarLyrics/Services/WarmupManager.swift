@@ -57,6 +57,26 @@ public final class WarmupManager: ObservableObject {
     private var didFireWarmHaptic  : Bool = false
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Init
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public init() {
+        let savedTime = UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
+        let savedTemp = UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
+        let now = Date().timeIntervalSince1970
+        // Falls die letzte Fahrt vor weniger als 45 Minuten gestartet wurde: Session nahtlos fortsetzen!
+        if savedTime > 0 && (now - savedTime) < 2700 {
+            self.startedAt = Date(timeIntervalSince1970: savedTime)
+            self.startTemp = savedTemp > 0 ? savedTemp : 20
+            self.isRunning = true
+            resumeTimer()
+        } else {
+            // Frischer Kaltstart
+            start(cold: true)
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MARK: Public API
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -80,10 +100,20 @@ public final class WarmupManager: ObservableObject {
         startedAt         = Date()
         isRunning         = true
 
+        // Dauerhaft sichern, damit die Temperatur auch bei minimierter oder beendeter App exakt weiterläuft
+        UserDefaults.standard.set(startedAt!.timeIntervalSince1970, forKey: "carlyrics_warmup_started_at")
+        UserDefaults.standard.set(startTemp, forKey: "carlyrics_warmup_start_temp")
+
+        resumeTimer()
+    }
+
+    private func resumeTimer() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
 
     public func reset() {
@@ -95,6 +125,11 @@ public final class WarmupManager: ObservableObject {
         warmupProgress = 0
         isEngineWarm   = false
         phase          = phaseFor(temp: startTemp)
+        UserDefaults.standard.removeObject(forKey: "carlyrics_warmup_started_at")
+    }
+
+    public func stop() {
+        reset()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -154,7 +189,14 @@ public final class WarmupManager: ObservableObject {
     // MARK: Formatted helpers for UI
     // ─────────────────────────────────────────────────────────────────────────
 
-    public var oilTempInt: Int { Int(oilTemp.rounded()) }
+    public var currentOilTemp: Double {
+        guard isRunning, let startedAt else { return startTemp }
+        let t = Date().timeIntervalSince(startedAt)
+        let newTemp = targetTemp - (targetTemp - startTemp) * exp(-lambda * t)
+        return min(newTemp, targetTemp)
+    }
+
+    public var oilTempInt: Int { Int(currentOilTemp.rounded()) }
 
     public var elapsedFormatted: String {
         let mins = Int(elapsedSeconds) / 60
