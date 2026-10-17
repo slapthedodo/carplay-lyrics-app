@@ -63,9 +63,12 @@ public final class MotionManager: ObservableObject {
 
     private var rawSampleCount: Int = 0
 
+    public var onGChange: ((_ currentG: Double, _ peakG: Double) -> Void)?
+    private var lastNotifiedG: Double = 0
+
     public func start() {
         guard motion.isDeviceMotionAvailable, !isActive else { return }
-        motion.deviceMotionUpdateInterval = 0.05   // 20 Hz – ultraschnelle Reaktion
+        motion.deviceMotionUpdateInterval = 0.04   // 25 Hz – ultraschnelle Reaktion
         rawSampleCount = 0
         motion.startDeviceMotionUpdates(
             using: .xArbitraryZVertical,
@@ -74,7 +77,7 @@ public final class MotionManager: ObservableObject {
             guard let self, let data else { return }
             Task { @MainActor in 
                 self.process(data)
-                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (ca. 0.75 Sekunden)
+                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (ca. 0.6 Sekunden)
                 if self.rawSampleCount < 15 {
                     self.rawSampleCount += 1
                     if self.rawSampleCount == 15 {
@@ -126,9 +129,18 @@ public final class MotionManager: ObservableObject {
         gY = min(limit, max(-limit, calY))
         currentG = clampedCombined
 
+        let prevPeak = peakG
         // Peak tracking – bis zum konfigurierten Limit
         if clampedCombined > peakG {
             peakG = clampedCombined
+        }
+
+        // Schnelle Benachrichtigung bei G-Kraft-Änderungen >= 0.03 G oder neuem Peak
+        let delta = abs(clampedCombined - lastNotifiedG)
+        let peakChanged = peakG > prevPeak
+        if delta >= 0.03 || peakChanged {
+            lastNotifiedG = clampedCombined
+            onGChange?(clampedCombined, peakG)
         }
     }
 }

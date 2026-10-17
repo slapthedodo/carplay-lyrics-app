@@ -91,6 +91,18 @@ public final class MusicObserver: ObservableObject {
     private var lastSentG              : Double = 0
     private var isUpdatingActivity     : Bool   = false
     private var pendingActivityUpdate  : Bool   = false
+    private var lastWidgetReloadTime   : Date   = .distantPast
+
+    /// Intelligenter Widget-Reload: Schont Apples tägliches WidgetKit-Reload-Budget (40-70 Aufrufe/Tag),
+    /// damit Widgets NIEMALS einfrieren, aber bei Trackwechsel sofort aktualisieren.
+    public func scheduleWidgetReload(force: Bool = false) {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastWidgetReloadTime)
+        if force || elapsed >= 25.0 {
+            lastWidgetReloadTime = now
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -114,6 +126,14 @@ public final class MusicObserver: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // CoreMotion starten & ultraschnelle G-Kraft-Benachrichtigung einhängen
+        MotionManager.shared.start()
+        MotionManager.shared.onGChange = { [weak self] currentG, peakG in
+            Task { @MainActor [weak self] in
+                self?.handleFastGForceChange(currentG: currentG, peakG: peakG)
+            }
+        }
+
         // Initialer Check
         if !spotify.isAuthenticated {
             syncSystemItem()
@@ -121,6 +141,17 @@ public final class MusicObserver: ObservableObject {
 
         // Live Activity & Telemetrie-Heartbeat sofort starten (immer sichtbar)
         startTelemetryHeartbeat()
+    }
+
+    private func handleFastGForceChange(currentG: Double, peakG: Double) {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastActivityUpdate)
+        // 120ms Mindestabstand (ermöglicht blitzschnelle, flüssige Dynamic Island G-Kraft Reaktion)
+        if elapsed >= 0.12 {
+            pushActivityUpdate(force: true)
+        } else if !pendingActivityUpdate {
+            pendingActivityUpdate = true
+        }
     }
 
     deinit {
@@ -152,8 +183,9 @@ public final class MusicObserver: ObservableObject {
             currentLine       = ""
             nextLine          = ""
 
-            // Dynamic Island sofort mit dem neuen Songtitel aktualisieren
+            // Dynamic Island & Kacheln sofort mit neuem Track aktualisieren
             pushActivityUpdate(force: true)
+            scheduleWidgetReload(force: true)
 
             Task {
                 await loadLyrics(title: title, artist: artist, album: spotify.albumName, duration: spotify.durationSeconds)
@@ -187,6 +219,7 @@ public final class MusicObserver: ObservableObject {
         nextLine          = ""
 
         pushActivityUpdate(force: true)
+        scheduleWidgetReload(force: true)
         Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
     }
 
@@ -220,6 +253,7 @@ public final class MusicObserver: ObservableObject {
             isPlaying = systemPlayer.playbackState == .playing
             isPlaying ? startLineTimer() : stopLineTimer()
             pushActivityUpdate(force: false)
+            scheduleWidgetReload(force: true)
         }
     }
 
@@ -277,8 +311,8 @@ public final class MusicObserver: ObservableObject {
 
     public func startTelemetryHeartbeat() {
         telemetryTimer?.invalidate()
-        // Aktualisiert alle 2 Sekunden Motordaten und G-Kräfte, ohne Apples Rate-Limit zu verletzen
-        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
+        // Aktualisiert regelmäßig Motordaten & Widgets im Hintergrund
+        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.activeActivity == nil {
@@ -286,6 +320,8 @@ public final class MusicObserver: ObservableObject {
                 } else {
                     self.pushActivityUpdate(force: false)
                 }
+                // Widgets im Hintergrund schonend aktualisieren (max alle 25 Sekunden)
+                self.scheduleWidgetReload(force: false)
             }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -335,8 +371,8 @@ public final class MusicObserver: ObservableObject {
         let currentGVal = motionManager?.currentG ?? 0
         let gDelta = abs(currentGVal - lastSentG)
 
-        // Wenn G-Kraft sich spürbar ändert (>0.06G) und min 0.35s vergangen sind:
-        if gDelta >= 0.06 && elapsed >= 0.35 {
+        // Wenn G-Kraft sich spürbar ändert (>0.03G) und min 0.12s vergangen sind:
+        if gDelta >= 0.03 && elapsed >= 0.12 {
             lastSentG = currentGVal
             pushActivityUpdate(force: true)
         }
@@ -350,10 +386,10 @@ public final class MusicObserver: ObservableObject {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
-        // Apple Rate-Limit Schutz mit FrequentUpdates:
-        // Bei Songtext-Zeilenwechsel & G-Kraft Peaks: min 0.25s Abstand
-        // Bei reinem Telemetrie-Update: min 0.8s Abstand
-        let minAllowed = force ? 0.25 : 0.8
+        // Apple Rate-Limit Schutz:
+        // Bei Songtext-Zeilenwechsel & G-Kraft Peaks: min 0.12s Abstand (flüssige 8 Hz Updates)
+        // Bei reinem Telemetrie-Heartbeat: min 0.8s Abstand
+        let minAllowed = force ? 0.12 : 0.8
         if !force && elapsed < minAllowed {
             return
         }
@@ -372,8 +408,9 @@ public final class MusicObserver: ObservableObject {
                 self.isUpdatingActivity = false
                 if self.pendingActivityUpdate {
                     self.pendingActivityUpdate = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        self.pushActivityUpdate(force: true)
+                    // Sofort ohne künstliche 0.35s Verzögerung nachschieben!
+                    Task { @MainActor [weak self] in
+                        self?.pushActivityUpdate(force: true)
                     }
                 }
             }
@@ -524,46 +561,6 @@ public final class MusicObserver: ObservableObject {
         let progressVal = wm?.warmupProgress ?? 0
         let phaseVal    = wm?.phase ?? .cold
 
-        // Werte für Home- & Sperrbildschirm-Widgets speichern (sowohl standard als auch AppGroup)
-        let groupDefaults = UserDefaults(suiteName: "group.com.carlyrics")
-        let def = UserDefaults.standard
-
-        if let oilTemp {
-            def.set(oilTemp, forKey: "widget_oil_temp")
-            groupDefaults?.set(oilTemp, forKey: "widget_oil_temp")
-        } else {
-            def.removeObject(forKey: "widget_oil_temp")
-            groupDefaults?.removeObject(forKey: "widget_oil_temp")
-        }
-        if let effectiveBoost {
-            def.set(effectiveBoost, forKey: "widget_boost_bar")
-            groupDefaults?.set(effectiveBoost, forKey: "widget_boost_bar")
-        } else {
-            def.removeObject(forKey: "widget_boost_bar")
-            groupDefaults?.removeObject(forKey: "widget_boost_bar")
-        }
-        if let effectiveCoolant {
-            def.set(effectiveCoolant, forKey: "widget_coolant_temp")
-            groupDefaults?.set(effectiveCoolant, forKey: "widget_coolant_temp")
-        } else {
-            def.removeObject(forKey: "widget_coolant_temp")
-            groupDefaults?.removeObject(forKey: "widget_coolant_temp")
-        }
-        if let mm {
-            def.set(mm.currentG, forKey: "widget_current_g")
-            groupDefaults?.set(mm.currentG, forKey: "widget_current_g")
-            def.set(mm.peakG, forKey: "widget_peak_g")
-            groupDefaults?.set(mm.peakG, forKey: "widget_peak_g")
-        }
-        if let effectiveIAT {
-            def.set(effectiveIAT, forKey: "widget_iat")
-            groupDefaults?.set(effectiveIAT, forKey: "widget_iat")
-        }
-        if let effectiveMAF {
-            def.set(effectiveMAF, forKey: "widget_maf")
-            groupDefaults?.set(effectiveMAF, forKey: "widget_maf")
-        }
-
         let cleanTitle = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
         let cleanArtist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
         let cleanLyric = currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine
@@ -571,32 +568,33 @@ public final class MusicObserver: ObservableObject {
         let curStr = Self.formatTime(currentPlaybackTime)
         let totStr = duration > 0 ? Self.formatTime(duration) : (currentPlaybackTime > 0 ? Self.formatTime(currentPlaybackTime + 180) : "3:45")
 
-        def.set(cleanTitle, forKey: "widget_song_title")
-        groupDefaults?.set(cleanTitle, forKey: "widget_song_title")
-        def.set(cleanArtist, forKey: "widget_artist")
-        groupDefaults?.set(cleanArtist, forKey: "widget_artist")
-        def.set(previousLine2, forKey: "widget_prev_line2")
-        groupDefaults?.set(previousLine2, forKey: "widget_prev_line2")
-        def.set(previousLine, forKey: "widget_prev_line")
-        groupDefaults?.set(previousLine, forKey: "widget_prev_line")
-        def.set(cleanLyric, forKey: "widget_current_line")
-        groupDefaults?.set(cleanLyric, forKey: "widget_current_line")
-        def.set(nextLine, forKey: "widget_next_line")
-        groupDefaults?.set(nextLine, forKey: "widget_next_line")
-        def.set(nextLine2, forKey: "widget_next_line2")
-        groupDefaults?.set(nextLine2, forKey: "widget_next_line2")
-        def.set(curStr, forKey: "widget_cur_time_str")
-        groupDefaults?.set(curStr, forKey: "widget_cur_time_str")
-        def.set(totStr, forKey: "widget_tot_time_str")
-        groupDefaults?.set(totStr, forKey: "widget_tot_time_str")
-        def.set(progress, forKey: "widget_song_progress")
-        groupDefaults?.set(progress, forKey: "widget_song_progress")
-        def.set(phaseVal.rawValue, forKey: "widget_warmup_phase")
-        groupDefaults?.set(phaseVal.rawValue, forKey: "widget_warmup_phase")
-        def.set(progressVal, forKey: "widget_warmup_progress")
-        groupDefaults?.set(progressVal, forKey: "widget_warmup_progress")
-
-        WidgetCenter.shared.reloadAllTimelines()
+        // Zentral in App-Group UserDefaults & Shared JSON Container speichern
+        let sharedData = TelemetrySharedData(
+            oilTemp: oilTemp,
+            coolantTemp: effectiveCoolant,
+            boostBar: effectiveBoost,
+            currentG: mm?.currentG ?? 0,
+            peakG: mm?.peakG ?? 0,
+            iat: effectiveIAT,
+            maf: effectiveMAF,
+            phase: phaseVal,
+            warmupProgress: progressVal,
+            songTitle: cleanTitle,
+            artist: cleanArtist,
+            previousLine2: previousLine2,
+            previousLine: previousLine,
+            currentLine: cleanLyric,
+            nextLine: nextLine,
+            nextLine2: nextLine2,
+            currentTimeStr: curStr,
+            totalTimeStr: totStr,
+            progress: progress,
+            isPlaying: isPlaying,
+            sessionStartTime: UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at"),
+            sessionStartTemp: UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp"),
+            updatedAt: Date()
+        )
+        TelemetrySharedStore.save(sharedData)
 
         return LyricsAttributes.ContentState(
             currentLine    : currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine,

@@ -27,6 +27,12 @@ struct CarLyricsApp: App {
     init() {
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         WarmupManager.shared.requestNotificationPermission()
+
+        // Services & Sensoren direkt bei App-Start aktivieren (sowohl Vorder- als auch Hintergrund/CarPlay)
+        MotionManager.shared.start()
+        WarmupManager.shared.start()
+        BackgroundKeepAliveManager.shared.start()
+        _ = MusicObserver.shared
     }
 
     var body: some Scene {

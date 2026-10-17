@@ -42,62 +42,12 @@ public final class WarmupManager: ObservableObject {
     // MARK: Seasonal & Monthly Safety Profile (EA113 BWA 2.0 TFSI)
     // ─────────────────────────────────────────────────────────────────────────
 
-    public struct SeasonalProfile {
-        public let ambientTemp          : Double   // Konservative Starttemperatur
-        public let lambda               : Double   // Konservativer Aufheizkoeffizient
-        public let estimatedMinutesTo80 : Int      // Warmfahrzeit in Minuten
-        public let seasonName           : String   // z.B. "Tiefwinter (Frost)"
-    }
+    public typealias SeasonalProfile = WarmupCalculator.SeasonalProfile
 
     /// Liefert das exakte Monats- und Sicherheits-Profil für mitteleuropäisches Klima
     /// Kalibriert nach der Devise: Eher etwas zu lange warmfahren als zu kurz (Turbo- & Motorschutz).
     public static func profileForCurrentDate(date: Date = Date()) -> SeasonalProfile {
-        let calendar = Calendar.current
-        let month = calendar.component(.month, from: date)
-        let hour = calendar.component(.hour, from: date)
-        let isNightOrEarlyMorning = (hour < 8 || hour >= 22)
-        let nightOffset: Double = isNightOrEarlyMorning ? -2.0 : 0.0
-
-        switch month {
-        case 1:  // Januar: Tiefwinter, harter Frost (ca. 19-20 Min bis 80°C)
-            let base = 2.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(-5.0, base), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Tiefwinter (Frostschutz)")
-        case 2:  // Februar: Spätwinter, oft noch Schnee & Salz (ca. 18-19 Min)
-            let base = 3.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(-4.0, base), lambda: 0.0020, estimatedMinutesTo80: 19, seasonName: "Spätwinter")
-        case 3:  // März: Vorfrühling, kalte Nächte & Morgen (ca. 17 Min)
-            let base = 6.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(0.0, base), lambda: 0.00215, estimatedMinutesTo80: 17, seasonName: "Vorfrühling (Kaltphase)")
-        case 4:  // April: Typischer wechselhafter Frühling (ca. 15-16 Min)
-            let base = 9.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(3.0, base), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Frühling")
-        case 5:  // Mai: Milder Frühling (ca. 14-15 Min)
-            let base = 14.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(8.0, base), lambda: 0.00245, estimatedMinutesTo80: 14, seasonName: "Milder Frühling")
-        case 6:  // Juni: Frühsommer (ca. 13-14 Min)
-            let base = 18.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(12.0, base), lambda: 0.0026, estimatedMinutesTo80: 13, seasonName: "Frühsommer")
-        case 7:  // Juli: Hochsommer (ca. 12-13 Min)
-            let base = 21.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(15.0, base), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
-        case 8:  // August: Hochsommer (ca. 12-13 Min)
-            let base = 20.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(14.0, base), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
-        case 9:  // September: Spätsommer / Frühherbst (ca. 14 Min)
-            let base = 15.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(9.0, base), lambda: 0.0025, estimatedMinutesTo80: 14, seasonName: "Spätsommer")
-        case 10: // Oktober: Herbst, deutlich kühlere Tage (ca. 15-16 Min)
-            let base = 9.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(3.0, base), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Herbst")
-        case 11: // November: Spätherbst, nasskalt (ca. 17-18 Min)
-            let base = 5.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(0.0, base), lambda: 0.0021, estimatedMinutesTo80: 18, seasonName: "Spätherbst (Nasskalt)")
-        case 12: // Dezember: Winterbeginn & Frost (ca. 19-20 Min)
-            let base = 2.0 + nightOffset
-            return SeasonalProfile(ambientTemp: max(-5.0, base), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Winterbeginn")
-        default:
-            return SeasonalProfile(ambientTemp: 10.0, lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Standard")
-        }
+        WarmupCalculator.profileForCurrentDate(date: date)
     }
 
     public var currentProfile: SeasonalProfile {
@@ -173,6 +123,8 @@ public final class WarmupManager: ObservableObject {
         // Dauerhaft sichern, damit die Temperatur auch bei minimierter oder beendeter App exakt weiterläuft
         UserDefaults.standard.set(startedAt!.timeIntervalSince1970, forKey: "carlyrics_warmup_started_at")
         UserDefaults.standard.set(startTemp, forKey: "carlyrics_warmup_start_temp")
+        UserDefaults(suiteName: "group.com.carlyrics")?.set(startedAt!.timeIntervalSince1970, forKey: "carlyrics_warmup_started_at")
+        UserDefaults(suiteName: "group.com.carlyrics")?.set(startTemp, forKey: "carlyrics_warmup_start_temp")
 
         resumeTimer()
     }
@@ -198,6 +150,7 @@ public final class WarmupManager: ObservableObject {
         didSendWarmNotification = false
         phase                   = phaseFor(temp: startTemp)
         UserDefaults.standard.removeObject(forKey: "carlyrics_warmup_started_at")
+        UserDefaults(suiteName: "group.com.carlyrics")?.removeObject(forKey: "carlyrics_warmup_started_at")
     }
 
     public func stop() {
@@ -213,19 +166,7 @@ public final class WarmupManager: ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     public func calculateOilTemp(at t: TimeInterval, from sTemp: Double) -> Double {
-        guard t > 0 else { return sTemp }
-        let baseLambda = lambda
-        // Thermische Trägheit des 85kg Grauguss-Blocks (EA113 BWA):
-        // In den ersten 120 Sekunden absorbiert der schwere Block die Verbrennungswärme,
-        // das Öl in der Wanne hinkt hinterher. Wir dämpfen das Lambda für die ersten 2 Minuten sanft ab.
-        let effectiveLambda: Double
-        if t < 120 {
-            effectiveLambda = baseLambda * (0.6 + 0.4 * (t / 120.0))
-        } else {
-            effectiveLambda = baseLambda
-        }
-        let newTemp = targetTemp - (targetTemp - sTemp) * exp(-effectiveLambda * t)
-        return min(max(newTemp, sTemp), targetTemp)
+        WarmupCalculator.calculateOilTemp(at: t, from: sTemp, targetTemp: targetTemp, lambda: lambda)
     }
 
     private func tick() {

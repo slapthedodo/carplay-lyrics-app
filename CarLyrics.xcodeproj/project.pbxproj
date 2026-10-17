@@ -119,6 +119,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "CarLyrics/CarLyrics.entitlements";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2;
@@ -142,6 +143,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "CarLyrics/CarLyrics.entitlements";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2;
@@ -165,6 +167,7 @@
 		97C1A0052A000001 /* Debug – WidgetExtension */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "CarLyricsWidgetExtension/CarLyricsWidgetExtension.entitlements";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2;
@@ -191,6 +194,7 @@
 		97C1A0062A000001 /* Release – WidgetExtension */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "CarLyricsWidgetExtension/CarLyricsWidgetExtension.entitlements";
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2;
@@ -232,11 +236,13 @@
 		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = SpotifyManager.swift;             sourceTree = "<group>"; };
 		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = OBDManager.swift;                 sourceTree = "<group>"; };
 		97C1B00D2A000001 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets;             path = Assets.xcassets;                  sourceTree = "<group>"; };
+		97C1B00E2A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = "CarLyrics.entitlements"; path = "CarLyrics.entitlements"; sourceTree = "<group>"; };
 
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift;   path = CarLyricsWidgetBundle.swift;      sourceTree = "<group>"; };
 		97C1C0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsActivityWidget.swift;    path = LyricsActivityWidget.swift;       sourceTree = "<group>"; };
 		97C1C0032A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
+		97C1C0042A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = "CarLyricsWidgetExtension.entitlements"; path = "CarLyricsWidgetExtension.entitlements"; sourceTree = "<group>"; };
 
 		/* Products */
 		97C1D0012A000001 = { isa = PBXFileReference; explicitFileType = wrapper.application;      includeInIndex = 0; path = CarLyrics.app;                  sourceTree = BUILT_PRODUCTS_DIR; };
@@ -370,6 +376,7 @@
 				97C1B0012A000001,
 				97C1B0072A000001,
 				97C1B00D2A000001, /* Assets.xcassets */
+				97C1B00E2A000001, /* CarLyrics.entitlements */
 				97C1F0022A000001, /* Models */
 				97C1F0032A000001, /* Services */
 				97C1F0042A000001, /* Views */
@@ -418,6 +425,7 @@
 				97C1C0012A000001,
 				97C1C0022A000001,
 				97C1C0032A000001,
+				97C1C0042A000001, /* CarLyricsWidgetExtension.entitlements */
 			);
 			name = CarLyricsWidgetExtension;
 			path = CarLyricsWidgetExtension;

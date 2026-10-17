@@ -635,87 +635,88 @@ struct TelemetryTimelineProvider: TimelineProvider {
             maf            : 142.0,
             phase          : .ready,
             warmupProgress : 1.0,
-            songTitle      : "Bohemian Rhapsody",
-            artist         : "Queen",
-            previousLine2  : "Mama, life had just begun...",
-            previousLine   : "Too late, my time has come...",
-            currentLine    : "Is this the real life? Is this just fantasy?",
-            nextLine       : "Caught in a landslide, no escape from reality...",
-            nextLine2      : "Open your eyes, look up to the skies and see...",
-            currentTimeStr : "1:12",
-            totalTimeStr   : "5:55",
-            progress       : 0.35
+            songTitle      : "TFSI Telemetrie",
+            artist         : "CarLyrics Cockpit",
+            previousLine2  : "",
+            previousLine   : "",
+            currentLine    : "Bereit zur Fahrt",
+            nextLine       : "",
+            nextLine2      : "",
+            currentTimeStr : "0:00",
+            totalTimeStr   : "0:00",
+            progress       : 0.0
         )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TelemetryEntry) -> Void) {
-        completion(placeholder(in: context))
+        let storeData = TelemetrySharedStore.load()
+        completion(makeEntry(from: storeData, at: Date()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TelemetryEntry>) -> Void) {
-        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
-        let def = UserDefaults.standard
+        let storeData = TelemetrySharedStore.load()
+        let now = Date()
 
-        let tempObj = appGroup?.object(forKey: "widget_oil_temp") ?? def.object(forKey: "widget_oil_temp")
-        let displayTemp: Int = (tempObj as? Int) ?? 85
+        // Dynamische Timeline für die nächsten 15 Minuten (im 1-Minuten-Takt):
+        // So läuft die Aufwärmkurve auch dann stetig weiter, wenn das iPhone im Ruhezustand ist!
+        var entries: [TelemetryEntry] = []
+        for minute in 0...15 {
+            let entryDate = now.addingTimeInterval(Double(minute * 60))
+            let entry = makeEntry(from: storeData, at: entryDate, additionalElapsed: Double(minute * 60))
+            entries.append(entry)
+        }
 
-        let boostObj = appGroup?.object(forKey: "widget_boost_bar") ?? def.object(forKey: "widget_boost_bar")
-        let displayBoost: Double = (boostObj as? Double) ?? 1.20
+        let timeline = Timeline(entries: entries, policy: .after(now.addingTimeInterval(60 * 10)))
+        completion(timeline)
+    }
 
-        let waterObj = appGroup?.object(forKey: "widget_coolant_temp") ?? def.object(forKey: "widget_coolant_temp")
-        let displayWater: Int = (waterObj as? Int) ?? (displayTemp >= 70 ? 90 : max(20, displayTemp + 10))
+    private func makeEntry(from data: TelemetrySharedData, at date: Date, additionalElapsed: TimeInterval = 0) -> TelemetryEntry {
+        let displayTemp: Int
+        let displayWater: Int
+        let phase: WarmupPhase
+        let warmupProgress: Double
 
-        let gObj = appGroup?.object(forKey: "widget_current_g") ?? def.object(forKey: "widget_current_g")
-        let displayG: Double = (gObj as? Double) ?? 0.90
+        if let liveOil = data.oilTemp, liveOil > 0 {
+            displayTemp = liveOil
+            displayWater = data.coolantTemp ?? (liveOil >= 70 ? 90 : max(20, liveOil + 10))
+            phase = data.phase
+            warmupProgress = data.warmupProgress
+        } else {
+            // Live dynamische Simulation
+            let profile = WarmupCalculator.profileForCurrentDate(date: date)
+            let sTemp = data.sessionStartTemp > -20 ? data.sessionStartTemp : profile.ambientTemp
+            let baseElapsed = data.sessionStartTime > 0 ? max(0, date.timeIntervalSince1970 - data.sessionStartTime) : 0
+            let totalElapsed = baseElapsed + additionalElapsed
 
-        let peakGObj = appGroup?.object(forKey: "widget_peak_g") ?? def.object(forKey: "widget_peak_g")
-        let displayPeakG: Double = (peakGObj as? Double) ?? 1.25
+            let calcOil = WarmupCalculator.calculateOilTemp(at: totalElapsed, from: sTemp)
+            displayTemp = Int(calcOil.rounded())
+            displayWater = displayTemp >= 70 ? 90 : max(20, displayTemp + 10)
+            phase = WarmupCalculator.phaseFor(temp: calcOil)
+            warmupProgress = WarmupCalculator.warmupProgress(temp: calcOil, startTemp: sTemp)
+        }
 
-        let iatObj = appGroup?.object(forKey: "widget_iat") ?? def.object(forKey: "widget_iat")
-        let displayIAT: Int = (iatObj as? Int) ?? 24
-
-        let mafObj = appGroup?.object(forKey: "widget_maf") ?? def.object(forKey: "widget_maf")
-        let displayMAF: Double = (mafObj as? Double) ?? 142.0
-
-        let songTitle = (appGroup?.string(forKey: "widget_song_title") ?? def.string(forKey: "widget_song_title")) ?? "Bohemian Rhapsody"
-        let artist = (appGroup?.string(forKey: "widget_artist") ?? def.string(forKey: "widget_artist")) ?? "Queen"
-        let prevLine2 = (appGroup?.string(forKey: "widget_prev_line2") ?? def.string(forKey: "widget_prev_line2")) ?? "Mama, life had just begun..."
-        let prevLine = (appGroup?.string(forKey: "widget_prev_line") ?? def.string(forKey: "widget_prev_line")) ?? "Too late, my time has come..."
-        let currentLine = (appGroup?.string(forKey: "widget_current_line") ?? def.string(forKey: "widget_current_line")) ?? "Is this the real life? Is this just fantasy?"
-        let nextLine = (appGroup?.string(forKey: "widget_next_line") ?? def.string(forKey: "widget_next_line")) ?? "Caught in a landslide, no escape from reality..."
-        let nextLine2 = (appGroup?.string(forKey: "widget_next_line2") ?? def.string(forKey: "widget_next_line2")) ?? "Open your eyes, look up to the skies and see..."
-        let curTimeStr = (appGroup?.string(forKey: "widget_cur_time_str") ?? def.string(forKey: "widget_cur_time_str")) ?? "1:12"
-        let totTimeStr = (appGroup?.string(forKey: "widget_tot_time_str") ?? def.string(forKey: "widget_tot_time_str")) ?? "5:55"
-        let progress = (appGroup?.double(forKey: "widget_song_progress") ?? def.double(forKey: "widget_song_progress"))
-
-        let phase: WarmupPhase = displayTemp < 60 ? .cold : (displayTemp < 80 ? .warming : .ready)
-        let warmupProgress = min(max(Double(displayTemp) / 80.0, 0.0), 1.0)
-
-        let entry = TelemetryEntry(
-            date           : Date(),
+        return TelemetryEntry(
+            date           : date,
             oilTemp        : displayTemp,
             coolantTemp    : displayWater,
-            boostBar       : displayBoost,
-            currentG       : displayG,
-            peakG          : displayPeakG,
-            iat            : displayIAT,
-            maf            : displayMAF,
+            boostBar       : data.boostBar,
+            currentG       : data.currentG,
+            peakG          : data.peakG,
+            iat            : data.iat,
+            maf            : data.maf,
             phase          : phase,
             warmupProgress : warmupProgress,
-            songTitle      : songTitle,
-            artist         : artist,
-            previousLine2  : prevLine2,
-            previousLine   : prevLine,
-            currentLine    : currentLine,
-            nextLine       : nextLine,
-            nextLine2      : nextLine2,
-            currentTimeStr : curTimeStr,
-            totalTimeStr   : totTimeStr,
-            progress       : progress > 0 ? progress : 0.35
+            songTitle      : data.songTitle.isEmpty ? "Kein Song aktiv" : data.songTitle,
+            artist         : data.artist.isEmpty ? "Spotify / Musik" : data.artist,
+            previousLine2  : data.previousLine2,
+            previousLine   : data.previousLine,
+            currentLine    : data.currentLine.isEmpty ? "Warte auf Musikwiedergabe…" : data.currentLine,
+            nextLine       : data.nextLine,
+            nextLine2      : data.nextLine2,
+            currentTimeStr : data.currentTimeStr,
+            totalTimeStr   : data.totalTimeStr,
+            progress       : data.progress
         )
-
-        let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60 * 15)))
-        completion(timeline)
     }
 }
 
@@ -1047,32 +1048,21 @@ struct BoostPerformanceWidgetEntryView: View {
             ZStack {
                 Color.black
                 VStack(spacing: 4) {
-                    // Header
-                    HStack {
-                        Text("KACHEL 2: TURBO & AIR")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.cyan)
-                        Spacer()
-                        Text("EA113 TFSI")
-                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.cyan.opacity(0.8))
-                    }
-
                     Spacer(minLength: 1)
 
                     // 1. Oben: Großer Ladedruck & der horizontale Balken
-                    VStack(spacing: 1.5) {
+                    VStack(spacing: 2) {
                         HStack(alignment: .firstTextBaseline, spacing: 3) {
                             Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "0.00")
-                                .font(.system(size: 22, weight: .black, design: .monospaced))
+                                .font(.system(size: 24, weight: .black, design: .monospaced))
                                 .foregroundStyle(.cyan)
                             Text("BAR")
-                                .font(.system(size: 9.5, weight: .black, design: .monospaced))
+                                .font(.system(size: 10, weight: .black, design: .monospaced))
                                 .foregroundStyle(.cyan)
                         }
 
                         Text("LADEDRUCK RELATIV")
-                            .font(.system(size: 6.5, weight: .bold))
+                            .font(.system(size: 7, weight: .bold))
                             .foregroundStyle(.secondary)
 
                         // Horizontaler Ladedruck-Balken bis 1.6 Bar
@@ -1080,7 +1070,7 @@ struct BoostPerformanceWidgetEntryView: View {
                             let boostVal = entry.boostBar ?? 0.0
                             let ratio = min(max(boostVal / 1.6, 0.0), 1.0)
                             ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 5.5)
+                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 6)
                                 Capsule()
                                     .fill(
                                         LinearGradient(
@@ -1089,17 +1079,17 @@ struct BoostPerformanceWidgetEntryView: View {
                                             endPoint: .trailing
                                         )
                                     )
-                                    .frame(width: max(5.5, geo.size.width * ratio), height: 5.5)
+                                    .frame(width: max(6, geo.size.width * ratio), height: 6)
                             }
                         }
-                        .frame(height: 5.5)
+                        .frame(height: 6)
 
                         HStack {
-                            Text("0.0").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                            Text("0.0").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
                             Spacer()
-                            Text("0.8").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                            Text("0.8").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
                             Spacer()
-                            Text("1.6 BAR").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                            Text("1.6 BAR").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
                         }
                     }
 
@@ -1108,21 +1098,23 @@ struct BoostPerformanceWidgetEntryView: View {
                     Divider().overlay(Color.white.opacity(0.15))
 
                     // 2. Unten: Ansaugluft & Luftmasse ALS ECHTE RUNDE KUGELN!
-                    HStack(spacing: 18) {
-                        VStack(spacing: 1.5) {
-                            IATGaugeBadge(iat: entry.iat, size: 44)
+                    HStack(spacing: 20) {
+                        VStack(spacing: 2) {
+                            IATGaugeBadge(iat: entry.iat, size: 46)
                             Text("ANSAUG")
-                                .font(.system(size: 7.5, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
                         }
 
-                        VStack(spacing: 1.5) {
-                            MAFGaugeBadge(maf: entry.maf, size: 44)
+                        VStack(spacing: 2) {
+                            MAFGaugeBadge(maf: entry.maf, size: 46)
                             Text("MASSE")
-                                .font(.system(size: 7.5, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.white.opacity(0.8))
                         }
                     }
+
+                    Spacer(minLength: 1)
                 }
                 .padding(10)
             }
@@ -1432,40 +1424,29 @@ struct TelemetryWidgetEntryView: View {
             ZStack {
                 Color.black
                 VStack(spacing: 4) {
-                    // Header
-                    HStack {
-                        Text("KACHEL 1: THERMIK & G")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                        Spacer()
-                        Text("LIVE OBD")
-                            .font(.system(size: 7.5, weight: .bold))
-                            .foregroundStyle(.green)
-                    }
+                    Spacer(minLength: 1)
 
-                    Spacer(minLength: 2)
-
-                    // 1. Oben: Öltemperatur & Kühlwasser nebeneinander (etwas tiefer gesetzt)
-                    HStack(spacing: 18) {
-                        VStack(spacing: 1.5) {
+                    // 1. Oben: Öltemperatur & Kühlwasser nebeneinander
+                    HStack(spacing: 20) {
+                        VStack(spacing: 2) {
                             OilTempBadge(
                                 temp     : entry.oilTemp,
                                 progress : entry.warmupProgress,
                                 phase    : entry.phase,
-                                size     : 44
+                                size     : 46
                             )
                             Text("ÖL")
-                                .font(.system(size: 7.5, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(phaseColor(entry.phase))
                         }
 
-                        VStack(spacing: 1.5) {
+                        VStack(spacing: 2) {
                             CoolantGaugeBadge(
                                 temp : entry.coolantTemp,
-                                size : 44
+                                size : 46
                             )
                             Text("WASSER")
-                                .font(.system(size: 7.5, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
                         }
                     }
@@ -1473,14 +1454,14 @@ struct TelemetryWidgetEntryView: View {
                     Spacer(minLength: 2)
 
                     // 2. Mitte davon: 20% größeres G-Kraft Instrument mit Fadenkreuz & lila Bogen
-                    VStack(spacing: 1) {
+                    VStack(spacing: 1.5) {
                         GForceGaugeBadge(
                             currentG : entry.currentG,
                             maxG     : 1.2,
-                            size     : 64
+                            size     : 66
                         )
                         Text("MOMENTAN")
-                            .font(.system(size: 6.5, weight: .bold))
+                            .font(.system(size: 7, weight: .bold))
                             .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
                     }
 
@@ -1497,6 +1478,8 @@ struct TelemetryWidgetEntryView: View {
                             .font(.system(size: 11, weight: .black, design: .monospaced))
                             .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
                     }
+
+                    Spacer(minLength: 1)
                 }
                 .padding(10)
             }

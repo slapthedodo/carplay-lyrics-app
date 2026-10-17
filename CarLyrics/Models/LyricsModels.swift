@@ -174,3 +174,276 @@ public struct LyricsAttributes: ActivityAttributes {
         )
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Warmup Calculator (EA113 2.0 TFSI Physics & Seasonal Engine)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct WarmupCalculator {
+    public struct SeasonalProfile {
+        public let ambientTemp          : Double   // Konservative Starttemperatur
+        public let lambda               : Double   // Konservativer Aufheizkoeffizient
+        public let estimatedMinutesTo80 : Int      // Warmfahrzeit in Minuten
+        public let seasonName           : String   // z.B. "Tiefwinter (Frost)"
+
+        public init(ambientTemp: Double, lambda: Double, estimatedMinutesTo80: Int, seasonName: String) {
+            self.ambientTemp = ambientTemp
+            self.lambda = lambda
+            self.estimatedMinutesTo80 = estimatedMinutesTo80
+            self.seasonName = seasonName
+        }
+    }
+
+    public static func profileForCurrentDate(date: Date = Date()) -> SeasonalProfile {
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: date)
+        let hour = calendar.component(.hour, from: date)
+        let isNightOrEarlyMorning = (hour < 8 || hour >= 22)
+        let nightOffset: Double = isNightOrEarlyMorning ? -2.0 : 0.0
+
+        switch month {
+        case 1:  return SeasonalProfile(ambientTemp: max(-5.0, 2.0 + nightOffset), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Tiefwinter (Frostschutz)")
+        case 2:  return SeasonalProfile(ambientTemp: max(-4.0, 3.0 + nightOffset), lambda: 0.0020, estimatedMinutesTo80: 19, seasonName: "Spätwinter")
+        case 3:  return SeasonalProfile(ambientTemp: max(0.0, 6.0 + nightOffset), lambda: 0.00215, estimatedMinutesTo80: 17, seasonName: "Vorfrühling (Kaltphase)")
+        case 4:  return SeasonalProfile(ambientTemp: max(3.0, 9.0 + nightOffset), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Frühling")
+        case 5:  return SeasonalProfile(ambientTemp: max(8.0, 14.0 + nightOffset), lambda: 0.00245, estimatedMinutesTo80: 14, seasonName: "Milder Frühling")
+        case 6:  return SeasonalProfile(ambientTemp: max(12.0, 18.0 + nightOffset), lambda: 0.0026, estimatedMinutesTo80: 13, seasonName: "Frühsommer")
+        case 7:  return SeasonalProfile(ambientTemp: max(15.0, 21.0 + nightOffset), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
+        case 8:  return SeasonalProfile(ambientTemp: max(14.0, 20.0 + nightOffset), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
+        case 9:  return SeasonalProfile(ambientTemp: max(9.0, 15.0 + nightOffset), lambda: 0.0025, estimatedMinutesTo80: 14, seasonName: "Spätsommer")
+        case 10: return SeasonalProfile(ambientTemp: max(3.0, 9.0 + nightOffset), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Herbst")
+        case 11: return SeasonalProfile(ambientTemp: max(0.0, 5.0 + nightOffset), lambda: 0.0021, estimatedMinutesTo80: 18, seasonName: "Spätherbst (Nasskalt)")
+        case 12: return SeasonalProfile(ambientTemp: max(-5.0, 2.0 + nightOffset), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Winterbeginn")
+        default: return SeasonalProfile(ambientTemp: 10.0, lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Standard")
+        }
+    }
+
+    public static func calculateOilTemp(at t: TimeInterval, from sTemp: Double, targetTemp: Double = 90.0, lambda: Double? = nil) -> Double {
+        guard t > 0 else { return sTemp }
+        let baseLambda = lambda ?? profileForCurrentDate().lambda
+        let effectiveLambda: Double
+        if t < 120 {
+            effectiveLambda = baseLambda * (0.6 + 0.4 * (t / 120.0))
+        } else {
+            effectiveLambda = baseLambda
+        }
+        let newTemp = targetTemp - (targetTemp - sTemp) * exp(-effectiveLambda * t)
+        return min(max(newTemp, sTemp), targetTemp)
+    }
+
+    public static func phaseFor(temp: Double) -> WarmupPhase {
+        if temp < 60 { return .cold }
+        if temp < 80 { return .warming }
+        return .ready
+    }
+
+    public static func warmupProgress(temp: Double, startTemp: Double) -> Double {
+        let span = max(10.0, 85.0 - startTemp)
+        return max(0, min((temp - startTemp) / span, 1.0))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Centralized Telemetry Shared Store (App Group & Dual Fallback)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct TelemetrySharedData: Codable {
+    public var oilTemp          : Int?
+    public var coolantTemp      : Int?
+    public var boostBar         : Double?
+    public var currentG         : Double
+    public var peakG            : Double
+    public var iat              : Int?
+    public var maf              : Double?
+    public var phase            : WarmupPhase
+    public var warmupProgress   : Double
+    public var songTitle        : String
+    public var artist           : String
+    public var previousLine2    : String
+    public var previousLine     : String
+    public var currentLine      : String
+    public var nextLine         : String
+    public var nextLine2        : String
+    public var currentTimeStr   : String
+    public var totalTimeStr     : String
+    public var progress         : Double
+    public var isPlaying        : Bool
+    public var sessionStartTime : Double
+    public var sessionStartTemp : Double
+    public var updatedAt        : Date
+
+    public init(
+        oilTemp: Int? = nil,
+        coolantTemp: Int? = nil,
+        boostBar: Double? = nil,
+        currentG: Double = 0.0,
+        peakG: Double = 0.0,
+        iat: Int? = nil,
+        maf: Double? = nil,
+        phase: WarmupPhase = .cold,
+        warmupProgress: Double = 0.0,
+        songTitle: String = "",
+        artist: String = "",
+        previousLine2: String = "",
+        previousLine: String = "",
+        currentLine: String = "",
+        nextLine: String = "",
+        nextLine2: String = "",
+        currentTimeStr: String = "0:00",
+        totalTimeStr: String = "0:00",
+        progress: Double = 0.0,
+        isPlaying: Bool = false,
+        sessionStartTime: Double = 0,
+        sessionStartTemp: Double = 20,
+        updatedAt: Date = Date()
+    ) {
+        self.oilTemp = oilTemp
+        self.coolantTemp = coolantTemp
+        self.boostBar = boostBar
+        self.currentG = currentG
+        self.peakG = peakG
+        self.iat = iat
+        self.maf = maf
+        self.phase = phase
+        self.warmupProgress = warmupProgress
+        self.songTitle = songTitle
+        self.artist = artist
+        self.previousLine2 = previousLine2
+        self.previousLine = previousLine
+        self.currentLine = currentLine
+        self.nextLine = nextLine
+        self.nextLine2 = nextLine2
+        self.currentTimeStr = currentTimeStr
+        self.totalTimeStr = totalTimeStr
+        self.progress = progress
+        self.isPlaying = isPlaying
+        self.sessionStartTime = sessionStartTime
+        self.sessionStartTemp = sessionStartTemp
+        self.updatedAt = updatedAt
+    }
+}
+
+public enum TelemetrySharedStore {
+    public static let appGroupId = "group.com.carlyrics"
+    public static let jsonFileName = "telemetry_store.json"
+
+    private static var appGroupDefaults: UserDefaults? {
+        UserDefaults(suiteName: appGroupId)
+    }
+
+    private static var sharedFileURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?
+            .appendingPathComponent(jsonFileName)
+    }
+
+    public static func save(_ data: TelemetrySharedData) {
+        // 1. UserDefaults App Group
+        if let group = appGroupDefaults {
+            if let enc = try? JSONEncoder().encode(data) {
+                group.set(enc, forKey: "carlyrics_telemetry_payload")
+            }
+            // Individual keys for fast access
+            group.set(data.oilTemp, forKey: "widget_oil_temp")
+            group.set(data.coolantTemp, forKey: "widget_coolant_temp")
+            group.set(data.boostBar, forKey: "widget_boost_bar")
+            group.set(data.currentG, forKey: "widget_current_g")
+            group.set(data.peakG, forKey: "widget_peak_g")
+            group.set(data.iat, forKey: "widget_iat")
+            group.set(data.maf, forKey: "widget_maf")
+            group.set(data.phase.rawValue, forKey: "widget_warmup_phase")
+            group.set(data.warmupProgress, forKey: "widget_warmup_progress")
+            group.set(data.songTitle, forKey: "widget_song_title")
+            group.set(data.artist, forKey: "widget_artist")
+            group.set(data.previousLine2, forKey: "widget_prev_line2")
+            group.set(data.previousLine, forKey: "widget_prev_line")
+            group.set(data.currentLine, forKey: "widget_current_line")
+            group.set(data.nextLine, forKey: "widget_next_line")
+            group.set(data.nextLine2, forKey: "widget_next_line2")
+            group.set(data.currentTimeStr, forKey: "widget_cur_time_str")
+            group.set(data.totalTimeStr, forKey: "widget_tot_time_str")
+            group.set(data.progress, forKey: "widget_song_progress")
+            group.set(data.sessionStartTime, forKey: "carlyrics_warmup_started_at")
+            group.set(data.sessionStartTemp, forKey: "carlyrics_warmup_start_temp")
+        }
+
+        // Standard defaults
+        if let enc = try? JSONEncoder().encode(data) {
+            UserDefaults.standard.set(enc, forKey: "carlyrics_telemetry_payload")
+        }
+
+        // 2. Container JSON file
+        if let fileURL = sharedFileURL {
+            do {
+                let enc = try JSONEncoder().encode(data)
+                try enc.write(to: fileURL, options: .atomic)
+            } catch {
+                // Ignore file write errors
+            }
+        }
+    }
+
+    public static func load() -> TelemetrySharedData {
+        // Try App Group UserDefaults encoded struct
+        if let group = appGroupDefaults,
+           let data = group.data(forKey: "carlyrics_telemetry_payload"),
+           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
+            return decoded
+        }
+
+        // Try container JSON file
+        if let fileURL = sharedFileURL,
+           let data = try? Data(contentsOf: fileURL),
+           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
+            return decoded
+        }
+
+        // Try standard defaults
+        if let data = UserDefaults.standard.data(forKey: "carlyrics_telemetry_payload"),
+           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
+            return decoded
+        }
+
+        // Fallback: Dynamic default based on live WarmupCalculator & Standby
+        let now = Date()
+        let profile = WarmupCalculator.profileForCurrentDate(date: now)
+        let savedTime = appGroupDefaults?.double(forKey: "carlyrics_warmup_started_at") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
+        let savedTemp = appGroupDefaults?.double(forKey: "carlyrics_warmup_start_temp") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
+
+        let sTemp = (savedTemp != nil && savedTemp! > -20) ? savedTemp! : profile.ambientTemp
+        let sTime = (savedTime != nil && savedTime! > 0) ? savedTime! : now.timeIntervalSince1970
+        let elapsed = max(0, now.timeIntervalSince1970 - sTime)
+
+        let calculatedTemp = WarmupCalculator.calculateOilTemp(at: elapsed, from: sTemp)
+        let intTemp = Int(calculatedTemp.rounded())
+        let phase = WarmupCalculator.phaseFor(temp: calculatedTemp)
+        let progress = WarmupCalculator.warmupProgress(temp: calculatedTemp, startTemp: sTemp)
+        let waterTemp = calculatedTemp >= 70 ? 90 : max(20, intTemp + 10)
+
+        return TelemetrySharedData(
+            oilTemp: intTemp,
+            coolantTemp: waterTemp,
+            boostBar: 0.0,
+            currentG: 0.0,
+            peakG: 0.0,
+            iat: 20,
+            maf: 3.5,
+            phase: phase,
+            warmupProgress: progress,
+            songTitle: "Kein Song aktiv",
+            artist: "Spotify / Musik",
+            previousLine2: "",
+            previousLine: "",
+            currentLine: "Starte Musik auf dem iPhone",
+            nextLine: "",
+            nextLine2: "",
+            currentTimeStr: "--:--",
+            totalTimeStr: "--:--",
+            progress: 0.0,
+            isPlaying: false,
+            sessionStartTime: sTime,
+            sessionStartTemp: sTemp,
+            updatedAt: now
+        )
+    }
+}
+
