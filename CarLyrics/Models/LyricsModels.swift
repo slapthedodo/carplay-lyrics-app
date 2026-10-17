@@ -115,6 +115,8 @@ public struct LyricsAttributes: ActivityAttributes {
         public var oilTemp         : Int?         // °C (nil = wartet auf OBD)
         public var coolantTemp     : Int?         // °C (nil = wartet auf OBD)
         public var boostBar        : Double?      // Bar (relative boost, nil = nicht aktiv/kein Sensor)
+        public var iatTemp         : Int?         // °C Ansaugluft (nil = nicht aktiv)
+        public var mafVal          : Double?      // g/s Luftmasse (nil = nicht aktiv)
         public var warmupProgress  : Double       // 0.0 … 1.0
         public var warmupPhase     : WarmupPhase
         public var isEngineWarm    : Bool         // oilTemp >= 80°C
@@ -134,6 +136,8 @@ public struct LyricsAttributes: ActivityAttributes {
             oilTemp        : Int?         = 20,
             coolantTemp    : Int?         = 90,
             boostBar       : Double?      = nil,
+            iatTemp        : Int?         = nil,
+            mafVal         : Double?      = nil,
             warmupProgress : Double       = 0,
             warmupPhase    : WarmupPhase  = .cold,
             isEngineWarm   : Bool         = false
@@ -151,6 +155,8 @@ public struct LyricsAttributes: ActivityAttributes {
             self.oilTemp        = oilTemp
             self.coolantTemp    = coolantTemp
             self.boostBar       = boostBar
+            self.iatTemp        = iatTemp
+            self.mafVal         = mafVal
             self.warmupProgress = warmupProgress
             self.warmupPhase    = warmupPhase
             self.isEngineWarm   = isEngineWarm

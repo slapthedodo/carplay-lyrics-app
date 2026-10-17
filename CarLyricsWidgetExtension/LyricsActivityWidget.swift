@@ -96,10 +96,10 @@ struct LyricsActivityWidget: Widget {
                 }
 
             } compactLeading: {
-                // ── Oil Temp Badge mit Kanne (Unmissverständlich Öltemperatur) ──
-                HStack(spacing: 3) {
-                    Image(systemName: "oilcan.fill")
-                        .font(.system(size: 8))
+                // ── Öltemperatur Anzeige (Klartext ÖL + Temp) ──
+                HStack(spacing: 2) {
+                    Text("ÖL")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
@@ -161,6 +161,9 @@ struct LyricsActivityWidget: Widget {
 
             } minimal: {
                 HStack(spacing: 1) {
+                    Text("ÖL")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
                             .font(.system(size: 10, weight: .black, design: .monospaced))
@@ -189,16 +192,16 @@ struct LockScreenBannerView: View {
     let state: LyricsAttributes.ContentState
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
 
-            // ── Telemetry bar ─────────────────────────────────────────────
+            // ── Telemetry bar (3 Rundinstrumente: Öltemp, Boost, G-Ball + Telemetrie) ──
             TelemetryBar(state: state)
 
             Divider().overlay(Color.white.opacity(0.15))
 
-            // ── Current lyric — 20 pt bold ────────────────────────────────
+            // ── Current lyric — 18 pt bold ────────────────────────────────
             Text(state.currentLine.isEmpty ? "♪" : state.currentLine)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -206,7 +209,7 @@ struct LockScreenBannerView: View {
             // ── Next lyric ────────────────────────────────────────────────
             if !state.nextLine.isEmpty {
                 Text(state.nextLine)
-                    .font(.system(size: 15, weight: .regular, design: .rounded))
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
                     .foregroundStyle(.white.opacity(0.6))
                     .lineLimit(1)
             }
@@ -222,7 +225,7 @@ struct LockScreenBannerView: View {
             }
             .frame(height: 3)
         }
-        .padding(14)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.black.opacity(0.88))
@@ -231,7 +234,7 @@ struct LockScreenBannerView: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Telemetry Bar
+// MARK: Telemetry Bar (3 Rundinstrumente: Öl, Boost, G-Ball + Ansaugung)
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct MiniGBallWidgetView: View {
@@ -243,99 +246,65 @@ struct MiniGBallWidgetView: View {
         ZStack {
             Circle()
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                .frame(width: 32, height: 32)
+                .frame(width: 38, height: 38)
             Circle()
                 .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                .frame(width: 18, height: 18)
+                .frame(width: 20, height: 20)
 
-            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 32, height: 0.8)
-            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.8, height: 32)
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 38, height: 0.8)
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.8, height: 38)
 
             Circle()
                 .fill(gColor(currentG))
                 .frame(width: 6, height: 6)
                 .shadow(color: gColor(currentG).opacity(0.8), radius: 2)
                 .offset(
-                    x: CGFloat(min(max(x, -1.0), 1.0)) * 12,
-                    y: CGFloat(min(max(-y, -1.0), 1.0)) * 12
+                    x: CGFloat(min(max(x, -1.0), 1.0)) * 14,
+                    y: CGFloat(min(max(-y, -1.0), 1.0)) * 14
                 )
         }
-        .frame(width: 34, height: 34)
+        .frame(width: 40, height: 40)
     }
 }
 
-struct TelemetryBar: View {
-    let state: LyricsAttributes.ContentState
+// ── Runde Ladedruck Anzeige ──
+struct BoostGaugeBadge: View {
+    let boost: Double?
+    var maxBoost: Double = 1.6
 
     var body: some View {
-        HStack(spacing: 8) {
+        let val = boost ?? 0.0
+        let frac = min(max(val / maxBoost, 0.0), 1.0)
 
-            // Oil temp badge (mit unmissverständlicher Ölkanne)
-            OilTempBadge(
-                temp     : state.oilTemp,
-                progress : state.oilTemp != nil ? state.warmupProgress : 0,
-                phase    : state.oilTemp != nil ? state.warmupPhase : .cold
-            )
-            .frame(width: 40, height: 40)
-
-            // Warmup label
-            VStack(alignment: .leading, spacing: 1) {
-                if let _ = state.oilTemp {
-                    HStack(spacing: 3) {
-                        Image(systemName: "oilcan.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(phaseColor(state.warmupPhase))
-                        Text(state.warmupPhase.rawValue)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(phaseColor(state.warmupPhase))
-                    }
-                    Text(state.warmupPhase.label)
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                } else {
-                    HStack(spacing: 3) {
-                        Image(systemName: "oilcan.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.orange)
-                        Text("OBD-II AKTIV")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.orange)
-                    }
-                    Text("Warte auf Live-Daten…")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            // Mini G-Ball Sensor (wie in der Cockpit App)
-            MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
-
-            // Boost & G-Force column
-            VStack(alignment: .trailing, spacing: 1) {
-                if let boost = state.boostBar, boost > 0.05 {
-                    Text(String(format: "%.2f BAR", boost))
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: 3)
+            Circle()
+                .trim(from: 0, to: boost != nil ? frac : 0)
+                .stroke(val > 0.8 ? Color.orange : (val > 0.1 ? Color.green : Color.cyan),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.3), value: frac)
+            VStack(spacing: -1) {
+                Text("BOOST")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .foregroundStyle(boost != nil ? Color.cyan : .secondary)
+                if let boost {
+                    Text(String(format: "%.1f", boost))
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(val > 0.8 ? Color.orange : (val > 0.1 ? Color.green : Color.cyan))
+                } else {
+                    Text("--")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
                 }
-                Text(String(format: "%.2f G", state.currentG))
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundStyle(gColor(state.currentG))
-                Text("PEAK \(String(format: "%.2f", state.peakG))G")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.secondary)
             }
         }
+        .frame(width: 40, height: 40)
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Oil Temp Badge (ring + °C label + oilcan icon)
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Runde Öltemperatur Anzeige (ohne verwirrendes Symbol, klare Typografie) ──
 struct OilTempBadge: View {
     let temp     : Int?
     let progress : Double
@@ -351,17 +320,70 @@ struct OilTempBadge: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.5), value: progress)
-            VStack(spacing: 0) {
-                Image(systemName: "oilcan.fill")
-                    .font(.system(size: 8))
+            VStack(spacing: -1) {
+                Text("ÖL")
+                    .font(.system(size: 8, weight: .black, design: .rounded))
                     .foregroundStyle(temp != nil ? phaseColor(phase) : .secondary)
                 if let temp {
                     Text("\(temp)°")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundStyle(phaseColor(phase))
                 } else {
                     Text("--")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 40, height: 40)
+    }
+}
+
+struct TelemetryBar: View {
+    let state: LyricsAttributes.ContentState
+
+    var body: some View {
+        HStack(spacing: 8) {
+
+            // 1. Rundinstrument: Öltemperatur
+            OilTempBadge(
+                temp     : state.oilTemp,
+                progress : state.oilTemp != nil ? state.warmupProgress : 0,
+                phase    : state.oilTemp != nil ? state.warmupPhase : .cold
+            )
+
+            // 2. Rundinstrument: Ladedruck (relative bar)
+            BoostGaugeBadge(boost: state.boostBar)
+
+            // 3. Rundinstrument: G-Ball Fadenkreuz
+            MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
+
+            Spacer()
+
+            // 4. Echtzeit Telemetrie: Ansaugluft (IAT), Luftmasse (MAF), G-Force
+            VStack(alignment: .trailing, spacing: 1) {
+                if let iat = state.iatTemp {
+                    Text("IAT \(iat)°C")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.cyan)
+                } else if let water = state.coolantTemp {
+                    Text("H2O \(water)°")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+
+                if let maf = state.mafVal {
+                    Text(String(format: "MAF %.0fg/s", maf))
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+
+                HStack(spacing: 3) {
+                    Text(String(format: "%.2fG", state.currentG))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(gColor(state.currentG))
+                    Text("PK \(String(format: "%.1f", state.peakG))")
+                        .font(.system(size: 8, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -497,18 +519,20 @@ struct TelemetryWidgetEntryView: View {
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
-                VStack(spacing: 0) {
-                    Image(systemName: "oilcan.fill").font(.system(size: 8))
+                VStack(spacing: -1) {
+                    Text("ÖL")
+                        .font(.system(size: 8, weight: .black, design: .rounded))
+                        .foregroundStyle(.cyan)
                     Text("\(entry.oilTemp ?? 85)°")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                 }
             }
 
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Image(systemName: "oilcan.fill").font(.system(size: 9)).foregroundStyle(.cyan)
-                    Text("TFSI 2.0 ÖLTEMP").font(.system(size: 8, weight: .bold))
+                HStack(spacing: 4) {
+                    Text("ÖL").font(.system(size: 8, weight: .black, design: .rounded)).foregroundStyle(.cyan)
+                    Text("TFSI 2.0 TELEMETRIE").font(.system(size: 8, weight: .bold))
                 }
                 Text("Öl: \(entry.oilTemp ?? 85)°C (\(entry.phase.rawValue))")
                     .font(.system(size: 11, weight: .semibold))

@@ -450,6 +450,8 @@ public final class MusicObserver: ObservableObject {
         let isEngineWarm: Bool
         let effectiveBoost: Double?
         let effectiveCoolant: Int?
+        let effectiveIAT: Int?
+        let effectiveMAF: Double?
 
         if obd.isEnabled {
             if obd.connectionState == .connected {
@@ -467,12 +469,16 @@ public final class MusicObserver: ObservableObject {
                 }
                 effectiveBoost = obd.liveBoostBar
                 effectiveCoolant = obd.liveCoolantTemp
+                effectiveIAT = obd.liveIAT
+                effectiveMAF = obd.liveMAF
             } else {
                 // OBD ist aktiviert, aber noch nicht verbunden oder wartet auf Daten -> direkt "--"
                 oilTemp = nil
                 isEngineWarm = false
                 effectiveBoost = nil
                 effectiveCoolant = nil
+                effectiveIAT = nil
+                effectiveMAF = nil
             }
         } else {
             // Reines TFSI Simulationsmodell
@@ -481,6 +487,8 @@ public final class MusicObserver: ObservableObject {
             isEngineWarm = wm?.isEngineWarm ?? false
             effectiveBoost = nil
             effectiveCoolant = simOil > 70 ? 90 : max(20, simOil + 10)
+            effectiveIAT = nil
+            effectiveMAF = nil
         }
 
         let progressVal = wm?.warmupProgress ?? 0
@@ -525,6 +533,8 @@ public final class MusicObserver: ObservableObject {
             oilTemp        : oilTemp,
             coolantTemp    : effectiveCoolant,
             boostBar       : effectiveBoost,
+            iatTemp        : effectiveIAT,
+            mafVal         : effectiveMAF,
             warmupProgress : progressVal,
             warmupPhase    : phaseVal,
             isEngineWarm   : isEngineWarm
