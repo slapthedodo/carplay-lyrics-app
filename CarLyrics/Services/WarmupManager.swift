@@ -195,9 +195,8 @@ public final class WarmupManager: ObservableObject {
 
     private func sendWarmNotification(temp: Int) {
         let content = UNMutableNotificationContent()
-        content.title = "Motor ist warm 🏎️"
-        content.subtitle = "Öltemperatur: \(temp)°C"
-        content.body = "Kannst Gas geben, Betriebstemperatur ist erreicht!"
+        content.title = "Motor ist warm"
+        content.body = "Öltemperatur: \(temp)°C"
         content.sound = .default
         if #available(iOS 15.0, *) {
             content.interruptionLevel = .timeSensitive

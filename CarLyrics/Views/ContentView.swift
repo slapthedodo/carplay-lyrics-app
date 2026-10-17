@@ -313,9 +313,8 @@ struct SettingsTab: View {
                         Button {
                             WarmupManager.shared.requestNotificationPermission()
                             let content = UNMutableNotificationContent()
-                            content.title = "Motor ist warm 🏎️"
-                            content.subtitle = "Öltemperatur: 80°C"
-                            content.body = "Kannst Gas geben, Betriebstemperatur ist erreicht!"
+                            content.title = "Motor ist warm"
+                            content.body = "Öltemperatur: 80°C"
                             content.sound = .default
                             if #available(iOS 15.0, *) {
                                 content.interruptionLevel = .timeSensitive
