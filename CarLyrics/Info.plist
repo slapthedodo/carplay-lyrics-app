@@ -54,6 +54,12 @@
     <key>NSMotionUsageDescription</key>
     <string>CarLyrics reads motion data to display real-time G-force telemetry during your drive.</string>
 
+    <!-- ───── Bluetooth (OBD-II Dongle) ───── -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>CarLyrics benötigt Bluetooth, um Live-Motordaten von deinem OBD-II-Adapter (ELM327) auszulesen.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>CarLyrics verbindet sich mit deinem OBD-II-Adapter für Live-Telemetrie.</string>
+
     <!-- ───── Background Modes ───── -->
     <!--
         "audio"          – keeps the app alive to read currentPlaybackTime

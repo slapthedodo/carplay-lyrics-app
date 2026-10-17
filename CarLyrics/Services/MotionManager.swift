@@ -49,15 +49,27 @@ public final class MotionManager: ObservableObject {
 
     public init() {}
 
+    private var rawSampleCount: Int = 0
+
     public func start() {
         guard motion.isDeviceMotionAvailable, !isActive else { return }
         motion.deviceMotionUpdateInterval = 0.1   // 10 Hz
+        rawSampleCount = 0
         motion.startDeviceMotionUpdates(
             using: .xArbitraryZVertical,
             to: .main
         ) { [weak self] data, _ in
             guard let self, let data else { return }
-            Task { @MainActor in self.process(data) }
+            Task { @MainActor in 
+                self.process(data)
+                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (1.5 Sekunden)
+                if self.rawSampleCount < 15 {
+                    self.rawSampleCount += 1
+                    if self.rawSampleCount == 15 {
+                        self.calibrate()
+                    }
+                }
+            }
         }
         isActive = true
     }

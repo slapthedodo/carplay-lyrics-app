@@ -1,13 +1,11 @@
-// MARK: - MusicObserver.swift  (v2 — Rate-limited + Telemetry)
-// CarLyrics – drives Live Activity with rate-limit protection.
+// MARK: - MusicObserver.swift  (v3 — Spotify + OBD-II + Strict Rate-Limit)
+// CarLyrics – verbindet Spotify, System-Player, OBD-II und Warmup mit ActivityKit.
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Update policy (ActivityKit rate-limit guard):
-//   • activity.update() is called ONLY when:
-//       a) currentLine actually changes   (immediate)
-//       b) currentG crosses a ±0.05 G delta threshold  (G-peak event)
-//       c) At most every 2.5 s for telemetry heartbeat
-//   • The 100 ms timer runs locally for smooth UI — it does NOT trigger updates.
+// Rate-Limit Schutz:
+//   • Striktes Mindestintervall: 0.8s zwischen zwei activity.update() Aufrufen.
+//   • Ausnahme: Zeilenwechsel (lineChanged) triggert sofort, setzt aber den Throttle zurück.
+//   • Telemetrie & G-Kräfte werden gebündelt und max. alle 2.5s übertragen.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Foundation
@@ -20,7 +18,7 @@ import CoreMotion
 public final class MusicObserver: ObservableObject {
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Published state
+    // MARK: Published State
     // ─────────────────────────────────────────────────────────────────────────
 
     @Published public var currentTrackTitle : String       = ""
@@ -33,29 +31,33 @@ public final class MusicObserver: ObservableObject {
     @Published public var progress          : Double       = 0
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Injected managers (set from CarLyricsApp)
+    // MARK: Subsystem References
     // ─────────────────────────────────────────────────────────────────────────
 
     public var warmupManager : WarmupManager?
     public var motionManager : MotionManager?
+    public let spotify       = SpotifyManager.shared
+    public let obd           = OBDManager.shared
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Private state
+    // MARK: Private State
     // ─────────────────────────────────────────────────────────────────────────
 
-    private let player    = MPMusicPlayerController.systemMusicPlayer
-    private var lyrics    : ParsedLyrics?
-    private var duration  : TimeInterval = 0
-    private var lineTimer : Timer?
+    private let systemPlayer = MPMusicPlayerController.systemMusicPlayer
+    private var lyrics       : ParsedLyrics?
+    private var duration     : TimeInterval = 0
+    private var lineTimer    : Timer?
+    private var cancellables : Set<AnyCancellable> = []
 
     // ActivityKit
     private var liveActivity : Activity<LyricsAttributes>?
 
-    // Rate-limit state
-    private var lastActivityUpdate   : Date      = .distantPast
-    private let telemetryInterval    : TimeInterval = 2.5   // max heartbeat cadence
-    private var lastSentG            : Double    = 0
-    private let gDeltaThreshold      : Double    = 0.05
+    // Rate-Limit & Throttle State
+    private var lastActivityUpdate : Date         = .distantPast
+    private let minUpdateInterval  : TimeInterval = 0.8   // Strenger Schutz vor Apple Throttling
+    private let telemetryInterval  : TimeInterval = 2.5   // Regelmäßiges Telemetrie-Update
+    private var lastSentG          : Double       = 0
+    private let gDeltaThreshold    : Double       = 0.08  // Erst ab 0.08G Delta aktualisieren
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -63,62 +65,64 @@ public final class MusicObserver: ObservableObject {
 
     public init() {
         setupNotifications()
-        player.beginGeneratingPlaybackNotifications()
-        syncCurrentItem()
+        systemPlayer.beginGeneratingPlaybackNotifications()
+
+        // Spotify Observer einhängen
+        spotify.$trackTitle.combineLatest(spotify.$artistName, spotify.$isPlaying)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] title, artist, isPlaying in
+                guard let self, self.spotify.isAuthenticated else { return }
+                self.handleSpotifyTrack(title: title, artist: artist, isPlaying: isPlaying)
+            }
+            .store(in: &cancellables)
+
+        // Initialer Check
+        if !spotify.isAuthenticated {
+            syncSystemItem()
+        }
     }
 
     deinit {
-        player.endGeneratingPlaybackNotifications()
+        systemPlayer.endGeneratingPlaybackNotifications()
         NotificationCenter.default.removeObserver(self)
         lineTimer?.invalidate()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Mock / Test injection
+    // MARK: Track Handling (Spotify & System)
     // ─────────────────────────────────────────────────────────────────────────
 
-    public func injectTrack(title: String,
-                            artist: String,
-                            album: String = "",
-                            duration: TimeInterval = 0,
-                            lrc: String? = nil) async {
-        currentTrackTitle = title
-        currentArtist     = artist
-        currentAlbum      = album
-        self.duration     = duration
-        isPlaying         = true
+    private func handleSpotifyTrack(title: String, artist: String, isPlaying: Bool) {
+        guard !title.isEmpty, !artist.isEmpty else {
+            if !isPlaying { self.isPlaying = false }
+            return
+        }
 
-        if let lrc { await LyricsService.shared.injectMock(title: title, artist: artist, lrc: lrc) }
-        await loadLyrics(title: title, artist: artist, album: album, duration: duration)
+        self.isPlaying = isPlaying
+
+        // Neuer Track?
+        if title != currentTrackTitle || artist != currentArtist {
+            currentTrackTitle = title
+            currentArtist     = artist
+            currentAlbum      = spotify.albumName
+            duration          = spotify.durationSeconds
+            lyrics            = nil
+            currentLine       = ""
+            nextLine          = ""
+
+            Task {
+                await loadLyrics(title: title, artist: artist, album: spotify.albumName, duration: spotify.durationSeconds)
+            }
+        }
+
+        if isPlaying && lineTimer == nil {
+            startLineTimer()
+        }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Notifications
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(nowPlayingItemChanged),
-            name: .MPMusicPlayerControllerNowPlayingItemDidChange, object: player)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(playbackStateChanged),
-            name: .MPMusicPlayerControllerPlaybackStateDidChange, object: player)
-    }
-
-    @objc private func nowPlayingItemChanged() { syncCurrentItem() }
-
-    @objc private func playbackStateChanged() {
-        isPlaying = player.playbackState == .playing
-        isPlaying ? startLineTimer() : stopLineTimer()
-        Task { await updateLiveActivity(force: false) }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Track loading
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private func syncCurrentItem() {
-        guard let item = player.nowPlayingItem else { handleNoTrack(); return }
+    private func syncSystemItem() {
+        guard !spotify.isAuthenticated else { return }
+        guard let item = systemPlayer.nowPlayingItem else { handleNoTrack(); return }
         let title  = item.title  ?? ""
         let artist = item.artist ?? ""
         let album  = item.albumTitle ?? ""
@@ -129,12 +133,33 @@ public final class MusicObserver: ObservableObject {
         currentArtist     = artist
         currentAlbum      = album
         duration          = dur
-        isPlaying         = player.playbackState == .playing
+        isPlaying         = systemPlayer.playbackState == .playing
         lyrics            = nil
         currentLine       = ""
         nextLine          = ""
 
         Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
+    }
+
+    private func setupNotifications() {
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(nowPlayingItemChanged),
+            name: .MPMusicPlayerControllerNowPlayingItemDidChange, object: systemPlayer)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(playbackStateChanged),
+            name: .MPMusicPlayerControllerPlaybackStateDidChange, object: systemPlayer)
+    }
+
+    @objc private func nowPlayingItemChanged() {
+        if !spotify.isAuthenticated { syncSystemItem() }
+    }
+
+    @objc private func playbackStateChanged() {
+        if !spotify.isAuthenticated {
+            isPlaying = systemPlayer.playbackState == .playing
+            isPlaying ? startLineTimer() : stopLineTimer()
+            Task { await updateLiveActivity(force: false) }
+        }
     }
 
     private func handleNoTrack() {
@@ -146,6 +171,10 @@ public final class MusicObserver: ObservableObject {
         isPlaying         = false
         Task { await endLiveActivity() }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Lyrics Fetch
+    // ─────────────────────────────────────────────────────────────────────────
 
     private func loadLyrics(title: String, artist: String,
                             album: String, duration: TimeInterval) async {
@@ -163,7 +192,7 @@ public final class MusicObserver: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: 100 ms Line Timer (LOCAL only — does NOT call activity.update every tick)
+    // MARK: 100 ms Line Timer mit Audio-Delay & Rate-Limit
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startLineTimer() {
@@ -177,7 +206,15 @@ public final class MusicObserver: ObservableObject {
 
     private func tick() {
         guard let lyrics else { return }
-        let time = player.currentPlaybackTime
+
+        // Aktuelle Zeit ermitteln (Spotify mit CarPlay-Delay Kompensation ODER System Player)
+        let time: TimeInterval
+        if spotify.isAuthenticated {
+            time = spotify.calculatedPlaybackTime()
+        } else {
+            time = max(0, systemPlayer.currentPlaybackTime - spotify.carPlayDelayCompensation)
+        }
+
         if duration > 0 { progress = min(time / duration, 1.0) }
 
         guard let idx = lyrics.activeIndex(at: time) else { return }
@@ -188,20 +225,30 @@ public final class MusicObserver: ObservableObject {
         currentLine = newCurrent
         nextLine    = newNext
 
-        // Rate-limit guard: only push to ActivityKit under specific conditions
+        // ── Verfeinerter Rate-Limit Schutz ──────────────────────────────────
         let now     = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
         let currentGVal = motionManager?.currentG ?? 0
         let gPeak       = abs(currentGVal - lastSentG) >= gDeltaThreshold
 
-        if lineChanged || gPeak || elapsed >= telemetryInterval {
-            lastSentG = currentGVal
-            Task { await updateLiveActivity(force: lineChanged) }
+        // Regel:
+        // 1. Wenn die Zeile wechselt: SOFORT updaten (außer < 0.2s nach letztem Call)
+        // 2. Telemetrie/G-Peak: NUR updaten, wenn mindestens 0.8s vergangen sind!
+        if lineChanged {
+            if elapsed >= 0.2 {
+                lastSentG = currentGVal
+                Task { await updateLiveActivity(force: true) }
+            }
+        } else if elapsed >= minUpdateInterval {
+            if gPeak || elapsed >= telemetryInterval {
+                lastSentG = currentGVal
+                Task { await updateLiveActivity(force: false) }
+            }
         }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: ActivityKit lifecycle
+    // MARK: ActivityKit Lifecycle
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startLiveActivity(title: String, artist: String) async {
@@ -235,12 +282,38 @@ public final class MusicObserver: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: State builder
+    // MARK: State Builder (mit OBD-II Fallback)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func makeState() -> LyricsAttributes.ContentState {
         let wm = warmupManager
         let mm = motionManager
+
+        // Öltemperatur: Prio 1: Echte OBD-Öltemp, Prio 2: OBD-Kühlmittel, Prio 3: Simulation
+        let oilTemp: Int
+        let isEngineWarm: Bool
+
+        if obd.isEnabled && obd.connectionState == .connected {
+            if let realOil = obd.liveOilTemp {
+                oilTemp = realOil
+                isEngineWarm = realOil >= 80
+            } else if let coolant = obd.liveCoolantTemp {
+                // VW Fallback: Kühlmittel ca. 5-10°C wärmer als Öl in der Aufwärmphase
+                let estimatedOil = max(20, coolant - 8)
+                oilTemp = estimatedOil
+                isEngineWarm = estimatedOil >= 80
+            } else {
+                oilTemp = wm?.oilTempInt ?? 20
+                isEngineWarm = wm?.isEngineWarm ?? false
+            }
+        } else {
+            oilTemp = wm?.oilTempInt ?? 20
+            isEngineWarm = wm?.isEngineWarm ?? false
+        }
+
+        let progressVal = wm?.warmupProgress ?? 0
+        let phaseVal    = wm?.phase ?? .cold
+
         return LyricsAttributes.ContentState(
             currentLine    : currentLine,
             nextLine       : nextLine,
@@ -252,28 +325,24 @@ public final class MusicObserver: ObservableObject {
             peakG          : mm?.peakG    ?? 0,
             gVectorX       : mm?.gX       ?? 0,
             gVectorY       : mm?.gY       ?? 0,
-            oilTemp        : wm?.oilTempInt     ?? 20,
-            warmupProgress : wm?.warmupProgress ?? 0,
-            warmupPhase    : wm?.phase          ?? .cold,
-            isEngineWarm   : wm?.isEngineWarm   ?? false
+            oilTemp        : oilTemp,
+            warmupProgress : progressVal,
+            warmupPhase    : phaseVal,
+            isEngineWarm   : isEngineWarm
         )
     }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: LyricsStatus
-// ─────────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Test / Mock Injektor
+    // ─────────────────────────────────────────────────────────────────────────
 
-public enum LyricsStatus: Equatable {
-    case idle, loading, loaded
-    case error(String)
-
-    var label: String {
-        switch self {
-        case .idle:         return "Waiting for music…"
-        case .loading:      return "Fetching lyrics…"
-        case .loaded:       return "Lyrics loaded"
-        case .error(let m): return "⚠ \(m)"
-        }
+    public func injectTrack(title: String, artist: String, album: String = "", duration: TimeInterval = 0, lrc: String? = nil) async {
+        currentTrackTitle = title
+        currentArtist     = artist
+        currentAlbum      = album
+        self.duration     = duration
+        isPlaying         = true
+        if let lrc { await LyricsService.shared.injectMock(title: title, artist: artist, lrc: lrc) }
+        await loadLyrics(title: title, artist: artist, album: album, duration: duration)
     }
 }

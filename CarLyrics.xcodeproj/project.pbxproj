@@ -225,6 +225,8 @@
 		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift;           path = Services/WarmupManager.swift;     sourceTree = "<group>"; };
 		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift;           path = Services/MotionManager.swift;     sourceTree = "<group>"; };
 		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = Services/BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
+		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = Services/SpotifyManager.swift;     sourceTree = "<group>"; };
+		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = Services/OBDManager.swift;         sourceTree = "<group>"; };
 
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift;   path = CarLyricsWidgetBundle.swift;      sourceTree = "<group>"; };
@@ -251,6 +253,8 @@
 				97C1E01B2A000001, /* WarmupManager.swift */
 				97C1E01C2A000001, /* MotionManager.swift */
 				97C1E01D2A000001, /* BackgroundKeepAliveManager.swift */
+				97C1E01E2A000001, /* SpotifyManager.swift */
+				97C1E01F2A000001, /* OBDManager.swift */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -330,6 +334,8 @@
 		97C1E01B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0082A000001; };
 		97C1E01C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0092A000001; };
 		97C1E01D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00A2A000001; };
+		97C1E01E2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00B2A000001; };
+		97C1E01F2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00C2A000001; };
 
 /* ─────────────────────── Groups ─────────────────────── */
 
@@ -381,6 +387,8 @@
 				97C1B0082A000001, /* WarmupManager (NEW) */
 				97C1B0092A000001, /* MotionManager (NEW) */
 				97C1B00A2A000001, /* BackgroundKeepAliveManager (NEW) */
+				97C1B00B2A000001, /* SpotifyManager (NEW) */
+				97C1B00C2A000001, /* OBDManager (NEW) */
 			);
 			name = Services;
 			path = Services;

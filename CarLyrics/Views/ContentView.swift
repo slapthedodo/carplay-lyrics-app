@@ -1,37 +1,40 @@
-// MARK: - ContentView.swift  (v2 — Dark Cockpit Edition)
-// CarLyrics – full dark-cockpit UI mit Glassmorphism, SwiftUI Gauge,
-// G-Force-Fadenkreuz und Warmfahr-Timer.
+// MARK: - ContentView.swift  (v3 — Spotify + OBD-II Cockpit Edition)
+// CarLyrics – Dark Cockpit UI mit Spotify-Verbindung, CarPlay-Audioverzögerung,
+// OBD-II Live-Daten vs. TFSI-Simulation und G-Ball.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
 import MediaPlayer
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Root
-// ─────────────────────────────────────────────────────────────────────────────
 
 public struct ContentView: View {
 
     @StateObject private var observer = MusicObserver()
     @StateObject private var warmup   = WarmupManager()
     @StateObject private var motion   = MotionManager()
+    @ObservedObject private var spotify = SpotifyManager.shared
+    @ObservedObject private var obd     = OBDManager.shared
 
-    @State private var showMockSheet  = false
-    @State private var selectedTab    = 0
+    @State private var showMockSheet    = false
+    @State private var showSpotifySheet = false
+    @State private var showOBDSheet     = false
+    @State private var selectedTab      = 0
 
     public var body: some View {
         ZStack {
-            // Mesh-style dark background
             CockpitBackground()
 
             TabView(selection: $selectedTab) {
-                NowPlayingTab(observer: observer, warmup: warmup, motion: motion)
+                NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
                     .tabItem { Label("Lyrics", systemImage: "music.note") }
                     .tag(0)
 
-                TelemetryTab(warmup: warmup, motion: motion)
-                    .tabItem { Label("Telemetry", systemImage: "gauge.with.needle") }
+                TelemetryTab(warmup: warmup, motion: motion, obd: obd)
+                    .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
                     .tag(1)
+
+                SettingsTab(spotify: spotify, obd: obd)
+                    .tabItem { Label("Setup", systemImage: "gearshape.fill") }
+                    .tag(2)
             }
             .tint(.cyan)
         }
@@ -39,22 +42,72 @@ public struct ContentView: View {
         .sheet(isPresented: $showMockSheet) {
             MockInjectorView(observer: observer)
         }
+        .sheet(isPresented: $showSpotifySheet) {
+            SpotifySetupSheet(spotify: spotify)
+        }
+        .sheet(isPresented: $showOBDSheet) {
+            OBDDebugSheet(obd: obd)
+        }
         .onAppear {
             observer.warmupManager = warmup
             observer.motionManager = motion
+
+            // Automatisch Kaltstart-Tracking & Sensoren starten
+            if !warmup.isRunning {
+                warmup.start(cold: true)
+            }
             motion.start()
             BackgroundKeepAliveManager.shared.start()
+
+            if spotify.isAuthenticated {
+                spotify.startPolling()
+            }
         }
         .onDisappear {
             motion.stop()
             BackgroundKeepAliveManager.shared.stop()
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showMockSheet = true } label: {
-                    Image(systemName: "testtube.2").foregroundStyle(.cyan)
+            ToolbarItem(placement: .navigationBarLeading) {
+                // OBD Status Pill
+                Button { showOBDSheet = true } label: {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(obdColor)
+                            .frame(width: 8, height: 8)
+                        Text(obd.isEnabled ? "OBD: \(obd.connectionState.rawValue)" : "OBD: Sim")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: Capsule())
                 }
             }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    // Spotify Button
+                    Button { showSpotifySheet = true } label: {
+                        Image(systemName: spotify.isAuthenticated ? "waveform.circle.fill" : "waveform.circle")
+                            .foregroundStyle(spotify.isAuthenticated ? .green : .secondary)
+                    }
+
+                    // Test-Injektor
+                    Button { showMockSheet = true } label: {
+                        Image(systemName: "testtube.2").foregroundStyle(.cyan)
+                    }
+                }
+            }
+        }
+    }
+
+    private var obdColor: Color {
+        guard obd.isEnabled else { return .secondary }
+        switch obd.connectionState {
+        case .connected:    return .green
+        case .connecting, .initializing, .scanning: return .orange
+        default:            return .red
         }
     }
 }
@@ -67,13 +120,14 @@ struct NowPlayingTab: View {
     @ObservedObject var observer : MusicObserver
     @ObservedObject var warmup   : WarmupManager
     @ObservedObject var motion   : MotionManager
+    @ObservedObject var obd      : OBDManager
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 18) {
                 NowPlayingCard(observer: observer)
                 LyricsCard(observer: observer)
-                MiniTelemetryCard(warmup: warmup, motion: motion)
+                MiniTelemetryCard(warmup: warmup, motion: motion, obd: obd)
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -86,13 +140,35 @@ struct NowPlayingTab: View {
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct TelemetryTab: View {
-    @ObservedObject var warmup  : WarmupManager
-    @ObservedObject var motion  : MotionManager
+    @ObservedObject var warmup : WarmupManager
+    @ObservedObject var motion : MotionManager
+    @ObservedObject var obd    : OBDManager
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                WarmupCard(warmup: warmup)
+            VStack(spacing: 18) {
+                // OBD Toggle Card
+                GlassCard {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Datenquelle für Öltemperatur")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+                            Text(obd.isEnabled ? "ELM327 Bluetooth Adapter (Live)" : "TFSI 2.0L Simulation")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(obd.isEnabled ? .green : .cyan)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $obd.isEnabled)
+                            .labelsHidden()
+                            .tint(.green)
+                            .onChange(of: obd.isEnabled) { enabled in
+                                if enabled { obd.enableOBD() } else { obd.disableOBD() }
+                            }
+                    }
+                }
+
+                WarmupCard(warmup: warmup, obd: obd)
                 GForceCard(motion: motion)
             }
             .padding(.horizontal)
@@ -102,7 +178,110 @@ struct TelemetryTab: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Now Playing Card
+// MARK: Settings / Setup Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct SettingsTab: View {
+    @ObservedObject var spotify : SpotifyManager
+    @ObservedObject var obd     : OBDManager
+    @State private var tokenInput: String = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // 1. CarPlay Audio-Verzögerung
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("CarPlay Audio-Latenz Kompensation", systemImage: "clock.arrow.circlepath")
+                            .font(.headline)
+                            .foregroundStyle(.cyan)
+
+                        Text("Wireless CarPlay & Bluetooth puffern Audio um 2–3 Sekunden. Dieser Regler synchronisiert die Songtexte exakt auf den Zeitpunkt, an dem der Ton aus deinen Autolautsprechern kommt.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Text("Offset:")
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Text(String(format: "-%.1f s", spotify.carPlayDelayCompensation))
+                                .font(.system(.title3, design: .monospaced, weight: .bold))
+                                .foregroundStyle(.cyan)
+                        }
+
+                        Slider(value: $spotify.carPlayDelayCompensation, in: 0.0...4.0, step: 0.1)
+                            .tint(.cyan)
+
+                        HStack {
+                            Text("0.0s (USB Kabel)").font(.caption2).foregroundStyle(.secondary)
+                            Spacer()
+                            Text("2.5s (Wireless CarPlay)").font(.caption2.bold()).foregroundStyle(.cyan)
+                            Spacer()
+                            Text("4.0s").font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                // 2. Spotify Verbindung
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Spotify Web API", systemImage: "waveform.circle.fill")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+
+                        Text("Da du nur Spotify nutzt, liest CarLyrics den aktuellen Song, die Millisekunden-Position und Pausen direkt von deinem Spotify-Konto.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if spotify.isAuthenticated {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                Text("Mit Spotify verbunden").font(.subheadline.bold())
+                                Spacer()
+                                Button("Trennen") {
+                                    spotify.accessToken = ""
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(.red)
+                            }
+                        } else {
+                            VStack(spacing: 10) {
+                                SecureField("Spotify OAuth Access Token hier einfügen", text: $tokenInput)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.caption)
+
+                                Button {
+                                    spotify.accessToken = tokenInput
+                                    spotify.startPolling()
+                                } label: {
+                                    Label("Token speichern & verbinden", systemImage: "arrow.right.circle.fill")
+                                        .font(.caption.bold())
+                                }
+                                .buttonStyle(CockpitButtonStyle(color: .green))
+                            }
+                        }
+                    }
+                }
+
+                // 3. Info & Hinweise
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Hinweis zu VW & OBD-II", systemImage: "info.circle")
+                            .font(.headline).foregroundStyle(.orange)
+                        Text("Bei vielen VW / VAG Modellen mit 2.0 TFSI wird PID 01 5C (Öltemperatur) über Standard-OBD2 als 'NO DATA' beantwortet. CarLyrics nutzt in diesem Fall automatisch die Kühlmitteltemperatur (PID 01 05) mit TFSI-Offset oder fällt auf das thermische Simulationsmodell zurück.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Cards (NowPlaying, Lyrics, Telemetry)
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct NowPlayingCard: View {
@@ -111,15 +290,14 @@ struct NowPlayingCard: View {
     var body: some View {
         GlassCard {
             HStack(spacing: 16) {
-                Image(systemName: observer.isPlaying
-                      ? "music.note.list" : "pause.circle.fill")
+                Image(systemName: observer.isPlaying ? "music.note.list" : "pause.circle.fill")
                     .font(.system(size: 36))
                     .foregroundStyle(.cyan)
                     .symbolEffect(.pulse, isActive: observer.isPlaying)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     if observer.currentTrackTitle.isEmpty {
-                        Text("No track playing")
+                        Text("Warte auf Musik…")
                             .font(.title3).foregroundStyle(.secondary)
                     } else {
                         Text(observer.currentTrackTitle)
@@ -127,6 +305,7 @@ struct NowPlayingCard: View {
                             .lineLimit(1)
                         Text(observer.currentArtist)
                             .font(.subheadline).foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
                 Spacer()
@@ -135,15 +314,11 @@ struct NowPlayingCard: View {
             if observer.progress > 0 {
                 ProgressView(value: observer.progress)
                     .tint(.cyan)
-                    .padding(.top, 6)
+                    .padding(.top, 8)
             }
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Lyrics Card
-// ─────────────────────────────────────────────────────────────────────────────
 
 struct LyricsCard: View {
     @ObservedObject var observer: MusicObserver
@@ -151,24 +326,38 @@ struct LyricsCard: View {
     var body: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: 14) {
-                Label("Live Lyrics", systemImage: "text.quote")
-                    .font(.headline).foregroundStyle(.cyan)
+                HStack {
+                    Label("Live Songtext", systemImage: "text.quote")
+                        .font(.headline).foregroundStyle(.cyan)
+                    Spacer()
+                    if observer.isPlaying {
+                        Text("SYNC")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.green.opacity(0.15), in: Capsule())
+                    }
+                }
 
                 if observer.currentLine.isEmpty {
                     Text(observer.lyricsStatus.label)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 12)
                 } else {
+                    // Aktive Zeile mit Leuchteffekt (Hoher Kontrast fürs Auto)
                     Text(observer.currentLine)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
+                        .shadow(color: .cyan.opacity(0.35), radius: 6)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                         .animation(.easeInOut(duration: 0.25), value: observer.currentLine)
 
                     if !observer.nextLine.isEmpty {
                         Text(observer.nextLine)
                             .font(.system(size: 16, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.45))
                             .transition(.opacity)
                             .animation(.easeInOut(duration: 0.25), value: observer.nextLine)
                     }
@@ -178,40 +367,43 @@ struct LyricsCard: View {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Mini Telemetry Card (on Lyrics tab)
-// ─────────────────────────────────────────────────────────────────────────────
-
 struct MiniTelemetryCard: View {
-    @ObservedObject var warmup  : WarmupManager
-    @ObservedObject var motion  : MotionManager
+    @ObservedObject var warmup : WarmupManager
+    @ObservedObject var motion : MotionManager
+    @ObservedObject var obd    : OBDManager
+
+    var currentTemp: Int {
+        if obd.isEnabled && obd.connectionState == .connected {
+            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
+        }
+        return warmup.oilTempInt
+    }
 
     var body: some View {
         GlassCard {
             HStack {
-                // Oil temp
+                // Öltemperatur Ring
                 VStack(spacing: 4) {
                     ZStack {
                         Circle().stroke(Color.white.opacity(0.1), lineWidth: 4)
                         Circle()
                             .trim(from: 0, to: warmup.warmupProgress)
-                            .stroke(warmupColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .stroke(tempColor(currentTemp), style: StrokeStyle(lineWidth: 4, lineCap: .round))
                             .rotationEffect(.degrees(-90))
-                            .animation(.easeOut(duration: 0.5), value: warmup.warmupProgress)
-                        Text("\(warmup.oilTempInt)°")
+                        Text("\(currentTemp)°")
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(warmupColor)
+                            .foregroundStyle(tempColor(currentTemp))
                     }
-                    .frame(width: 54, height: 54)
-                    Text("OIL TEMP")
-                        .font(.system(size: 9, weight: .bold))
+                    .frame(width: 52, height: 52)
+                    Text(obd.isEnabled ? "OBD ÖL" : "SIM ÖL")
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                // G-force mini
-                VStack(spacing: 4) {
+                // G-Force Live
+                VStack(spacing: 3) {
                     Text(motion.currentGFormatted)
                         .font(.system(size: 24, weight: .bold, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG))
@@ -223,119 +415,104 @@ struct MiniTelemetryCard: View {
 
                 Spacer()
 
-                // Phase badge
+                // Status
                 VStack(spacing: 4) {
-                    Text(warmup.phase.rawValue)
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundStyle(warmupColor)
+                    let phase = currentTemp < 60 ? "KALT" : (currentTemp < 80 ? "AUFWÄRMEN" : "BEREIT")
+                    Text(phase)
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundStyle(tempColor(currentTemp))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(warmupColor.opacity(0.15),
-                                    in: Capsule())
-                    Text(warmup.isRunning ? warmup.elapsedFormatted : "--:--")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.secondary)
+                        .background(tempColor(currentTemp).opacity(0.15), in: Capsule())
+
+                    if obd.isEnabled && obd.liveRPM > 0 {
+                        Text("\(obd.liveRPM) U/min")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
     }
 
-    private var warmupColor: Color {
-        switch warmup.phase {
-        case .cold:    return .blue
-        case .warming: return .orange
-        case .ready:   return .green
-        }
+    private func tempColor(_ t: Int) -> Color {
+        if t < 60 { return .blue }
+        if t < 80 { return .orange }
+        return .green
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Warmup Card (full, on Telemetry tab)
+// MARK: Warmup Card
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct WarmupCard: View {
-    @ObservedObject var warmup: WarmupManager
+    @ObservedObject var warmup : WarmupManager
+    @ObservedObject var obd    : OBDManager
 
-    private var warmupColor: Color {
-        switch warmup.phase {
-        case .cold:    return .blue
-        case .warming: return .orange
-        case .ready:   return .green
+    var displayTemp: Int {
+        if obd.isEnabled && obd.connectionState == .connected {
+            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
         }
+        return warmup.oilTempInt
     }
 
     var body: some View {
         GlassCard {
             VStack(spacing: 16) {
-                Label("Motor Warmfahr-Assistent", systemImage: "thermometer.medium")
-                    .font(.headline).foregroundStyle(.cyan)
+                HStack {
+                    Label("Motor-Temperatur", systemImage: "thermometer.medium")
+                        .font(.headline).foregroundStyle(.cyan)
+                    Spacer()
+                    if obd.isEnabled {
+                        Text("LIVE OBD")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                    }
+                }
 
-                // SwiftUI Gauge
-                Gauge(value: warmup.warmupProgress) {
-                    Text("Aufwärmen")
+                // Gauge
+                Gauge(value: Double(displayTemp), in: 20...110) {
+                    Text("Temperatur")
                 } currentValueLabel: {
-                    Text("\(warmup.oilTempInt)°C")
-                        .font(.system(size: 18, weight: .bold, design: .monospaced))
-                        .foregroundStyle(warmupColor)
+                    Text("\(displayTemp)°C")
+                        .font(.system(size: 20, weight: .bold, design: .monospaced))
+                        .foregroundStyle(tempColor(displayTemp))
                 } minimumValueLabel: {
-                    Text("\(Int(warmup.startTemp))°").font(.caption2)
+                    Text("20°").font(.caption2)
                 } maximumValueLabel: {
-                    Text("90°").font(.caption2)
+                    Text("110°").font(.caption2)
                 }
                 .gaugeStyle(.accessoryCircular)
-                .tint(
-                    Gradient(colors: [.blue, .orange, .green])
-                )
+                .tint(Gradient(colors: [.blue, .orange, .green]))
                 .frame(width: 120, height: 120)
 
-                // Phase label
-                Text(warmup.phase.label)
+                // Phasenhinweis
+                Text(phaseText(displayTemp))
                     .font(.caption)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(warmupColor)
+                    .foregroundStyle(tempColor(displayTemp))
                     .padding(.horizontal)
-
-                // Timer
-                if warmup.isRunning {
-                    Text(warmup.elapsedFormatted)
-                        .font(.system(size: 28, weight: .thin, design: .monospaced))
-                        .foregroundStyle(.white)
-                }
-
-                // Controls
-                HStack(spacing: 16) {
-                    Button {
-                        warmup.start(cold: true)
-                    } label: {
-                        Label("Kaltstart", systemImage: "thermometer.snowflake")
-                            .font(.caption.bold())
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: .blue))
-
-                    Button {
-                        warmup.start(cold: false)
-                    } label: {
-                        Label("Warmstart", systemImage: "flame.fill")
-                            .font(.caption.bold())
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: .orange))
-
-                    Button {
-                        warmup.reset()
-                    } label: {
-                        Label("Reset", systemImage: "arrow.counterclockwise")
-                            .font(.caption.bold())
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: .gray))
-                }
             }
             .frame(maxWidth: .infinity)
         }
     }
+
+    private func tempColor(_ t: Int) -> Color {
+        if t < 60 { return .blue }
+        if t < 80 { return .orange }
+        return .green
+    }
+
+    private func phaseText(_ t: Int) -> String {
+        if t < 60 { return "Kaltstart – Max. 2.500 U/min, kein Ladedruck!" }
+        if t < 80 { return "Öl wärmt auf – Gemäßigt fahren" }
+        return "90°C erreicht – Voller Ladedruck frei! 🏁"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: G-Force Card (with crosshair / G-Ball)
+// MARK: G-Force Card & GBall
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct GForceCard: View {
@@ -344,52 +521,25 @@ struct GForceCard: View {
     var body: some View {
         GlassCard {
             VStack(spacing: 16) {
-                Label("G-Kräfte", systemImage: "gyroscope")
+                Label("G-Kräfte (Auto-Kalibrierend)", systemImage: "gyroscope")
                     .font(.headline).foregroundStyle(.cyan)
 
-                // G-Ball crosshair
-                GBallView(x: motion.normalizedX, y: motion.normalizedY,
-                          currentG: motion.currentG)
+                GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG)
                     .frame(width: 200, height: 200)
 
-                // Readings row
                 HStack(spacing: 24) {
                     VStack {
-                        Text("AKTUELL")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
+                        Text("AKTUELL").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                         Text(motion.currentGFormatted)
                             .font(.system(size: 22, weight: .bold, design: .monospaced))
                             .foregroundStyle(gColor(motion.currentG))
-                            .contentTransition(.numericText())
                     }
                     VStack {
-                        Text("PEAK")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
+                        Text("PEAK").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
                         Text(motion.peakGFormatted)
                             .font(.system(size: 22, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                     }
-                }
-
-                // Controls
-                HStack(spacing: 12) {
-                    Button {
-                        motion.calibrate()
-                    } label: {
-                        Label("Nullpunkt", systemImage: "scope")
-                            .font(.caption.bold())
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: .cyan))
-
-                    Button {
-                        motion.resetPeak()
-                    } label: {
-                        Label("Peak Reset", systemImage: "arrow.counterclockwise")
-                            .font(.caption.bold())
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: .gray))
                 }
             }
             .frame(maxWidth: .infinity)
@@ -397,54 +547,35 @@ struct GForceCard: View {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: G-Ball (interactive G-Force Crosshair)
-// ─────────────────────────────────────────────────────────────────────────────
-
 struct GBallView: View {
-    let x        : Double   // -1 … +1  (lateral)
-    let y        : Double   // -1 … +1  (longitudinal)
+    let x        : Double
+    let y        : Double
     let currentG : Double
 
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
-            let cx = w / 2
-            let cy = h / 2
             let r  = min(w, h) / 2 - 8
 
             ZStack {
-                // Grid rings
                 ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { frac in
                     Circle()
                         .stroke(Color.white.opacity(0.08), lineWidth: 1)
                         .frame(width: r * 2 * frac, height: r * 2 * frac)
                 }
 
-                // Cross hairs
-                Rectangle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: r * 2, height: 1)
-                Rectangle()
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 1, height: r * 2)
+                Rectangle().fill(Color.white.opacity(0.08)).frame(width: r * 2, height: 1)
+                Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1, height: r * 2)
 
-                // Labels
-                Text("ACC").font(.system(size: 8)).foregroundStyle(.secondary)
-                    .offset(y: -(r - 6))
-                Text("BRK").font(.system(size: 8)).foregroundStyle(.secondary)
-                    .offset(y: r - 6)
+                Text("ACC").font(.system(size: 8)).foregroundStyle(.secondary).offset(y: -(r - 6))
+                Text("BRK").font(.system(size: 8)).foregroundStyle(.secondary).offset(y: r - 6)
 
-                // G-Ball dot
                 Circle()
                     .fill(gColor(currentG))
                     .frame(width: 18, height: 18)
                     .shadow(color: gColor(currentG).opacity(0.8), radius: 8)
-                    .offset(
-                        x: CGFloat(x) * r,
-                        y: -CGFloat(y) * r   // flip Y: positive = acceleration = up
-                    )
+                    .offset(x: CGFloat(x) * r, y: -CGFloat(y) * r)
                     .animation(.interactiveSpring(response: 0.15), value: x)
                     .animation(.interactiveSpring(response: 0.15), value: y)
             }
@@ -454,14 +585,125 @@ struct GBallView: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Cockpit background
+// MARK: Sheets (OBD Debug & Spotify Setup)
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct OBDDebugSheet: View {
+    @ObservedObject var obd: OBDManager
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Status") {
+                    HStack {
+                        Text("Verbindung")
+                        Spacer()
+                        Text(obd.connectionState.rawValue)
+                            .foregroundStyle(obd.connectionState == .connected ? .green : .orange)
+                    }
+                    Toggle("OBD-Adapter aktiv", isOn: $obd.isEnabled)
+                        .onChange(of: obd.isEnabled) { val in
+                            if val { obd.enableOBD() } else { obd.disableOBD() }
+                        }
+                }
+
+                Section("Ausgelesene Live-Werte") {
+                    HStack {
+                        Text("Öltemperatur (PID 01 5C)")
+                        Spacer()
+                        Text(obd.liveOilTemp != nil ? "\(obd.liveOilTemp!) °C" : "Nicht unterstützt (VW)")
+                            .foregroundStyle(obd.liveOilTemp != nil ? .green : .secondary)
+                    }
+                    HStack {
+                        Text("Kühlmitteltemp (PID 01 05)")
+                        Spacer()
+                        Text(obd.liveCoolantTemp != nil ? "\(obd.liveCoolantTemp!) °C" : "—")
+                            .foregroundStyle(.cyan)
+                    }
+                    HStack {
+                        Text("Motordrehzahl (RPM)")
+                        Spacer()
+                        Text("\(obd.liveRPM) U/min")
+                            .font(.system(.body, design: .monospaced))
+                    }
+                    HStack {
+                        Text("Geschwindigkeit")
+                        Spacer()
+                        Text("\(obd.liveSpeed) km/h")
+                    }
+                }
+
+                Section("Adapter Kommunikations-Log (Hex/ASCII)") {
+                    ForEach(obd.debugLogs, id: \.self) { log in
+                        Text(log)
+                            .font(.system(size: 10, design: .monospaced))
+                    }
+                }
+            }
+            .navigationTitle("OBD-II Diagnose")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Schließen") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+struct SpotifySetupSheet: View {
+    @ObservedObject var spotify: SpotifyManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var token = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Verbindungsstatus") {
+                    HStack {
+                        Text("Status")
+                        Spacer()
+                        Text(spotify.isAuthenticated ? "Verbunden" : "Nicht verbunden")
+                            .foregroundStyle(spotify.isAuthenticated ? .green : .red)
+                    }
+                    if let err = spotify.lastSyncError {
+                        Text("Fehler: \(err)").font(.caption).foregroundStyle(.red)
+                    }
+                }
+
+                Section("OAuth Token") {
+                    Text("Du kannst einen Spotify Access Token von https://developer.spotify.com/dashboard oder deinem Token-Generator einfügen:")
+                        .font(.caption).foregroundStyle(.secondary)
+
+                    TextField("Bearer Token", text: $token)
+                        .font(.caption)
+
+                    Button("Speichern & Starten") {
+                        spotify.accessToken = token
+                        spotify.startPolling()
+                        dismiss()
+                    }
+                    .disabled(token.isEmpty)
+                }
+            }
+            .navigationTitle("Spotify Connect")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fertig") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Components & Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct CockpitBackground: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            // Subtle gradient bloom — simulates instrument panel glow
             RadialGradient(
                 colors: [Color.cyan.opacity(0.06), Color.clear],
                 center: .top, startRadius: 0, endRadius: 400
@@ -470,10 +712,6 @@ struct CockpitBackground: View {
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Reusable components
-// ─────────────────────────────────────────────────────────────────────────────
 
 struct GlassCard<Content: View>: View {
     let content: () -> Content
@@ -495,22 +733,15 @@ struct GlassCard<Content: View>: View {
 
 struct CockpitButtonStyle: ButtonStyle {
     let color: Color
-
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(color)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(color.opacity(configuration.isPressed ? 0.3 : 0.12),
-                        in: Capsule())
+            .background(color.opacity(configuration.isPressed ? 0.3 : 0.12), in: Capsule())
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .animation(.spring(duration: 0.15), value: configuration.isPressed)
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: G-color helper (shared in both targets via LyricsModels)
-// ─────────────────────────────────────────────────────────────────────────────
 
 private func gColor(_ g: Double) -> Color {
     switch g {
@@ -519,76 +750,4 @@ private func gColor(_ g: Double) -> Color {
     case ..<0.9:  return .orange
     default:      return .red
     }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Mock Injector Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-struct MockInjectorView: View {
-    let observer: MusicObserver
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var title   = "Bohemian Rhapsody"
-    @State private var artist  = "Queen"
-    @State private var lrcText = MockLRC.bohemianRhapsody
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Track Info") {
-                    TextField("Title",  text: $title)
-                    TextField("Artist", text: $artist)
-                }
-                Section("Custom LRC") {
-                    TextEditor(text: $lrcText)
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(minHeight: 200)
-                }
-            }
-            .navigationTitle("Test Track")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Inject") {
-                        Task {
-                            await observer.injectTrack(
-                                title: title, artist: artist,
-                                lrc: lrcText.isEmpty ? nil : lrcText
-                            )
-                        }
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-enum MockLRC {
-    static let bohemianRhapsody = """
-[ti:Bohemian Rhapsody]
-[ar:Queen]
-[00:00.00]Is this the real life?
-[00:04.50]Is this just fantasy?
-[00:09.10]Caught in a landslide
-[00:13.70]No escape from reality
-[00:18.20]Open your eyes
-[00:20.80]Look up to the skies and see
-[00:25.40]I'm just a poor boy, I need no sympathy
-[00:31.50]Because it's easy come, easy go
-[00:34.90]Little high, little low
-[00:38.30]Anyway the wind blows
-[00:41.60]Doesn't really matter to me, to me
-"""
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Preview
-// ─────────────────────────────────────────────────────────────────────────────
-
-#Preview {
-    ContentView()
 }
