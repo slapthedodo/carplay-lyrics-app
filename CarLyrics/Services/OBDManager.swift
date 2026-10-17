@@ -229,8 +229,8 @@ public final class OBDManager: NSObject, ObservableObject {
             if after.count >= 4 {
                 let b1Str = String(after.prefix(2))
                 let b2Str = String(after.dropFirst(2).prefix(2))
-                if let b1 = Double(b1Str, radix: 16), let b2 = Double(b2Str, radix: 16) {
-                    let rawKelvinTimes10 = (b1 * 256.0) + b2
+                if let b1 = Int(b1Str, radix: 16), let b2 = Int(b2Str, radix: 16) {
+                    let rawKelvinTimes10 = (Double(b1) * 256.0) + Double(b2)
                     let tempCelsius = Int(round((rawKelvinTimes10 - 2731.5) / 10.0))
                     if tempCelsius >= -30 && tempCelsius <= 170 {
                         liveOilTemp = tempCelsius
@@ -250,8 +250,8 @@ public final class OBDManager: NSObject, ObservableObject {
                     var tempCelsius = b1 - 40
                     if after.count >= 4 {
                         let b2Str = String(after.dropFirst(2).prefix(2))
-                        if let b2 = Double(b2Str, radix: 16) {
-                            let k = (Double(b1) * 256.0) + b2
+                        if let b2 = Int(b2Str, radix: 16) {
+                            let k = (Double(b1) * 256.0) + Double(b2)
                             if k > 2000 {
                                 tempCelsius = Int(round((k - 2731.5) / 10.0))
                             }
