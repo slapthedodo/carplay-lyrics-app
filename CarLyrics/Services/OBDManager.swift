@@ -152,6 +152,7 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var terminalEntries      : [OBDTerminalEntry] = []
     @Published public var debugLogs            : [String] = []    // Kompatibilität mit bestehenden Views
     @Published public var isManualTerminalMode : Bool = false
+    @Published public var forceWriteWithResponse: Bool = false    // Fallback: Erzwingt Write-With-Response falls Adapter ohne ACK streikt
 
     // Protokoll Schnell-Tester / Brute-Force
     @Published public var probeResults         : [ProtocolProbeResult] = []
@@ -463,8 +464,14 @@ public final class OBDManager: NSObject, ObservableObject {
             return
         }
         let fullCmd = cmd + "\r"
-        if let data = fullCmd.data(using: .ascii) {
-            let writeType: CBCharacteristicWriteType = tx.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+        if let data = fullCmd.data(using: .utf8) ?? fullCmd.data(using: .ascii) {
+            let writeType: CBCharacteristicWriteType
+            if forceWriteWithResponse {
+                writeType = tx.properties.contains(.write) ? .withResponse : .withoutResponse
+            } else {
+                writeType = tx.properties.contains(.writeWithoutResponse) ? .withoutResponse : .withResponse
+            }
+            logTx("\(cmd) (\(writeType == .withoutResponse ? "no-ack" : "ack"))")
             p.writeValue(data, for: tx, type: writeType)
             isWaitingForResponse = true
             lastCommandSentTime = Date()
@@ -525,20 +532,22 @@ public final class OBDManager: NSObject, ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startRobustInitSequence() {
+        connectionWatchdogTimer?.invalidate()
         connectionState = .initializing
         detailedStatus = "Initialisiere ELM327 Hardware…"
         logSystem("Starte saubere ELM327 Handshake-Sequenz…")
 
-        // Sequenz:
-        // 1. ATE0 (Echo aus)
-        // 2. ATL0 (Linefeeds aus)
-        // 3. ATS0 (Leerzeichen aus für maximalen Durchsatz)
-        // 4. ATH0 (Headers standardmäßig aus)
-        // 5. ATRV (Bordspannung messen zur Zündungs-Verifizierung!)
-        // 6. ATI  (ELM327 Firmware-Version auslesen)
-        // 7. Ausgewähltes Protokoll setzen (z.B. ATSP6)
-        // 8. Prüfen mit 0100 (ECU Suche)
-        var sequence = ["ATE0", "ATL0", "ATS0", "ATH0", "ATRV", "ATI", selectedProtocol.elmCommand]
+        // 1. Carriage Return zum Leeren von Puffer-Resten & Wecken des Adapters
+        // 2. ATZ (Reset Chip)
+        // 3. ATE0 (Echo aus)
+        // 4. ATL0 (Linefeeds aus)
+        // 5. ATS0 (Leerzeichen aus für maximalen Durchsatz)
+        // 6. ATH0 (Headers standardmäßig aus)
+        // 7. ATRV (Bordspannung messen zur Zündungs-Verifizierung!)
+        // 8. ATI  (ELM327 Firmware-Version auslesen)
+        // 9. Ausgewähltes Protokoll setzen (z.B. ATSP6)
+        // 10. Prüfen mit 0100 (ECU Suche)
+        var sequence = ["\r", "ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATRV", "ATI", selectedProtocol.elmCommand]
         if let header = selectedProtocol.headerCommand {
             sequence.append(header)
         }
@@ -576,19 +585,29 @@ public final class OBDManager: NSObject, ObservableObject {
         if nextCmd == "0100" {
             connectionState = .searchingECU
             detailedStatus = "Verbinde mit Steuergerät (Bosch MED9.1)…"
+        } else {
+            detailedStatus = "Initialisiere ELM327 (\(nextCmd.isEmpty || nextCmd == "\r" ? "Wakeup" : nextCmd))…"
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             guard let self = self else { return }
             self.sendCommandRaw(nextCmd)
 
-            // Timeout-Absicherung für Init-Befehle (Auto-Protokoll braucht ggf. länger)
-            let waitTime: TimeInterval = (nextCmd == "0100" && self.selectedProtocol == .auto) ? 7.0 : 1.8
+            let waitTime: TimeInterval
+            if nextCmd == "0100" {
+                waitTime = (self.selectedProtocol == .auto) ? 7.0 : 2.5
+            } else if nextCmd == "ATZ" {
+                waitTime = 2.2
+            } else {
+                waitTime = 1.5
+            }
+
             self.initStepTimer = Timer.scheduledTimer(withTimeInterval: waitTime, repeats: false) { [weak self] _ in
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     if self.connectionState == .initializing || self.connectionState == .searchingECU {
-                        self.logSystem("ℹ Timeout bei Befehl \(nextCmd) – fahre fort.")
+                        let bufInfo = self.receiveBuffer.isEmpty ? "leer" : "'\(self.receiveBuffer)'"
+                        self.logSystem("ℹ Timeout bei Befehl \(nextCmd) [Puffer: \(bufInfo)] – fahre fort.")
                         self.isWaitingForResponse = false
                         self.sendNextInitCommand()
                     }
@@ -599,11 +618,11 @@ public final class OBDManager: NSObject, ObservableObject {
 
     private func startConnectionWatchdog() {
         connectionWatchdogTimer?.invalidate()
-        connectionWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 12.0, repeats: false) { [weak self] _ in
+        connectionWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 14.0, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                if self.connectionState == .connecting || self.connectionState == .initializing {
-                    self.logSystem("⚠ Verbindungs-Watchdog: Adapter reagiert nicht. Starte Scan neu…")
+                if self.connectionState == .connecting {
+                    self.logSystem("⚠ Verbindungs-Watchdog: Adapter reagiert nicht beim Koppeln. Starte Scan neu…")
                     self.reconnect()
                 }
             }
@@ -985,6 +1004,10 @@ extension OBDManager: CBPeripheralDelegate {
     public func peripheral(_ peripheral: CBPeripheral,
                            didDiscoverCharacteristicsFor service: CBService,
                            error: Error?) {
+        if let error = error {
+            logSystem("🔴 Char-Fehler für Dienst \(service.uuid): \(error.localizedDescription)")
+            return
+        }
         let serviceStr = service.uuid.uuidString.uppercased()
         if serviceStr.hasPrefix("1800") || serviceStr.hasPrefix("1801") || serviceStr.hasPrefix("180A") {
             return
@@ -993,32 +1016,106 @@ extension OBDManager: CBPeripheralDelegate {
         guard let chars = service.characteristics else { return }
         for c in chars {
             logSystem("  -> Char: \(c.uuid) (Prop: \(c.properties.rawValue))")
-            if c.properties.contains(.notify) || c.properties.contains(.indicate) {
-                rxChar = c
-                peripheral.setNotifyValue(true, for: c)
+        }
+
+        // 1. Spezifische Zuordnung nach bekannten BLE-UART Standards
+        if serviceStr.contains("FFF0") {
+            for c in chars {
+                let u = c.uuid.uuidString.uppercased()
+                if u.contains("FFF1") { txChar = c }
+                if u.contains("FFF2") { rxChar = c }
             }
-            if c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse) {
-                if txChar == nil || txChar?.service?.uuid == service.uuid {
+        } else if serviceStr.contains("FFE0") {
+            for c in chars {
+                let u = c.uuid.uuidString.uppercased()
+                if u.contains("FFE1") {
                     txChar = c
+                    rxChar = c
                 }
+            }
+        } else if serviceStr.contains("6E400001") {
+            for c in chars {
+                let u = c.uuid.uuidString.uppercased()
+                if u.contains("6E400002") { txChar = c }
+                if u.contains("6E400003") { rxChar = c }
+            }
+        } else if serviceStr.contains("49535343") {
+            for c in chars {
+                let u = c.uuid.uuidString.uppercased()
+                if u.contains("8841") { txChar = c }
+                if u.contains("1E4D") { rxChar = c }
+            }
+        } else if serviceStr.contains("18F0") {
+            for c in chars {
+                let u = c.uuid.uuidString.uppercased()
+                if u.contains("2AF0") { txChar = c }
+                if u.contains("2AF1") { rxChar = c }
+            }
+        } else {
+            // 2. Generischer Fallback
+            if rxChar == nil {
+                rxChar = chars.first(where: { $0.properties.contains(.notify) })
+                      ?? chars.first(where: { $0.properties.contains(.indicate) })
+            }
+            if txChar == nil {
+                txChar = chars.first(where: { $0 != rxChar && ($0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse)) })
+                      ?? chars.first(where: { $0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse) })
             }
         }
 
-        // Sobald TX und RX verfügbar sind, genau 1x Handshake starten
-        if txChar != nil && rxChar != nil && connectionState == .initializing && !isInitializingUART {
+        // Sobald TX und RX bereitstehen:
+        if let tx = txChar, let rx = rxChar, connectionState == .initializing && !isInitializingUART {
             isInitializingUART = true
-            logSystem("✔ UART bereit (TX & RX verbunden). Starte Handshake…")
-            startRobustInitSequence()
+            connectionWatchdogTimer?.invalidate()
+            logSystem("✔ UART Kanäle gefunden: TX=\(tx.uuid.uuidString) | RX=\(rx.uuid.uuidString)")
+
+            logSystem("Aktiviere Benachrichtigungen auf RX…")
+            peripheral.setNotifyValue(true, for: rx)
+
+            // Falls didUpdateNotificationStateFor verzögert kommt oder ausbleibt:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                guard let self = self else { return }
+                if self.connectionState == .initializing && self.initQueue.isEmpty {
+                    self.logSystem("Starte Handshake per Timer-Fallback…")
+                    self.startRobustInitSequence()
+                }
+            }
+        }
+    }
+
+    public func peripheral(_ peripheral: CBPeripheral,
+                           didUpdateNotificationStateFor characteristic: CBCharacteristic,
+                           error: Error?) {
+        if let error = error {
+            logSystem("🔴 Notify Fehler auf \(characteristic.uuid): \(error.localizedDescription)")
+            return
+        }
+        if characteristic.isNotifying {
+            logSystem("✔ BLE Notify bestätigt für \(characteristic.uuid.uuidString)")
+            if connectionState == .initializing && initQueue.isEmpty {
+                startRobustInitSequence()
+            }
+        }
+    }
+
+    public func peripheral(_ peripheral: CBPeripheral,
+                           didWriteValueFor characteristic: CBCharacteristic,
+                           error: Error?) {
+        if let error = error {
+            logSystem("🔴 BLE Write Fehler auf \(characteristic.uuid): \(error.localizedDescription)")
         }
     }
 
     public func peripheral(_ peripheral: CBPeripheral,
                            didUpdateValueFor characteristic: CBCharacteristic,
                            error: Error?) {
-        guard let data = characteristic.value,
-              let str = String(data: data, encoding: .ascii) ?? String(data: data, encoding: .utf8) else {
+        if let error = error {
+            logSystem("🔴 Empfangsfehler auf \(characteristic.uuid): \(error.localizedDescription)")
             return
         }
+        guard let data = characteristic.value else { return }
+        let str = String(decoding: data, as: UTF8.self)
+        guard !str.isEmpty else { return }
 
         receiveBuffer.append(str)
         if receiveBuffer.contains(">") {

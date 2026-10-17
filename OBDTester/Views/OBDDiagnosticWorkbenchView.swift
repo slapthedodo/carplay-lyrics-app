@@ -529,6 +529,16 @@ struct OBDTerminalSection: View {
             .padding(.horizontal)
             .padding(.top, 4)
 
+            HStack {
+                Toggle("ACK Mode", isOn: $obd.forceWriteWithResponse)
+                    .labelsHidden()
+                Text(obd.forceWriteWithResponse ? "BLE Write: mit ACK (WithResponse)" : "BLE Write: Schnell (WithoutResponse)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal)
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(quickCommands, id: \.self) { cmd in
