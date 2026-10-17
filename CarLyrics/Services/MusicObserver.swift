@@ -56,15 +56,26 @@ public final class MusicObserver: ObservableObject {
     private var liveActivity : Activity<LyricsAttributes>?
 
     public var hasActiveLiveActivity: Bool {
-        return liveActivity != nil || !Activity<LyricsAttributes>.activities.isEmpty
+        return activeActivity != nil
     }
 
-    // Rate-Limit & Throttle State
-    private var lastActivityUpdate : Date         = .distantPast
-    private let minUpdateInterval  : TimeInterval = 0.8   // Strenger Schutz vor Apple Throttling
-    private let telemetryInterval  : TimeInterval = 2.0   // Regelmäßiges Telemetrie-Update
-    private var lastSentG          : Double       = 0
-    private let gDeltaThreshold    : Double       = 0.08  // Erst ab 0.08G Delta aktualisieren
+    /// Liefert garantiert nur eine echte, aktive Activity zurück (ignoriert .ended & .dismissed)
+    public var activeActivity: Activity<LyricsAttributes>? {
+        if let current = liveActivity, current.activityState == .active {
+            return current
+        }
+        if let existing = Activity<LyricsAttributes>.activities.first(where: { $0.activityState == .active }) {
+            self.liveActivity = existing
+            return existing
+        }
+        return nil
+    }
+
+    // Rate-Limit, Serialisierung & Queue State (Apple ActivityKit Schutz)
+    private var lastActivityUpdate     : Date   = .distantPast
+    private var lastSentG              : Double = 0
+    private var isUpdatingActivity     : Bool   = false
+    private var pendingActivityUpdate  : Bool   = false
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -73,6 +84,11 @@ public final class MusicObserver: ObservableObject {
     public init() {
         setupNotifications()
         systemPlayer.beginGeneratingPlaybackNotifications()
+
+        // Spotify Polling starten falls authentifiziert
+        if spotify.isAuthenticated {
+            spotify.startPolling()
+        }
 
         // Spotify Observer einhängen
         spotify.$trackTitle.combineLatest(spotify.$artistName, spotify.$isPlaying)
@@ -121,9 +137,14 @@ public final class MusicObserver: ObservableObject {
             currentLine       = ""
             nextLine          = ""
 
+            // Dynamic Island sofort mit dem neuen Songtitel aktualisieren
+            pushActivityUpdate(force: true)
+
             Task {
                 await loadLyrics(title: title, artist: artist, album: spotify.albumName, duration: spotify.durationSeconds)
             }
+        } else {
+            pushActivityUpdate(force: false)
         }
 
         if isPlaying && lineTimer == nil {
@@ -149,6 +170,7 @@ public final class MusicObserver: ObservableObject {
         currentLine       = ""
         nextLine          = ""
 
+        pushActivityUpdate(force: true)
         Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
     }
 
@@ -181,7 +203,7 @@ public final class MusicObserver: ObservableObject {
         if !spotify.isAuthenticated {
             isPlaying = systemPlayer.playbackState == .playing
             isPlaying ? startLineTimer() : stopLineTimer()
-            Task { await updateLiveActivity(force: false) }
+            pushActivityUpdate(force: false)
         }
     }
 
@@ -192,7 +214,7 @@ public final class MusicObserver: ObservableObject {
         currentLine       = ""
         nextLine          = ""
         isPlaying         = false
-        Task { await updateLiveActivity(force: false) }
+        pushActivityUpdate(force: false)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -208,11 +230,11 @@ public final class MusicObserver: ObservableObject {
             lyrics       = parsed
             lyricsStatus = .loaded
             startLineTimer()
-            await startLiveActivity(title: title, artist: artist)
+            pushActivityUpdate(force: true)
         } catch {
             lyricsStatus = .error(error.localizedDescription)
             // Trotz Lyrics-Fehler die Live Activity für Motortelemetrie aktiv halten
-            await updateLiveActivity(force: true)
+            pushActivityUpdate(force: true)
         }
     }
 
@@ -233,14 +255,14 @@ public final class MusicObserver: ObservableObject {
 
     public func startTelemetryHeartbeat() {
         telemetryTimer?.invalidate()
-        // Aktualisiert alle 1.5 Sekunden die Motordaten und G-Kräfte in Dynamic Island & Sperrbildschirm auch im Hintergrund
-        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+        // Aktualisiert alle 2 Sekunden Motordaten und G-Kräfte, ohne Apples Rate-Limit zu verletzen
+        let timer = Timer(timeInterval: 2.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if self.liveActivity == nil {
+                if self.activeActivity == nil {
                     await self.reattachOrCreateLiveActivity()
                 } else {
-                    await self.updateLiveActivity(force: false)
+                    self.pushActivityUpdate(force: false)
                 }
             }
         }
@@ -249,8 +271,6 @@ public final class MusicObserver: ObservableObject {
     }
 
     private func tick() {
-        guard let lyrics else { return }
-
         // Aktuelle Zeit ermitteln (Spotify mit CarPlay-Delay Kompensation ODER System Player)
         let time: TimeInterval
         if spotify.isAuthenticated {
@@ -261,33 +281,79 @@ public final class MusicObserver: ObservableObject {
 
         if duration > 0 { progress = min(time / duration, 1.0) }
 
-        guard let idx = lyrics.activeIndex(at: time) else { return }
-        let newCurrent = lyrics.lines[idx].text
-        let newNext    = idx + 1 < lyrics.lines.count ? lyrics.lines[idx + 1].text : ""
+        if let lyrics = lyrics {
+            if let idx = lyrics.activeIndex(at: time) {
+                let newCurrent = lyrics.lines[idx].text
+                let newNext    = idx + 1 < lyrics.lines.count ? lyrics.lines[idx + 1].text : ""
 
-        let lineChanged = (newCurrent != currentLine || newNext != nextLine)
-        currentLine = newCurrent
-        nextLine    = newNext
+                let lineChanged = (newCurrent != currentLine || newNext != nextLine)
+                if lineChanged {
+                    currentLine = newCurrent
+                    nextLine    = newNext
+                    // Bei Zeilenwechsel sofort die Dynamic Island aktualisieren!
+                    pushActivityUpdate(force: true)
+                }
+            }
+        }
 
-        // ── Verfeinerter Rate-Limit Schutz ──────────────────────────────────
-        let now     = Date()
+        // Telemetrie Check (G-Kraft Spitze erfassen)
+        let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
         let currentGVal = motionManager?.currentG ?? 0
-        let gPeak       = abs(currentGVal - lastSentG) >= gDeltaThreshold
+        let gDelta = abs(currentGVal - lastSentG)
 
-        // Regel:
-        // 1. Wenn die Zeile wechselt: SOFORT updaten (außer < 0.2s nach letztem Call)
-        // 2. Telemetrie/G-Peak: NUR updaten, wenn mindestens 0.8s vergangen sind!
-        if lineChanged {
-            if elapsed >= 0.2 {
-                lastSentG = currentGVal
-                Task { await updateLiveActivity(force: true) }
+        // Wenn G-Kraft sich spürbar ändert (>0.10G) und min 0.8s seit letztem Push vergangen sind:
+        if gDelta >= 0.10 && elapsed >= 0.8 {
+            lastSentG = currentGVal
+            pushActivityUpdate(force: false)
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: ActivityKit Push Engine (Serialisiert, kein Dead-Lock, kein Throttling)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public func pushActivityUpdate(force: Bool = false) {
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastActivityUpdate)
+
+        // Apple Rate-Limit Schutz:
+        // Bei Songtext-Zeilenwechsel: min 0.3s Abstand
+        // Bei reinem Telemetrie-Update: min 1.2s Abstand
+        let minAllowed = force ? 0.3 : 1.2
+        if !force && elapsed < minAllowed {
+            return
+        }
+
+        if isUpdatingActivity {
+            pendingActivityUpdate = true
+            return
+        }
+
+        isUpdatingActivity = true
+        lastActivityUpdate = now
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.isUpdatingActivity = false
+                if self.pendingActivityUpdate {
+                    self.pendingActivityUpdate = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        self.pushActivityUpdate(force: true)
+                    }
+                }
             }
-        } else if elapsed >= minUpdateInterval {
-            if gPeak || elapsed >= telemetryInterval {
-                lastSentG = currentGVal
-                Task { await updateLiveActivity(force: false) }
+
+            guard let activity = self.activeActivity else {
+                await self.reattachOrCreateLiveActivity()
+                return
             }
+
+            let state = self.makeState()
+            // staleDate: nil -> iOS setzt die Dynamic Island NIEMALS versehentlich auf .stale
+            let content = ActivityContent(state: state, staleDate: nil)
+            await activity.update(content)
         }
     }
 
@@ -297,26 +363,30 @@ public final class MusicObserver: ObservableObject {
 
     public func reattachOrCreateLiveActivity() async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+
+        // Erst alle toten oder beendeten Activities sauber aus dem System entfernen
         let all = Activity<LyricsAttributes>.activities
-        if let existing = all.first {
-            // Re-Attach an bestehende Activity anstatt eine tote Leiche im System zu lassen!
+        for old in all where old.activityState != .active {
+            await old.end(nil, dismissalPolicy: .immediate)
+        }
+
+        let activeList = Activity<LyricsAttributes>.activities.filter { $0.activityState == .active }
+        if let existing = activeList.first {
             self.liveActivity = existing
-            for extra in all.dropFirst() {
+            for extra in activeList.dropFirst() {
                 await extra.end(nil, dismissalPolicy: .immediate)
             }
-            await updateLiveActivity(force: true)
+            pushActivityUpdate(force: true)
         } else {
             let title = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
             let artist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
-            await startLiveActivity(title: title, artist: artist)
+            await startNewLiveActivity(title: title, artist: artist)
         }
     }
 
     public func resetLiveActivities() async {
-        for act in Activity<LyricsAttributes>.activities {
-            await act.end(nil, dismissalPolicy: .immediate)
-        }
-        self.liveActivity = nil
+        await endAllLiveActivities()
+        try? await Task.sleep(nanoseconds: 300_000_000)
         await reattachOrCreateLiveActivity()
     }
 
@@ -327,50 +397,39 @@ public final class MusicObserver: ObservableObject {
         self.liveActivity = nil
     }
 
-    private func startLiveActivity(title: String, artist: String) async {
+    private func startNewLiveActivity(title: String, artist: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        if liveActivity != nil {
-            await updateLiveActivity(force: true)
+
+        if let _ = activeActivity {
+            pushActivityUpdate(force: true)
             return
         }
 
-        // Falls noch eine alte Activity im System existiert, sofort re-attachen
-        if let existing = Activity<LyricsAttributes>.activities.first {
-            self.liveActivity = existing
-            await updateLiveActivity(force: true)
-            return
+        // Alle beendeten oder alten Leichen vor Neuanlage sofort abräumen
+        for act in Activity<LyricsAttributes>.activities where act.activityState != .active {
+            await act.end(nil, dismissalPolicy: .immediate)
         }
 
         let attrs   = LyricsAttributes(trackId: "\(artist)|\(title)")
-        // staleDate: 8 Sekunden -> Schützt davor, dass die Dynamic Island nach App-Kill einfriert!
-        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(8))
+        let content = ActivityContent(state: makeState(), staleDate: nil)
         do {
-            liveActivity = try Activity<LyricsAttributes>.request(
+            let newActivity = try Activity<LyricsAttributes>.request(
                 attributes: attrs, content: content, pushType: nil)
+            self.liveActivity = newActivity
+            lastActivityUpdate = Date()
         } catch {
             print("[CarLyrics] Live Activity start failed: \(error)")
         }
     }
 
-    private func updateLiveActivity(force: Bool) async {
-        guard let activity = liveActivity else {
-            await reattachOrCreateLiveActivity()
-            return
-        }
-        lastActivityUpdate = Date()
-        // Frisches staleDate von 8s: Solange App läuft, wird es alle 1.5s verlängert.
-        // Wird die App gekillt, blendet iOS die Activity nach 8s automatisch sauber aus!
-        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(8))
-        await activity.update(content)
-    }
-
     public func endLiveActivity() async {
-        guard let activity = liveActivity else { return }
-        var final = makeState()
-        final.isPlaying = false
-        let content = ActivityContent(state: final, staleDate: nil)
-        await activity.end(content, dismissalPolicy: .immediate)
-        liveActivity = nil
+        if let activity = activeActivity {
+            var final = makeState()
+            final.isPlaying = false
+            let content = ActivityContent(state: final, staleDate: nil)
+            await activity.end(content, dismissalPolicy: .immediate)
+            self.liveActivity = nil
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -113,19 +113,51 @@ struct LyricsActivityWidget: Widget {
                 }
 
             } compactTrailing: {
-                // ── Live Ladedruck oder G-Kräfte ───────────────────────────
-                HStack(spacing: 2) {
-                    if let boost = context.state.boostBar, boost > 0.1 {
-                        Text(String(format: "%.1fb", boost))
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.cyan)
-                    } else {
+                // ── Live Songtext & Telemetrie Switch in der Dynamic Island ──
+                HStack(spacing: 3) {
+                    if context.state.currentG > 0.35 {
+                        // Bei sportlicher Beschleunigung/Kurve: Live G-Meter
                         Text(String(format: "%.1fG", context.state.currentG))
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
                             .foregroundStyle(gColor(context.state.currentG))
                             .contentTransition(.numericText())
+                    } else if let boost = context.state.boostBar, boost > 0.15 {
+                        // Bei Turbo Ladedruck: bar anzeigen
+                        Text(String(format: "%.1fb", boost))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    } else if !context.state.currentLine.isEmpty && context.state.currentLine != "♪" && context.state.currentLine != "Öl- & Telemetrie-Monitor" {
+                        // Live synchronisierter Songtext Zeile für Zeile!
+                        HStack(spacing: 2) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.green)
+                            Text(context.state.currentLine)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    } else if !context.state.songTitle.isEmpty && context.state.songTitle != "TFSI 2.0 Telemetrie" {
+                        // Songtitel wenn gerade Textpause
+                        HStack(spacing: 2) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 8))
+                                .foregroundStyle(.secondary)
+                            Text(context.state.songTitle)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    } else {
+                        // Ruhezustand: G-Kraft
+                        Text(String(format: "%.1fG", context.state.currentG))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .frame(maxWidth: 160, alignment: .trailing)
 
             } minimal: {
                 HStack(spacing: 1) {
