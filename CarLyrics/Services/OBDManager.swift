@@ -68,7 +68,21 @@ public final class OBDManager: NSObject, ObservableObject {
     private var pollTimer       : Timer?
     private var receiveBuffer   : String = ""
     private var currentPIDIndex : Int = 0
-    private let queryCycle      : [String] = ["0105", "010C", "010F", "0110", "010B", "015C", "010D", "0104"]
+    // VAG EA113 Bosch MED 9.1 Zyklus:
+    // Mode 22 UDS PIDs (2211BE, 221156) für echte physische Öltemperatur (Geber G266 in der Ölwanne)
+    // Standard Mode 01 PIDs für Kühlmittel, Ladedruck, Luftmasse, Ansaugluft, Drehzahl, Last
+    private let queryCycle: [String] = [
+        "0105",     // Kühlmitteltemperatur in °C
+        "010C",     // Motordrehzahl RPM
+        "2211BE",   // VAG UDS Geber G266 Öltemperatur (Bosch MED 9.1 Primär)
+        "010F",     // Ansauglufttemperatur (IAT) in °C
+        "0110",     // Luftmasse (MAF) in g/s
+        "010B",     // Saugrohr-Absolutdruck (MAP) in kPa -> Ladedruck
+        "221156",   // VAG UDS Geber G266 Öltemperatur (Alternativer VAG PID)
+        "015C",     // Standard OBD2 Öltemperatur (Fallback)
+        "010D",     // Geschwindigkeit in km/h
+        "0104"      // Motorlast in %
+    ]
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -208,7 +222,51 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 2. Öltemperatur (PID 01 5C -> Antwort 415C XX)
+        // 2a. Echte VAG Öltemperatur via UDS Mode 22 (PID 22 11 BE -> Antwort 6211BE AA BB)
+        // Direkte Auslesung des physikalischen Gebers G266 in der Ölwanne beim Bosch MED 9.1 (EA113 2.0 TFSI)
+        if let range = compact.range(of: "6211BE") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 4 {
+                let b1Str = String(after.prefix(2))
+                let b2Str = String(after.dropFirst(2).prefix(2))
+                if let b1 = Double(b1Str, radix: 16), let b2 = Double(b2Str, radix: 16) {
+                    let rawKelvinTimes10 = (b1 * 256.0) + b2
+                    let tempCelsius = Int(round((rawKelvinTimes10 - 2731.5) / 10.0))
+                    if tempCelsius >= -30 && tempCelsius <= 170 {
+                        liveOilTemp = tempCelsius
+                        hasOilTempPID = true
+                        log("✔ VAG G266 Öltemperatur (2211BE): \(tempCelsius)°C")
+                        WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: tempCelsius)
+                    }
+                }
+            }
+        }
+        // 2b. Echte VAG Öltemperatur Alternative (PID 22 11 56 -> Antwort 621156 AA [BB])
+        if let range = compact.range(of: "621156") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let b1Str = String(after.prefix(2))
+                if let b1 = Int(b1Str, radix: 16) {
+                    var tempCelsius = b1 - 40
+                    if after.count >= 4 {
+                        let b2Str = String(after.dropFirst(2).prefix(2))
+                        if let b2 = Double(b2Str, radix: 16) {
+                            let k = (Double(b1) * 256.0) + b2
+                            if k > 2000 {
+                                tempCelsius = Int(round((k - 2731.5) / 10.0))
+                            }
+                        }
+                    }
+                    if tempCelsius >= -30 && tempCelsius <= 170 {
+                        liveOilTemp = tempCelsius
+                        hasOilTempPID = true
+                        log("✔ VAG G266 Öltemperatur (221156): \(tempCelsius)°C")
+                        WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: tempCelsius)
+                    }
+                }
+            }
+        }
+        // 2c. Standard SAE J1979 Öltemperatur (PID 01 5C -> Antwort 415C XX)
         if let range = compact.range(of: "415C") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2 {
@@ -309,8 +367,10 @@ public final class OBDManager: NSObject, ObservableObject {
         }
         // 10. VW 2.0 TFSI Besonderheit Check
         if compact.contains("NODATA") && compact.contains("5C") {
-            hasOilTempPID = false
-            log("ℹ VW meldet 'NO DATA' für PID 01 5C. Kühlmittel-Fallback aktiv!")
+            if liveOilTemp == nil {
+                hasOilTempPID = false
+                log("ℹ VW meldet 'NO DATA' für PID 01 5C. Nutze VAG Mode 22 oder Kühlmittel-Modell.")
+            }
         }
         if compact.contains("SEARCHING") {
             log("ELM327 sucht CAN-Bus Protokoll…")
@@ -432,9 +492,12 @@ extension OBDManager: CBPeripheralDelegate {
                     self?.sendCommand("ATE0")  // Echo off
                     self?.sendCommand("ATL0")  // Linefeeds off
                     self?.sendCommand("ATSP0") // Auto Protocol
-                    self?.connectionState = .connected
-                    self?.log("ELM327 initialisiert. Starte PID-Abfragen.")
-                    self?.startPolling()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self?.sendCommand("ATSH7E0") // Header auf Bosch MED 9.1 Motorsteuergerät (7E0) für VAG Mode 22
+                        self?.connectionState = .connected
+                        self?.log("ELM327 initialisiert (ECU 7E0). Starte PID-Abfragen.")
+                        self?.startPolling()
+                    }
                 }
             }
         }
