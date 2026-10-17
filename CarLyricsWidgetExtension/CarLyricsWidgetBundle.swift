@@ -10,10 +10,14 @@ import SwiftUI
 @main
 struct CarLyricsWidgetBundle: WidgetBundle {
     var body: some Widget {
-        // 1. Live Activity & Dynamic Island (Sperrbildschirm Banner mit allen 5 Kugeln & Songtext)
+        // Live Activity & Dynamic Island (für Sperrbildschirm mit allen 5 Kugeln)
         LyricsActivityWidget()
 
-        // 2. Das eine echte Cockpit Widget (Small 2x2, Medium 2x4, Sperrbildschirm)
-        TelemetryCockpitWidget()
+        // Die 5 Kacheln für deine 3 Slots:
+        TelemetryCockpitWidget()    // 1. All-in-One Cockpit (TFSI 2.0 in Türkis + Scheibe + Boost + Peak)
+        OilTempWidget()             // 2. Reine Öltemperatur-Scheibe (Groß, mit Thermometer & Ring)
+        BoostPerformanceWidget()    // 3. Reiner Turbo Ladedruck (BAR BOOST, IAT, MAF)
+        GForceWidget()              // 4. Reines G-Kraft Fadenkreuz (Lila Scope, Live-G & Peak)
+        LyricsWidget()              // 5. Reiner Live-Songtext (Spotify synchronisiert)
     }
 }
