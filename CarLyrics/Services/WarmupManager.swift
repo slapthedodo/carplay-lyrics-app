@@ -39,12 +39,81 @@ public final class WarmupManager: ObservableObject {
     @Published public var isRunning      : Bool        = false
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Seasonal & Monthly Safety Profile (EA113 BWA 2.0 TFSI)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public struct SeasonalProfile {
+        public let ambientTemp          : Double   // Konservative Starttemperatur
+        public let lambda               : Double   // Konservativer Aufheizkoeffizient
+        public let estimatedMinutesTo80 : Int      // Warmfahrzeit in Minuten
+        public let seasonName           : String   // z.B. "Tiefwinter (Frost)"
+    }
+
+    /// Liefert das exakte Monats- und Sicherheits-Profil für mitteleuropäisches Klima
+    /// Kalibriert nach der Devise: Eher etwas zu lange warmfahren als zu kurz (Turbo- & Motorschutz).
+    public static func profileForCurrentDate(date: Date = Date()) -> SeasonalProfile {
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: date)
+        let hour = calendar.component(.hour, from: date)
+        let isNightOrEarlyMorning = (hour < 8 || hour >= 22)
+        let nightOffset: Double = isNightOrEarlyMorning ? -2.0 : 0.0
+
+        switch month {
+        case 1:  // Januar: Tiefwinter, harter Frost (ca. 19-20 Min bis 80°C)
+            let base = 2.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(-5.0, base), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Tiefwinter (Frostschutz)")
+        case 2:  // Februar: Spätwinter, oft noch Schnee & Salz (ca. 18-19 Min)
+            let base = 3.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(-4.0, base), lambda: 0.0020, estimatedMinutesTo80: 19, seasonName: "Spätwinter")
+        case 3:  // März: Vorfrühling, kalte Nächte & Morgen (ca. 17 Min)
+            let base = 6.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(0.0, base), lambda: 0.00215, estimatedMinutesTo80: 17, seasonName: "Vorfrühling (Kaltphase)")
+        case 4:  // April: Typischer wechselhafter Frühling (ca. 15-16 Min)
+            let base = 9.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(3.0, base), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Frühling")
+        case 5:  // Mai: Milder Frühling (ca. 14-15 Min)
+            let base = 14.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(8.0, base), lambda: 0.00245, estimatedMinutesTo80: 14, seasonName: "Milder Frühling")
+        case 6:  // Juni: Frühsommer (ca. 13-14 Min)
+            let base = 18.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(12.0, base), lambda: 0.0026, estimatedMinutesTo80: 13, seasonName: "Frühsommer")
+        case 7:  // Juli: Hochsommer (ca. 12-13 Min)
+            let base = 21.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(15.0, base), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
+        case 8:  // August: Hochsommer (ca. 12-13 Min)
+            let base = 20.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(14.0, base), lambda: 0.0027, estimatedMinutesTo80: 12, seasonName: "Hochsommer")
+        case 9:  // September: Spätsommer / Frühherbst (ca. 14 Min)
+            let base = 15.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(9.0, base), lambda: 0.0025, estimatedMinutesTo80: 14, seasonName: "Spätsommer")
+        case 10: // Oktober: Herbst, deutlich kühlere Tage (ca. 15-16 Min)
+            let base = 9.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(3.0, base), lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Herbst")
+        case 11: // November: Spätherbst, nasskalt (ca. 17-18 Min)
+            let base = 5.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(0.0, base), lambda: 0.0021, estimatedMinutesTo80: 18, seasonName: "Spätherbst (Nasskalt)")
+        case 12: // Dezember: Winterbeginn & Frost (ca. 19-20 Min)
+            let base = 2.0 + nightOffset
+            return SeasonalProfile(ambientTemp: max(-5.0, base), lambda: 0.0019, estimatedMinutesTo80: 20, seasonName: "Winterbeginn")
+        default:
+            return SeasonalProfile(ambientTemp: 10.0, lambda: 0.0023, estimatedMinutesTo80: 16, seasonName: "Standard")
+        }
+    }
+
+    public var currentProfile: SeasonalProfile {
+        Self.profileForCurrentDate()
+    }
+
+    public var lambda: Double {
+        currentProfile.lambda
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MARK: Configuration
     // ─────────────────────────────────────────────────────────────────────────
 
-    public var startTemp    : Double = 20    // °C — can be set before start()
+    public var startTemp    : Double = 10    // °C — wird saisonal dynamisch ermittelt
     public let targetTemp   : Double = 90    // °C operating temperature
-    public let lambda       : Double = 0.0028 // Realistischer 2.0 TFSI Wert: ~15-18 Min. bis 80°C
 
     private let coldThreshold    : Double = 60
     private let warmingThreshold : Double = 80
@@ -69,11 +138,11 @@ public final class WarmupManager: ObservableObject {
         // Falls die letzte Fahrt vor weniger als 45 Minuten gestartet wurde: Session nahtlos fortsetzen!
         if savedTime > 0 && (now - savedTime) < 2700 {
             self.startedAt = Date(timeIntervalSince1970: savedTime)
-            self.startTemp = savedTemp > 0 ? savedTemp : 20
+            self.startTemp = savedTemp > -20 ? savedTemp : Self.profileForCurrentDate().ambientTemp
             self.isRunning = true
             resumeTimer()
         } else {
-            // Frischer Kaltstart
+            // Frischer Kaltstart mit aktuellem Monats-Sicherheitsprofil
             start(cold: true)
         }
     }
@@ -85,13 +154,11 @@ public final class WarmupManager: ObservableObject {
     /// Begin the warm-up curve from `startTemp`.
     /// Call with `cold: true` to reset to ambient, `false` to use a warm start.
     public func start(cold: Bool = true) {
+        let profile = Self.profileForCurrentDate()
         if cold {
-            // Winter/Kaltzeit-Erkennung (Okt - April): 8°C statt 20°C
-            let month = Calendar.current.component(.month, from: Date())
-            let isWinter = (month >= 10 || month <= 4)
-            startTemp = isWinter ? 8.0 : 20.0
+            startTemp = profile.ambientTemp
         } else {
-            startTemp = 45.0 // z.B. 10 Min. geparkt
+            startTemp = max(40.0, profile.ambientTemp + 30.0) // z.B. 10 Min. geparkt
         }
         oilTemp                 = startTemp
         elapsedSeconds          = 0
@@ -141,17 +208,37 @@ public final class WarmupManager: ObservableObject {
     // MARK: Tick
     // ─────────────────────────────────────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Physics Calculation with Thermal Inertia & Safety Factor
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public func calculateOilTemp(at t: TimeInterval, from sTemp: Double) -> Double {
+        guard t > 0 else { return sTemp }
+        let baseLambda = lambda
+        // Thermische Trägheit des 85kg Grauguss-Blocks (EA113 BWA):
+        // In den ersten 120 Sekunden absorbiert der schwere Block die Verbrennungswärme,
+        // das Öl in der Wanne hinkt hinterher. Wir dämpfen das Lambda für die ersten 2 Minuten sanft ab.
+        let effectiveLambda: Double
+        if t < 120 {
+            effectiveLambda = baseLambda * (0.6 + 0.4 * (t / 120.0))
+        } else {
+            effectiveLambda = baseLambda
+        }
+        let newTemp = targetTemp - (targetTemp - sTemp) * exp(-effectiveLambda * t)
+        return min(max(newTemp, sTemp), targetTemp)
+    }
+
     private func tick() {
         guard let startedAt else { return }
         let t = Date().timeIntervalSince(startedAt)
         elapsedSeconds = t
 
-        // Newton-cooling asymptotic ramp
-        let newTemp = targetTemp - (targetTemp - startTemp) * exp(-lambda * t)
+        // Newton-cooling asymptotic ramp mit thermischer Trägheit
+        let newTemp = calculateOilTemp(at: t, from: startTemp)
         oilTemp = min(newTemp, targetTemp)
 
         // Progress: 0 → 1 when going from startTemp to 85 °C
-        let span = 85.0 - startTemp
+        let span = max(10.0, 85.0 - startTemp)
         warmupProgress = max(0, min((oilTemp - startTemp) / span, 1.0))
 
         // Phase transition
@@ -232,8 +319,7 @@ public final class WarmupManager: ObservableObject {
     public var currentOilTemp: Double {
         guard isRunning, let startedAt else { return startTemp }
         let t = Date().timeIntervalSince(startedAt)
-        let newTemp = targetTemp - (targetTemp - startTemp) * exp(-lambda * t)
-        return min(newTemp, targetTemp)
+        return calculateOilTemp(at: t, from: startTemp)
     }
 
     public var oilTempInt: Int { Int(currentOilTemp.rounded()) }

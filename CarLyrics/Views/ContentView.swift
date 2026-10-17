@@ -627,15 +627,15 @@ struct WarmupCard: View {
                     }
                 }
 
-                // Gauge
-                Gauge(value: Double(displayTemp ?? 20), in: 20...110) {
+                // Gauge (Skala 0 bis 110 °C, damit auch bei Winter-Kaltstarts 0...10°C kein Bereichsfehler auftritt)
+                Gauge(value: Double(max(0, displayTemp ?? 0)), in: 0...110) {
                     Text("Temperatur")
                 } currentValueLabel: {
                     Text(displayTemp != nil ? "\(displayTemp!)°C" : "-- °C")
                         .font(.system(size: 20, weight: .bold, design: .monospaced))
                         .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
                 } minimumValueLabel: {
-                    Text("20°").font(.caption2)
+                    Text("0°").font(.caption2)
                 } maximumValueLabel: {
                     Text("110°").font(.caption2)
                 }
@@ -643,12 +643,21 @@ struct WarmupCard: View {
                 .tint(displayTemp != nil ? Gradient(colors: [.blue, .orange, .green]) : Gradient(colors: [.secondary.opacity(0.3)]))
                 .frame(width: 120, height: 120)
 
-                // Phasenhinweis
-                Text(phaseText(displayTemp))
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
-                    .padding(.horizontal)
+                // Phasenhinweis & Saison-Modell
+                VStack(spacing: 4) {
+                    Text(phaseText(displayTemp))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
+
+                    if !obd.isEnabled || obd.connectionState != .connected {
+                        Text("Safety-Modell: \(warmup.currentProfile.seasonName) • ca. \(warmup.currentProfile.estimatedMinutesTo80) Min. bis 80°C")
+                            .font(.system(size: 9.5, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal)
             }
             .frame(maxWidth: .infinity)
         }
