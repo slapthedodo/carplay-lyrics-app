@@ -506,11 +506,20 @@ struct LyricsCard: View {
                         .padding(.vertical, 16)
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
-                        // 2 Zeilen davor (ganz leicht sichtbar)
+                        // 3 Zeilen davor (sanft angedeutet)
+                        if !observer.previousLine3.isEmpty {
+                            Text(observer.previousLine3)
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.12))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.previousLine3)
+                        }
+
+                        // 2 Zeilen davor (leicht sichtbar)
                         if !observer.previousLine2.isEmpty {
                             Text(observer.previousLine2)
-                                .font(.system(size: 15, weight: .regular, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.18))
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.24))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.previousLine2)
                         }
@@ -519,7 +528,7 @@ struct LyricsCard: View {
                         if !observer.previousLine.isEmpty {
                             Text(observer.previousLine)
                                 .font(.system(size: 19, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.38))
+                                .foregroundStyle(.white.opacity(0.42))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.previousLine)
                         }
@@ -537,18 +546,27 @@ struct LyricsCard: View {
                         if !observer.nextLine.isEmpty {
                             Text(observer.nextLine)
                                 .font(.system(size: 19, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.40))
+                                .foregroundStyle(.white.opacity(0.45))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.nextLine)
                         }
 
-                        // 2 Zeilen danach (ganz leicht sichtbar)
+                        // 2 Zeilen danach (leicht sichtbar)
                         if !observer.nextLine2.isEmpty {
                             Text(observer.nextLine2)
-                                .font(.system(size: 15, weight: .regular, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.18))
+                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.24))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.nextLine2)
+                        }
+
+                        // 3 Zeilen danach (sanft angedeutet)
+                        if !observer.nextLine3.isEmpty {
+                            Text(observer.nextLine3)
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.12))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.nextLine3)
                         }
                     }
                 }
