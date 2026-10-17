@@ -27,6 +27,7 @@ public final class MusicObserver: ObservableObject {
     @Published public var currentTrackTitle : String       = ""
     @Published public var currentArtist     : String       = ""
     @Published public var currentAlbum      : String       = ""
+    @Published public var isPlaying         : Bool         = false
     @Published public var previousLine3     : String       = ""  // 3 Zeilen davor
     @Published public var previousLine2     : String       = ""  // 2 Zeilen davor
     @Published public var previousLine      : String       = ""  // 1 Zeile davor
