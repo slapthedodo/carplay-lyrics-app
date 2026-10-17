@@ -1,0 +1,493 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* ─────────────────────── Project-level build configs ─────────────────────── */
+
+		97C1A0002A000001 /* Build configuration list for PBXProject */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				97C1A0012A000001 /* Debug */,
+				97C1A0022A000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
+		/* ── Debug ── */
+		97C1A0012A000001 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;   /* ← bumped to 17.0 */
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+
+		/* ── Release ── */
+		97C1A0022A000001 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;   /* ← bumped to 17.0 */
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+
+/* ─────────────────────── App target build configs ─────────────────────── */
+
+		97C1A0032A000001 /* Debug – CarLyrics */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = "";      /* ← REPLACE with your Team ID */
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "CarLyrics/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics"; /* ← REPLACE */
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+
+		97C1A0042A000001 /* Release – CarLyrics */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "CarLyrics/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+
+/* ─────────────────────── Widget target build configs ─────────────────────── */
+
+		97C1A0052A000001 /* Debug – WidgetExtension */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "CarLyricsWidgetExtension/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+
+		97C1A0062A000001 /* Release – WidgetExtension */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "CarLyricsWidgetExtension/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 2.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics.widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+
+/* ─────────────────────── File references ─────────────────────── */
+
+		/* App target files */
+		97C1B0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsApp.swift;            path = CarLyricsApp.swift;              sourceTree = "<group>"; };
+		97C1B0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift;             path = Views/ContentView.swift;          sourceTree = "<group>"; };
+		97C1B0032A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserver.swift;           path = Services/MusicObserver.swift;     sourceTree = "<group>"; };
+		97C1B0042A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsService.swift;           path = Services/LyricsService.swift;     sourceTree = "<group>"; };
+		97C1B0052A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LRCParser.swift;               path = Services/LRCParser.swift;         sourceTree = "<group>"; };
+		97C1B0062A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsModels.swift;            path = Models/LyricsModels.swift;        sourceTree = "<group>"; };
+		97C1B0072A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
+
+		/* NEW v2 service files */
+		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift;           path = Services/WarmupManager.swift;     sourceTree = "<group>"; };
+		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift;           path = Services/MotionManager.swift;     sourceTree = "<group>"; };
+		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = Services/BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
+
+		/* Widget target files */
+		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift;   path = CarLyricsWidgetBundle.swift;      sourceTree = "<group>"; };
+		97C1C0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsActivityWidget.swift;    path = LyricsActivityWidget.swift;       sourceTree = "<group>"; };
+		97C1C0032A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
+
+		/* Products */
+		97C1D0012A000001 = { isa = PBXFileReference; explicitFileType = wrapper.application;      includeInIndex = 0; path = CarLyrics.app;                  sourceTree = BUILT_PRODUCTS_DIR; };
+		97C1D0022A000001 = { isa = PBXFileReference; explicitFileType = "wrapper.app-extension";  includeInIndex = 0; path = CarLyricsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+
+/* ─────────────────────── Build phases ─────────────────────── */
+
+		/* App – compile */
+		97C1E0012A000001 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				97C1E0112A000001, /* CarLyricsApp.swift */
+				97C1E0122A000001, /* ContentView.swift */
+				97C1E0132A000001, /* MusicObserver.swift */
+				97C1E0142A000001, /* LyricsService.swift */
+				97C1E0152A000001, /* LRCParser.swift */
+				97C1E0162A000001, /* LyricsModels.swift */
+				97C1E01B2A000001, /* WarmupManager.swift */
+				97C1E01C2A000001, /* MotionManager.swift */
+				97C1E01D2A000001, /* BackgroundKeepAliveManager.swift */
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* App – frameworks */
+		97C1E0022A000001 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* App – resources */
+		97C1E0032A000001 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* App – embed extensions */
+		97C1E0042A000001 = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				97C1E0172A000001, /* CarLyricsWidgetExtension.appex */
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* Widget – compile */
+		97C1E0052A000001 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				97C1E0182A000001, /* CarLyricsWidgetBundle.swift */
+				97C1E0192A000001, /* LyricsActivityWidget.swift */
+				97C1E01A2A000001, /* LyricsModels.swift (Widget) */
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* Widget – frameworks */
+		97C1E0062A000001 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		/* Widget – resources */
+		97C1E0072A000001 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+/* ─────────────────────── Build file entries ─────────────────────── */
+
+		/* App sources */
+		97C1E0112A000001 = { isa = PBXBuildFile; fileRef = 97C1B0012A000001; };
+		97C1E0122A000001 = { isa = PBXBuildFile; fileRef = 97C1B0022A000001; };
+		97C1E0132A000001 = { isa = PBXBuildFile; fileRef = 97C1B0032A000001; };
+		97C1E0142A000001 = { isa = PBXBuildFile; fileRef = 97C1B0042A000001; };
+		97C1E0152A000001 = { isa = PBXBuildFile; fileRef = 97C1B0052A000001; };
+		97C1E0162A000001 = { isa = PBXBuildFile; fileRef = 97C1B0062A000001; };
+		97C1E0172A000001 = { isa = PBXBuildFile; fileRef = 97C1D0022A000001; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		/* Widget sources */
+		97C1E0182A000001 = { isa = PBXBuildFile; fileRef = 97C1C0012A000001; };
+		97C1E0192A000001 = { isa = PBXBuildFile; fileRef = 97C1C0022A000001; };
+		97C1E01A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0062A000001; };
+		/* NEW v2 services */
+		97C1E01B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0082A000001; };
+		97C1E01C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0092A000001; };
+		97C1E01D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00A2A000001; };
+
+/* ─────────────────────── Groups ─────────────────────── */
+
+		97C1F0002A000000 /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				97C1F0012A000001,
+				97C1F0052A000001,
+				97C1F0002A000001,
+			);
+			sourceTree = "<group>";
+		};
+
+		97C1F0002A000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (97C1D0012A000001, 97C1D0022A000001);
+			name = Products;
+			sourceTree = "<group>";
+		};
+
+		97C1F0012A000001 /* CarLyrics */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0012A000001,
+				97C1B0072A000001,
+				97C1F0022A000001, /* Models */
+				97C1F0032A000001, /* Services */
+				97C1F0042A000001, /* Views */
+			);
+			name = CarLyrics;
+			path = CarLyrics;
+			sourceTree = "<group>";
+		};
+
+		97C1F0022A000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (97C1B0062A000001);
+			name = Models;
+			path = Models;
+			sourceTree = "<group>";
+		};
+
+		97C1F0032A000001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0032A000001, /* MusicObserver */
+				97C1B0042A000001, /* LyricsService */
+				97C1B0052A000001, /* LRCParser */
+				97C1B0082A000001, /* WarmupManager (NEW) */
+				97C1B0092A000001, /* MotionManager (NEW) */
+				97C1B00A2A000001, /* BackgroundKeepAliveManager (NEW) */
+			);
+			name = Services;
+			path = Services;
+			sourceTree = "<group>";
+		};
+
+		97C1F0042A000001 /* Views */ = {
+			isa = PBXGroup;
+			children = (97C1B0022A000001);
+			name = Views;
+			path = Views;
+			sourceTree = "<group>";
+		};
+
+		97C1F0052A000001 /* CarLyricsWidgetExtension */ = {
+			isa = PBXGroup;
+			children = (
+				97C1C0012A000001,
+				97C1C0022A000001,
+				97C1C0032A000001,
+			);
+			name = CarLyricsWidgetExtension;
+			path = CarLyricsWidgetExtension;
+			sourceTree = "<group>";
+		};
+
+/* ─────────────────────── Config lists (targets) ─────────────────────── */
+
+		97C1A0102A000001 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (97C1A0032A000001, 97C1A0042A000001);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
+		97C1A0202A000001 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (97C1A0052A000001, 97C1A0062A000001);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
+/* ─────────────────────── Targets ─────────────────────── */
+
+		97C1G0012A000001 /* CarLyrics */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97C1A0102A000001;
+			buildPhases = (
+				97C1E0012A000001,
+				97C1E0022A000001,
+				97C1E0032A000001,
+				97C1E0042A000001,
+			);
+			buildRules = ();
+			dependencies = (97C1G0032A000001);
+			name = CarLyrics;
+			productName = CarLyrics;
+			productReference = 97C1D0012A000001;
+			productType = "com.apple.product-type.application";
+		};
+
+		97C1G0022A000001 /* CarLyricsWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 97C1A0202A000001;
+			buildPhases = (
+				97C1E0052A000001,
+				97C1E0062A000001,
+				97C1E0072A000001,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = CarLyricsWidgetExtension;
+			productName = CarLyricsWidgetExtension;
+			productReference = 97C1D0022A000001;
+			productType = "com.apple.product-type.app-extension";
+		};
+
+		97C1G0032A000001 = { isa = PBXTargetDependency; target = 97C1G0022A000001; };
+
+/* ─────────────────────── Project object ─────────────────────── */
+
+		97C1H0002A000001 = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1530;
+				LastUpgradeCheck = 1530;
+				TargetAttributes = {
+					97C1G0012A000001 = { CreatedOnToolsVersion = 15.3; };
+					97C1G0022A000001 = { CreatedOnToolsVersion = 15.3; };
+				};
+			};
+			buildConfigurationList = 97C1A0002A000001;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = 97C1F0002A000000;
+			productRefGroup = 97C1F0002A000001;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				97C1G0012A000001,
+				97C1G0022A000001,
+			);
+		};
+
+	};
+	rootObject = 97C1H0002A000001;
+}
