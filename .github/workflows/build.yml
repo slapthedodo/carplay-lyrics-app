@@ -14,19 +14,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Show Xcode Version
-        run: xcodebuild -version
+      - name: Show Xcode Version & List Schemes
+        run: |
+          xcodebuild -version
+          xcodebuild -project CarLyrics.xcodeproj -list
 
-      - name: Build iOS App & Widget (Release Device Build)
+      - name: Build iOS App & Widget (Ad-Hoc Signed for Device)
         run: |
           xcodebuild -project CarLyrics.xcodeproj \
                      -scheme CarLyrics \
                      -configuration Release \
                      -sdk iphoneos \
                      -derivedDataPath build \
-                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGN_STYLE=Manual \
+                     CODE_SIGN_IDENTITY="-" \
                      CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGN_IDENTITY="" \
+                     AD_HOC_CODE_SIGNING_ALLOWED=YES \
                      clean build
 
       - name: Package into IPA
