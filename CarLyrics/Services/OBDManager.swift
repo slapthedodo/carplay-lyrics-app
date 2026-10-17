@@ -212,8 +212,10 @@ public final class OBDManager: NSObject, ObservableObject {
             if after.count >= 2 {
                 let hexByte = String(after.prefix(2))
                 if let val = UInt8(hexByte, radix: 16) {
-                    liveOilTemp = Int(val) - 40
+                    let oil = Int(val) - 40
+                    liveOilTemp = oil
                     hasOilTempPID = true
+                    WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: oil)
                 }
             }
         }
@@ -223,7 +225,12 @@ public final class OBDManager: NSObject, ObservableObject {
             if after.count >= 2 {
                 let hexByte = String(after.prefix(2))
                 if let val = UInt8(hexByte, radix: 16) {
-                    liveCoolantTemp = Int(val) - 40
+                    let coolant = Int(val) - 40
+                    liveCoolantTemp = coolant
+                    if liveOilTemp == nil {
+                        let estimatedOil = max(20, coolant - 8)
+                        WarmupManager.shared.triggerWarmNotificationIfNeeded(temp: estimatedOil)
+                    }
                 }
             }
         }

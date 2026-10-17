@@ -306,6 +306,38 @@ struct SettingsTab: View {
                     }
                 }
 
+                // Benachrichtigung bei Erreichen der Betriebstemperatur
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Betriebstemperatur Benachrichtigung", systemImage: "bell.badge.fill")
+                            .font(.headline)
+                            .foregroundStyle(.green)
+
+                        Text("Sobald das Öl 80°C erreicht hat und der Motor betriebsbereit ist, erhältst du automatisch eine Push-Mitteilung mit Signalton – auch bei gesperrtem Bildschirm oder im Hintergrund.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            WarmupManager.shared.requestNotificationPermission()
+                            let content = UNMutableNotificationContent()
+                            content.title = "🏁 Test: 2.0 TFSI Betriebswarm!"
+                            content.subtitle = "Öl: 80°C erreicht"
+                            content.body = "Voller Ladedruck und Drehzahlen freigegeben. Gute Fahrt!"
+                            content.sound = .default
+                            if #available(iOS 15.0, *) {
+                                content.interruptionLevel = .timeSensitive
+                            }
+                            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+                            let req = UNNotificationRequest(identifier: "test_warm_engine", content: content, trigger: trigger)
+                            UNUserNotificationCenter.current().add(req)
+                        } label: {
+                            Label("Test-Benachrichtigung senden", systemImage: "paperplane.fill")
+                                .font(.caption.bold())
+                        }
+                        .buttonStyle(CockpitButtonStyle(color: .green))
+                    }
+                }
+
                 // 2. CarPlay Audio-Verzögerung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {

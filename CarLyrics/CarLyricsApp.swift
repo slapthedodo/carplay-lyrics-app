@@ -3,9 +3,32 @@
 
 import SwiftUI
 import AppIntents
+import UserNotifications
+
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationDelegate()
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if #available(iOS 14.0, *) {
+            completionHandler([.banner, .sound, .badge, .list])
+        } else {
+            completionHandler([.alert, .sound, .badge])
+        }
+    }
+}
 
 @main
 struct CarLyricsApp: App {
+
+    init() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        WarmupManager.shared.requestNotificationPermission()
+    }
+
     var body: some Scene {
         WindowGroup {
             NavigationStack {

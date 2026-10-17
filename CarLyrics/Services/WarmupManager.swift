@@ -20,6 +20,7 @@
 import Foundation
 import UIKit
 import Combine
+import UserNotifications
 
 @MainActor
 public final class WarmupManager: ObservableObject {
@@ -55,6 +56,7 @@ public final class WarmupManager: ObservableObject {
     private var timer              : Timer?
     private var startedAt          : Date?
     private var didFireWarmHaptic  : Bool = false
+    private var didSendWarmNotification : Bool = false
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -91,14 +93,15 @@ public final class WarmupManager: ObservableObject {
         } else {
             startTemp = 45.0 // z.B. 10 Min. geparkt
         }
-        oilTemp           = startTemp
-        elapsedSeconds    = 0
-        didFireWarmHaptic = false
-        isEngineWarm      = false
-        warmupProgress    = 0
-        phase             = phaseFor(temp: startTemp)
-        startedAt         = Date()
-        isRunning         = true
+        oilTemp                 = startTemp
+        elapsedSeconds          = 0
+        didFireWarmHaptic       = false
+        didSendWarmNotification = false
+        isEngineWarm            = false
+        warmupProgress          = 0
+        phase                   = phaseFor(temp: startTemp)
+        startedAt               = Date()
+        isRunning               = true
 
         // Dauerhaft sichern, damit die Temperatur auch bei minimierter oder beendeter App exakt weiterläuft
         UserDefaults.standard.set(startedAt!.timeIntervalSince1970, forKey: "carlyrics_warmup_started_at")
@@ -118,13 +121,15 @@ public final class WarmupManager: ObservableObject {
 
     public func reset() {
         timer?.invalidate()
-        timer          = nil
-        isRunning      = false
-        oilTemp        = startTemp
-        elapsedSeconds = 0
-        warmupProgress = 0
-        isEngineWarm   = false
-        phase          = phaseFor(temp: startTemp)
+        timer                   = nil
+        isRunning               = false
+        oilTemp                 = startTemp
+        elapsedSeconds          = 0
+        warmupProgress          = 0
+        isEngineWarm            = false
+        didFireWarmHaptic       = false
+        didSendWarmNotification = false
+        phase                   = phaseFor(temp: startTemp)
         UserDefaults.standard.removeObject(forKey: "carlyrics_warmup_started_at")
     }
 
@@ -153,10 +158,9 @@ public final class WarmupManager: ObservableObject {
         let newPhase = phaseFor(temp: oilTemp)
         if newPhase != phase { phase = newPhase }
 
-        // One-shot haptic + engine-warm flag
-        if oilTemp >= 80 && !isEngineWarm {
-            isEngineWarm = true
-            fireHaptic()
+        // One-shot haptic + engine-warm flag + iOS Push Notification
+        if oilTemp >= 80 {
+            triggerWarmNotificationIfNeeded(temp: Int(oilTemp))
         }
 
         // Auto-stop once stable at target
@@ -168,8 +172,45 @@ public final class WarmupManager: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Helpers
+    // MARK: Helpers & Benachrichtigungen
     // ─────────────────────────────────────────────────────────────────────────
+
+    public func triggerWarmNotificationIfNeeded(temp: Int) {
+        guard !didSendWarmNotification else { return }
+        if temp >= 80 {
+            didSendWarmNotification = true
+            isEngineWarm = true
+            fireHaptic()
+            sendWarmNotification(temp: temp)
+        }
+    }
+
+    public func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, error in
+            if let error {
+                print("[WarmupManager] Notification permission error: \(error)")
+            }
+        }
+    }
+
+    private func sendWarmNotification(temp: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "🏁 2.0 TFSI Betriebstemperatur erreicht"
+        content.subtitle = "Öl: \(temp)°C – Motor ist betriebswarm"
+        content.body = "Voller Ladedruck und hohe Drehzahlen sind jetzt freigegeben. Gute Fahrt!"
+        content.sound = .default
+        if #available(iOS 15.0, *) {
+            content.interruptionLevel = .timeSensitive
+        }
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: "carlyrics_warm_engine", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                print("[WarmupManager] Send notification error: \(error)")
+            }
+        }
+    }
 
     private func phaseFor(temp: Double) -> WarmupPhase {
         if temp < coldThreshold    { return .cold }
