@@ -47,7 +47,10 @@ extension OBDManager {
             let comp = sequenceCompletion
             sequenceCompletion = nil
             pendingSequenceHandler = nil
-            comp?(sequenceAccumulated, true)
+            let finalAccumulated = sequenceAccumulated
+            Task { @MainActor in
+                comp?(finalAccumulated, true)
+            }
             return
         }
 
