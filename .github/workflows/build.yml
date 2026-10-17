@@ -1,4 +1,4 @@
-name: Build CarLyrics & OBDTester IPA
+name: Build CarLyrics IPA
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Package CarLyrics and OBDTester
+    name: Build & Package CarLyrics
     runs-on: macos-14
 
     steps:
@@ -20,10 +20,7 @@ jobs:
       - name: Show Xcode Version & List Schemes
         run: |
           xcodebuild -version
-          echo "=== CarLyrics Schemes ==="
           xcodebuild -project CarLyrics.xcodeproj -list
-          echo "=== OBDTester Schemes ==="
-          xcodebuild -project OBDTester/OBDTester.xcodeproj -list
 
       - name: Build CarLyrics App & Widgets (Ad-Hoc Signed)
         run: |
@@ -48,29 +45,6 @@ jobs:
           zip -r CarLyrics.ipa Payload
           rm -rf Payload
 
-      - name: Build Standalone OBD Tester App (Ad-Hoc Signed)
-        run: |
-          set -o pipefail
-          xcodebuild -project OBDTester/OBDTester.xcodeproj \
-                     -scheme OBDTester \
-                     -configuration Release \
-                     -destination 'generic/platform=iOS' \
-                     -derivedDataPath build_obd \
-                     CODE_SIGN_STYLE=Manual \
-                     CODE_SIGN_IDENTITY="-" \
-                     CODE_SIGNING_REQUIRED=NO \
-                     AD_HOC_CODE_SIGNING_ALLOWED=YES \
-                     PROVISIONING_PROFILE_SPECIFIER="" \
-                     clean build
-
-      - name: Package OBDTester IPA (Standard Payload Directory)
-        run: |
-          rm -rf Payload
-          mkdir -p Payload
-          cp -r build_obd/Build/Products/Release-iphoneos/OBDTester.app Payload/
-          zip -r OBDTester.ipa Payload
-          rm -rf Payload
-
       - name: Upload CarLyrics IPA Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -78,23 +52,15 @@ jobs:
           path: CarLyrics.ipa
           retention-days: 14
 
-      - name: Upload OBDTester Standalone IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: OBDTester-Standalone-App
-          path: OBDTester.ipa
-          retention-days: 14
-
       - name: Create or Update GitHub Release for Direct IPA Download
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/heads/main')
         with:
           tag_name: latest
-          name: CarLyrics & OBDTester Latest IPAs
+          name: CarLyrics Latest Release
           draft: false
           prerelease: false
           files: |
             CarLyrics.ipa
-            OBDTester.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

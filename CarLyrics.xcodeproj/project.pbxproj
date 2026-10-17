@@ -67,7 +67,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;   /* ← bumped to 17.0 */
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -101,7 +101,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;   /* ← bumped to 17.0 */
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -123,13 +123,13 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = "";      /* ← REPLACE with your Team ID */
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "CarLyrics/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks");
 				MARKETING_VERSION = 2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics"; /* ← REPLACE */
+				PRODUCT_BUNDLE_IDENTIFIER = "com.yourcompany.CarLyrics";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.9;
@@ -221,32 +221,61 @@
 /* ─────────────────────── File references ─────────────────────── */
 
 		/* App target files */
-		97C1B0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsApp.swift;            path = CarLyricsApp.swift;              sourceTree = "<group>"; };
-		97C1B0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift;             path = ContentView.swift;                sourceTree = "<group>"; };
-		97C1B0032A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserver.swift;           path = MusicObserver.swift;             sourceTree = "<group>"; };
-		97C1B0042A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsService.swift;           path = LyricsService.swift;             sourceTree = "<group>"; };
-		97C1B0052A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LRCParser.swift;               path = LRCParser.swift;                 sourceTree = "<group>"; };
-		97C1B0062A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsModels.swift;            path = LyricsModels.swift;              sourceTree = "<group>"; };
-		97C1B0072A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
-
-		/* NEW v2 service files */
-		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift;           path = WarmupManager.swift;             sourceTree = "<group>"; };
-		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift;           path = MotionManager.swift;             sourceTree = "<group>"; };
+		97C1B0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsApp.swift; path = CarLyricsApp.swift; sourceTree = "<group>"; };
+		97C1B0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		97C1B0032A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserver.swift; path = MusicObserver.swift; sourceTree = "<group>"; };
+		97C1B0102A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserverLiveActivity.swift; path = MusicObserverLiveActivity.swift; sourceTree = "<group>"; };
+		97C1B0042A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsService.swift; path = LyricsService.swift; sourceTree = "<group>"; };
+		97C1B0052A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LRCParser.swift; path = LRCParser.swift; sourceTree = "<group>"; };
+		97C1B0062A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsModels.swift; path = LyricsModels.swift; sourceTree = "<group>"; };
+		97C1B0072A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info.plist"; path = "Info.plist"; sourceTree = "<group>"; };
+		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift; path = WarmupManager.swift; sourceTree = "<group>"; };
+		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift; path = MotionManager.swift; sourceTree = "<group>"; };
 		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
-		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = SpotifyManager.swift;             sourceTree = "<group>"; };
-		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = OBDManager.swift;                 sourceTree = "<group>"; };
-		97C1B00D2A000001 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets;             path = Assets.xcassets;                  sourceTree = "<group>"; };
+		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift; path = SpotifyManager.swift; sourceTree = "<group>"; };
+		97C1B00D2A000001 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C1B00E2A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = "CarLyrics.entitlements"; path = "CarLyrics.entitlements"; sourceTree = "<group>"; };
 
+		/* OBD Service files */
+		97C1B0202A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDTypes.swift; path = OBDTypes.swift; sourceTree = "<group>"; };
+		97C1B0212A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift; path = OBDManager.swift; sourceTree = "<group>"; };
+		97C1B0222A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDBluetoothDelegate.swift; path = OBDBluetoothDelegate.swift; sourceTree = "<group>"; };
+		97C1B0232A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDCommandExecution.swift; path = OBDCommandExecution.swift; sourceTree = "<group>"; };
+		97C1B0242A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDataParser.swift; path = OBDDataParser.swift; sourceTree = "<group>"; };
+		97C1B0252A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDProtocolProber.swift; path = OBDProtocolProber.swift; sourceTree = "<group>"; };
+
+		/* Cockpit Views */
+		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
+		97C1B0312A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NowPlayingCard.swift; path = NowPlayingCard.swift; sourceTree = "<group>"; };
+		97C1B0322A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsCard.swift; path = LyricsCard.swift; sourceTree = "<group>"; };
+		97C1B0332A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupCard.swift; path = WarmupCard.swift; sourceTree = "<group>"; };
+		97C1B0342A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BoostAndGForceCards.swift; path = BoostAndGForceCards.swift; sourceTree = "<group>"; };
+		97C1B0352A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitTabView.swift; path = CockpitTabView.swift; sourceTree = "<group>"; };
+		97C1B0362A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsTabView.swift; path = SettingsTabView.swift; sourceTree = "<group>"; };
+		97C1B0372A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifySetupSheet.swift; path = SpotifySetupSheet.swift; sourceTree = "<group>"; };
+
+		/* Diagnostic Workbench Views */
+		97C1B0402A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDiagnosticWorkbenchView.swift; path = OBDDiagnosticWorkbenchView.swift; sourceTree = "<group>"; };
+		97C1B0412A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDStatusBarHeader.swift; path = OBDStatusBarHeader.swift; sourceTree = "<group>"; };
+		97C1B0422A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDMethodProbeSection.swift; path = OBDMethodProbeSection.swift; sourceTree = "<group>"; };
+		97C1B0432A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDSensorMatrixSection.swift; path = OBDSensorMatrixSection.swift; sourceTree = "<group>"; };
+		97C1B0442A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDTerminalSection.swift; path = OBDTerminalSection.swift; sourceTree = "<group>"; };
+		97C1B0452A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDBluetoothScannerSection.swift; path = OBDBluetoothScannerSection.swift; sourceTree = "<group>"; };
+		97C1B0462A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDVAGGuideSection.swift; path = OBDVAGGuideSection.swift; sourceTree = "<group>"; };
+
 		/* Widget target files */
-		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift;   path = CarLyricsWidgetBundle.swift;      sourceTree = "<group>"; };
-		97C1C0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsActivityWidget.swift;    path = LyricsActivityWidget.swift;       sourceTree = "<group>"; };
-		97C1C0032A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
+		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift; path = CarLyricsWidgetBundle.swift; sourceTree = "<group>"; };
+		97C1C0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsActivityWidget.swift; path = LyricsActivityWidget.swift; sourceTree = "<group>"; };
+		97C1C0032A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Info.plist"; path = "Info.plist"; sourceTree = "<group>"; };
 		97C1C0042A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = "CarLyricsWidgetExtension.entitlements"; path = "CarLyricsWidgetExtension.entitlements"; sourceTree = "<group>"; };
+		97C1C0102A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetGaugeBadges.swift; path = WidgetGaugeBadges.swift; sourceTree = "<group>"; };
+		97C1C0112A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LockScreenBannerView.swift; path = LockScreenBannerView.swift; sourceTree = "<group>"; };
+		97C1C0122A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarPlayTilesWidgetViews.swift; path = CarPlayTilesWidgetViews.swift; sourceTree = "<group>"; };
+		97C1C0132A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StandAloneGaugeWidgetViews.swift; path = StandAloneGaugeWidgetViews.swift; sourceTree = "<group>"; };
 
 		/* Products */
-		97C1D0012A000001 = { isa = PBXFileReference; explicitFileType = wrapper.application;      includeInIndex = 0; path = CarLyrics.app;                  sourceTree = BUILT_PRODUCTS_DIR; };
-		97C1D0022A000001 = { isa = PBXFileReference; explicitFileType = "wrapper.app-extension";  includeInIndex = 0; path = CarLyricsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		97C1D0012A000001 = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CarLyrics.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		97C1D0022A000001 = { isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CarLyricsWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 
 /* ─────────────────────── Build phases ─────────────────────── */
 
@@ -258,6 +287,7 @@
 				97C1E0112A000001, /* CarLyricsApp.swift */
 				97C1E0122A000001, /* ContentView.swift */
 				97C1E0132A000001, /* MusicObserver.swift */
+				97C1E0302A000001, /* MusicObserverLiveActivity.swift */
 				97C1E0142A000001, /* LyricsService.swift */
 				97C1E0152A000001, /* LRCParser.swift */
 				97C1E0162A000001, /* LyricsModels.swift */
@@ -265,7 +295,27 @@
 				97C1E01C2A000001, /* MotionManager.swift */
 				97C1E01D2A000001, /* BackgroundKeepAliveManager.swift */
 				97C1E01E2A000001, /* SpotifyManager.swift */
-				97C1E01F2A000001, /* OBDManager.swift */
+				97C1E0402A000001, /* OBDTypes.swift */
+				97C1E0412A000001, /* OBDManager.swift */
+				97C1E0422A000001, /* OBDBluetoothDelegate.swift */
+				97C1E0432A000001, /* OBDCommandExecution.swift */
+				97C1E0442A000001, /* OBDDataParser.swift */
+				97C1E0452A000001, /* OBDProtocolProber.swift */
+				97C1E0502A000001, /* CockpitUIComponents.swift */
+				97C1E0512A000001, /* NowPlayingCard.swift */
+				97C1E0522A000001, /* LyricsCard.swift */
+				97C1E0532A000001, /* WarmupCard.swift */
+				97C1E0542A000001, /* BoostAndGForceCards.swift */
+				97C1E0552A000001, /* CockpitTabView.swift */
+				97C1E0562A000001, /* SettingsTabView.swift */
+				97C1E0572A000001, /* SpotifySetupSheet.swift */
+				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
+				97C1E0612A000001, /* OBDStatusBarHeader.swift */
+				97C1E0622A000001, /* OBDMethodProbeSection.swift */
+				97C1E0632A000001, /* OBDSensorMatrixSection.swift */
+				97C1E0642A000001, /* OBDTerminalSection.swift */
+				97C1E0652A000001, /* OBDBluetoothScannerSection.swift */
+				97C1E0662A000001, /* OBDVAGGuideSection.swift */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -309,6 +359,10 @@
 				97C1E0182A000001, /* CarLyricsWidgetBundle.swift */
 				97C1E0192A000001, /* LyricsActivityWidget.swift */
 				97C1E01A2A000001, /* LyricsModels.swift (Widget) */
+				97C1E0702A000001, /* WidgetGaugeBadges.swift */
+				97C1E0712A000001, /* LockScreenBannerView.swift */
+				97C1E0722A000001, /* CarPlayTilesWidgetViews.swift */
+				97C1E0732A000001, /* StandAloneGaugeWidgetViews.swift */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -335,21 +389,53 @@
 		97C1E0112A000001 = { isa = PBXBuildFile; fileRef = 97C1B0012A000001; };
 		97C1E0122A000001 = { isa = PBXBuildFile; fileRef = 97C1B0022A000001; };
 		97C1E0132A000001 = { isa = PBXBuildFile; fileRef = 97C1B0032A000001; };
+		97C1E0302A000001 = { isa = PBXBuildFile; fileRef = 97C1B0102A000001; };
 		97C1E0142A000001 = { isa = PBXBuildFile; fileRef = 97C1B0042A000001; };
 		97C1E0152A000001 = { isa = PBXBuildFile; fileRef = 97C1B0052A000001; };
 		97C1E0162A000001 = { isa = PBXBuildFile; fileRef = 97C1B0062A000001; };
 		97C1E0172A000001 = { isa = PBXBuildFile; fileRef = 97C1D0022A000001; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		/* Widget sources */
-		97C1E0182A000001 = { isa = PBXBuildFile; fileRef = 97C1C0012A000001; };
-		97C1E0192A000001 = { isa = PBXBuildFile; fileRef = 97C1C0022A000001; };
-		97C1E01A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0062A000001; };
-		/* NEW v2 services */
 		97C1E01B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0082A000001; };
 		97C1E01C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0092A000001; };
 		97C1E01D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00A2A000001; };
 		97C1E01E2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00B2A000001; };
-		97C1E01F2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00C2A000001; };
+
+		/* OBD Sources */
+		97C1E0402A000001 = { isa = PBXBuildFile; fileRef = 97C1B0202A000001; };
+		97C1E0412A000001 = { isa = PBXBuildFile; fileRef = 97C1B0212A000001; };
+		97C1E0422A000001 = { isa = PBXBuildFile; fileRef = 97C1B0222A000001; };
+		97C1E0432A000001 = { isa = PBXBuildFile; fileRef = 97C1B0232A000001; };
+		97C1E0442A000001 = { isa = PBXBuildFile; fileRef = 97C1B0242A000001; };
+		97C1E0452A000001 = { isa = PBXBuildFile; fileRef = 97C1B0252A000001; };
+
+		/* Cockpit Views */
+		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
+		97C1E0512A000001 = { isa = PBXBuildFile; fileRef = 97C1B0312A000001; };
+		97C1E0522A000001 = { isa = PBXBuildFile; fileRef = 97C1B0322A000001; };
+		97C1E0532A000001 = { isa = PBXBuildFile; fileRef = 97C1B0332A000001; };
+		97C1E0542A000001 = { isa = PBXBuildFile; fileRef = 97C1B0342A000001; };
+		97C1E0552A000001 = { isa = PBXBuildFile; fileRef = 97C1B0352A000001; };
+		97C1E0562A000001 = { isa = PBXBuildFile; fileRef = 97C1B0362A000001; };
+		97C1E0572A000001 = { isa = PBXBuildFile; fileRef = 97C1B0372A000001; };
+
+		/* Diagnostic Workbench */
+		97C1E0602A000001 = { isa = PBXBuildFile; fileRef = 97C1B0402A000001; };
+		97C1E0612A000001 = { isa = PBXBuildFile; fileRef = 97C1B0412A000001; };
+		97C1E0622A000001 = { isa = PBXBuildFile; fileRef = 97C1B0422A000001; };
+		97C1E0632A000001 = { isa = PBXBuildFile; fileRef = 97C1B0432A000001; };
+		97C1E0642A000001 = { isa = PBXBuildFile; fileRef = 97C1B0442A000001; };
+		97C1E0652A000001 = { isa = PBXBuildFile; fileRef = 97C1B0452A000001; };
+		97C1E0662A000001 = { isa = PBXBuildFile; fileRef = 97C1B0462A000001; };
+
 		97C1E0202A000001 = { isa = PBXBuildFile; fileRef = 97C1B00D2A000001; };
+
+		/* Widget sources */
+		97C1E0182A000001 = { isa = PBXBuildFile; fileRef = 97C1C0012A000001; };
+		97C1E0192A000001 = { isa = PBXBuildFile; fileRef = 97C1C0022A000001; };
+		97C1E01A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B0062A000001; };
+		97C1E0702A000001 = { isa = PBXBuildFile; fileRef = 97C1C0102A000001; };
+		97C1E0712A000001 = { isa = PBXBuildFile; fileRef = 97C1C0112A000001; };
+		97C1E0722A000001 = { isa = PBXBuildFile; fileRef = 97C1C0122A000001; };
+		97C1E0732A000001 = { isa = PBXBuildFile; fileRef = 97C1C0132A000001; };
 
 /* ─────────────────────── Groups ─────────────────────── */
 
@@ -373,8 +459,8 @@
 		97C1F0012A000001 /* CarLyrics */ = {
 			isa = PBXGroup;
 			children = (
-				97C1B0012A000001,
-				97C1B0072A000001,
+				97C1B0012A000001, /* CarLyricsApp.swift */
+				97C1B0072A000001, /* Info.plist */
 				97C1B00D2A000001, /* Assets.xcassets */
 				97C1B00E2A000001, /* CarLyrics.entitlements */
 				97C1F0022A000001, /* Models */
@@ -397,38 +483,105 @@
 		97C1F0032A000001 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				97C1B0032A000001, /* MusicObserver */
-				97C1B0042A000001, /* LyricsService */
-				97C1B0052A000001, /* LRCParser */
-				97C1B0082A000001, /* WarmupManager (NEW) */
-				97C1B0092A000001, /* MotionManager (NEW) */
-				97C1B00A2A000001, /* BackgroundKeepAliveManager (NEW) */
-				97C1B00B2A000001, /* SpotifyManager (NEW) */
-				97C1B00C2A000001, /* OBDManager (NEW) */
+				97C1B0032A000001, /* MusicObserver.swift */
+				97C1B0102A000001, /* MusicObserverLiveActivity.swift */
+				97C1B0042A000001, /* LyricsService.swift */
+				97C1B0052A000001, /* LRCParser.swift */
+				97C1B0082A000001, /* WarmupManager.swift */
+				97C1B0092A000001, /* MotionManager.swift */
+				97C1B00A2A000001, /* BackgroundKeepAliveManager.swift */
+				97C1B00B2A000001, /* SpotifyManager.swift */
+				97C1F0102A000001, /* OBD */
 			);
 			name = Services;
 			path = Services;
 			sourceTree = "<group>";
 		};
 
+		97C1F0102A000001 /* OBD */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0202A000001, /* OBDTypes.swift */
+				97C1B0212A000001, /* OBDManager.swift */
+				97C1B0222A000001, /* OBDBluetoothDelegate.swift */
+				97C1B0232A000001, /* OBDCommandExecution.swift */
+				97C1B0242A000001, /* OBDDataParser.swift */
+				97C1B0252A000001, /* OBDProtocolProber.swift */
+			);
+			name = OBD;
+			path = OBD;
+			sourceTree = "<group>";
+		};
+
 		97C1F0042A000001 /* Views */ = {
 			isa = PBXGroup;
-			children = (97C1B0022A000001);
+			children = (
+				97C1B0022A000001, /* ContentView.swift */
+				97C1F0112A000001, /* Cockpit */
+				97C1F0122A000001, /* DiagnosticWorkbench */
+			);
 			name = Views;
 			path = Views;
+			sourceTree = "<group>";
+		};
+
+		97C1F0112A000001 /* Cockpit */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0302A000001, /* CockpitUIComponents.swift */
+				97C1B0312A000001, /* NowPlayingCard.swift */
+				97C1B0322A000001, /* LyricsCard.swift */
+				97C1B0332A000001, /* WarmupCard.swift */
+				97C1B0342A000001, /* BoostAndGForceCards.swift */
+				97C1B0352A000001, /* CockpitTabView.swift */
+				97C1B0362A000001, /* SettingsTabView.swift */
+				97C1B0372A000001, /* SpotifySetupSheet.swift */
+			);
+			name = Cockpit;
+			path = Cockpit;
+			sourceTree = "<group>";
+		};
+
+		97C1F0122A000001 /* DiagnosticWorkbench */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0402A000001, /* OBDDiagnosticWorkbenchView.swift */
+				97C1B0412A000001, /* OBDStatusBarHeader.swift */
+				97C1B0422A000001, /* OBDMethodProbeSection.swift */
+				97C1B0432A000001, /* OBDSensorMatrixSection.swift */
+				97C1B0442A000001, /* OBDTerminalSection.swift */
+				97C1B0452A000001, /* OBDBluetoothScannerSection.swift */
+				97C1B0462A000001, /* OBDVAGGuideSection.swift */
+			);
+			name = DiagnosticWorkbench;
+			path = DiagnosticWorkbench;
 			sourceTree = "<group>";
 		};
 
 		97C1F0052A000001 /* CarLyricsWidgetExtension */ = {
 			isa = PBXGroup;
 			children = (
-				97C1C0012A000001,
-				97C1C0022A000001,
-				97C1C0032A000001,
+				97C1C0012A000001, /* CarLyricsWidgetBundle.swift */
+				97C1C0022A000001, /* LyricsActivityWidget.swift */
+				97C1C0032A000001, /* Info.plist */
 				97C1C0042A000001, /* CarLyricsWidgetExtension.entitlements */
+				97C1F0132A000001, /* Views */
 			);
 			name = CarLyricsWidgetExtension;
 			path = CarLyricsWidgetExtension;
+			sourceTree = "<group>";
+		};
+
+		97C1F0132A000001 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				97C1C0102A000001, /* WidgetGaugeBadges.swift */
+				97C1C0112A000001, /* LockScreenBannerView.swift */
+				97C1C0122A000001, /* CarPlayTilesWidgetViews.swift */
+				97C1C0132A000001, /* StandAloneGaugeWidgetViews.swift */
+			);
+			name = Views;
+			path = Views;
 			sourceTree = "<group>";
 		};
 
