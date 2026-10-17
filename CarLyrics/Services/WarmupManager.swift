@@ -41,7 +41,7 @@ public final class WarmupManager: ObservableObject {
 
     public var startTemp    : Double = 20    // °C — can be set before start()
     public let targetTemp   : Double = 90    // °C operating temperature
-    public let lambda       : Double = 0.006 // decay constant
+    public let lambda       : Double = 0.0028 // Realistischer 2.0 TFSI Wert: ~15-18 Min. bis 80°C
 
     private let coldThreshold    : Double = 60
     private let warmingThreshold : Double = 80
@@ -59,9 +59,16 @@ public final class WarmupManager: ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     /// Begin the warm-up curve from `startTemp`.
-    /// Call with `cold: true` to reset to 20 °C, `false` to use a warm start.
+    /// Call with `cold: true` to reset to ambient, `false` to use a warm start.
     public func start(cold: Bool = true) {
-        if cold { startTemp = 20 } else { startTemp = 45 } // e.g. 10min parking
+        if cold {
+            // Winter/Kaltzeit-Erkennung (Okt - April): 8°C statt 20°C
+            let month = Calendar.current.component(.month, from: Date())
+            let isWinter = (month >= 10 || month <= 4)
+            startTemp = isWinter ? 8.0 : 20.0
+        } else {
+            startTemp = 45.0 // z.B. 10 Min. geparkt
+        }
         oilTemp           = startTemp
         elapsedSeconds    = 0
         didFireWarmHaptic = false

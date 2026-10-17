@@ -7,6 +7,7 @@ import Foundation
 import Combine
 import AuthenticationServices
 import UIKit
+import CryptoKit
 
 final class AuthPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
@@ -253,14 +254,35 @@ public final class SpotifyManager: ObservableObject {
     private var authSession: ASWebAuthenticationSession?
     private let authContext = AuthPresentationContext()
 
+    private func generateCodeVerifier() -> String {
+        var bytes = [UInt8](repeating: 0, count: 64)
+        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        return Data(bytes).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private func generateCodeChallenge(from verifier: String) -> String {
+        let data = Data(verifier.utf8)
+        let hash = SHA256.hash(data: data)
+        return Data(hash).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
     public func startWebAuthSession(completion: @escaping (Bool) -> Void) {
-        // Fallback Client ID falls der User keine eigene eingetragen hat
         let cid = clientId.trimmingCharacters(in: .whitespaces).isEmpty
-            ? "751c1106bb9b49b384f50682ba1850fb" // Generischer Spotify Web API Client
+            ? "751c1106bb9b49b384f50682ba1850fb"
             : clientId
         let redirect = "carlyrics://spotify-callback"
         let scope = "user-read-currently-playing%20user-read-playback-state"
-        let urlStr = "https://accounts.spotify.com/authorize?client_id=\(cid)&response_type=token&redirect_uri=\(redirect)&scope=\(scope)"
+
+        let verifier = generateCodeVerifier()
+        let challenge = generateCodeChallenge(from: verifier)
+
+        let urlStr = "https://accounts.spotify.com/authorize?client_id=\(cid)&response_type=code&redirect_uri=\(redirect)&scope=\(scope)&code_challenge_method=S256&code_challenge=\(challenge)"
 
         guard let authURL = URL(string: urlStr) else {
             completion(false)
@@ -274,25 +296,63 @@ public final class SpotifyManager: ObservableObject {
                 return
             }
 
-            // Auswertung des URL-Fragments: #access_token=...&expires_in=...
-            if let fragment = callbackURL.fragment {
-                let params = fragment.components(separatedBy: "&")
-                for p in params {
-                    let kv = p.components(separatedBy: "=")
-                    if kv.count == 2 && kv[0] == "access_token" {
-                        Task { @MainActor in
-                            self.accessToken = kv[1]
-                            self.startPolling()
-                            completion(true)
-                        }
-                        return
-                    }
+            // Auswertung des Query-Codes: ?code=...
+            if let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
+               let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+                Task { @MainActor in
+                    await self.exchangeCodeForToken(code: code, verifier: verifier, clientId: cid, redirectUri: redirect, completion: completion)
                 }
+            } else {
+                completion(false)
             }
-            completion(false)
         }
         authSession?.presentationContextProvider = authContext
         authSession?.prefersEphemeralWebBrowserSession = false
         authSession?.start()
+    }
+
+    private func exchangeCodeForToken(code: String, verifier: String, clientId: String, redirectUri: String, completion: @escaping (Bool) -> Void) async {
+        guard let url = URL(string: "https://accounts.spotify.com/api/token") else {
+            completion(false)
+            return
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        var bodyComponents = URLComponents()
+        bodyComponents.queryItems = [
+            URLQueryItem(name: "grant_type", value: "authorization_code"),
+            URLQueryItem(name: "code", value: code),
+            URLQueryItem(name: "redirect_uri", value: redirectUri),
+            URLQueryItem(name: "client_id", value: clientId),
+            URLQueryItem(name: "code_verifier", value: verifier)
+        ]
+        if !clientSecret.isEmpty {
+            let authStr = "\(clientId):\(clientSecret)"
+            if let authData = authStr.data(using: .utf8) {
+                req.setValue("Basic \(authData.base64EncodedString())", forHTTPHeaderField: "Authorization")
+            }
+        }
+        req.httpBody = bodyComponents.query?.data(using: .utf8)
+
+        do {
+            let (data, _) = try await session.data(for: req)
+            struct TokenResponse: Decodable {
+                let access_token: String
+                let refresh_token: String?
+            }
+            let resp = try JSONDecoder().decode(TokenResponse.self, from: data)
+            self.accessToken = resp.access_token
+            if let newRefresh = resp.refresh_token {
+                self.refreshToken = newRefresh
+            }
+            self.startPolling()
+            self.lastSyncError = nil
+            completion(true)
+        } catch {
+            self.lastSyncError = "Token-Tausch fehlgeschlagen: \(error.localizedDescription)"
+            completion(false)
+        }
     }
 }

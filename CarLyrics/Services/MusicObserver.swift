@@ -148,6 +148,17 @@ public final class MusicObserver: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(playbackStateChanged),
             name: .MPMusicPlayerControllerPlaybackStateDidChange, object: systemPlayer)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appWillTerminate),
+            name: UIApplication.willTerminateNotification, object: nil)
+    }
+
+    @objc private func appWillTerminate() {
+        for activity in Activity<LyricsAttributes>.activities {
+            Task {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 
     @objc private func nowPlayingItemChanged() {
@@ -256,7 +267,7 @@ public final class MusicObserver: ObservableObject {
         await endLiveActivity()
 
         let attrs   = LyricsAttributes(trackId: "\(artist)|\(title)")
-        let content = ActivityContent(state: makeState(), staleDate: nil)
+        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(35))
         do {
             liveActivity = try Activity<LyricsAttributes>.request(
                 attributes: attrs, content: content, pushType: nil)
@@ -268,7 +279,7 @@ public final class MusicObserver: ObservableObject {
     private func updateLiveActivity(force: Bool) async {
         guard let activity = liveActivity else { return }
         lastActivityUpdate = Date()
-        let content = ActivityContent(state: makeState(), staleDate: nil)
+        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(35))
         await activity.update(content)
     }
 

@@ -38,7 +38,7 @@ public final class MotionManager: ObservableObject {
     private var calibrationOffsetY: Double = 0
 
     // Low-pass filter factor (0 = no filtering, 1 = fully damped)
-    private let alpha: Double = 0.8
+    private let alpha: Double = 0.88
 
     private var filteredX: Double = 0
     private var filteredY: Double = 0
@@ -99,7 +99,7 @@ public final class MotionManager: ObservableObject {
         let rawX = data.userAcceleration.x
         let rawY = data.userAcceleration.y
 
-        // Low-pass filter to smooth sensor noise
+        // Low-pass filter to smooth road vibrations and hand jitters
         filteredX = alpha * filteredX + (1 - alpha) * rawX
         filteredY = alpha * filteredY + (1 - alpha) * rawY
 
@@ -110,11 +110,15 @@ public final class MotionManager: ObservableObject {
         // Combined 2-D G-force in the horizontal plane
         let combined = sqrt(calX * calX + calY * calY)
 
+        // Ignore micro road bumps under 0.04G
+        let cleanG = combined < 0.04 ? 0.0 : combined
+
         gX = calX
         gY = calY
-        currentG = combined
+        currentG = cleanG
 
-        if combined > peakG { peakG = combined }
+        // Peak tracking (clamped to 1.35G for road car physics)
+        if cleanG > peakG && cleanG <= 1.35 { peakG = cleanG }
     }
 }
 
