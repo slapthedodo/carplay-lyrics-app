@@ -111,8 +111,10 @@ public struct LyricsAttributes: ActivityAttributes {
         public var gVectorX    : Double   // lateral  (-1 … +1)
         public var gVectorY    : Double   // longitudinal (-1 … +1)
 
-        // ── Engine Warm-Up ───────────────────────────────────────────────────
+        // ── Engine Warm-Up & OBD Telemetry ───────────────────────────────────
         public var oilTemp         : Int          // °C
+        public var coolantTemp     : Int          // °C
+        public var boostBar        : Double       // Bar (relative boost)
         public var warmupProgress  : Double       // 0.0 … 1.0
         public var warmupPhase     : WarmupPhase
         public var isEngineWarm    : Bool         // oilTemp >= 80°C
@@ -130,6 +132,8 @@ public struct LyricsAttributes: ActivityAttributes {
             gVectorX       : Double       = 0,
             gVectorY       : Double       = 0,
             oilTemp        : Int          = 20,
+            coolantTemp    : Int          = 90,
+            boostBar       : Double       = 0.0,
             warmupProgress : Double       = 0,
             warmupPhase    : WarmupPhase  = .cold,
             isEngineWarm   : Bool         = false
@@ -145,6 +149,8 @@ public struct LyricsAttributes: ActivityAttributes {
             self.gVectorX       = gVectorX
             self.gVectorY       = gVectorY
             self.oilTemp        = oilTemp
+            self.coolantTemp    = coolantTemp
+            self.boostBar       = boostBar
             self.warmupProgress = warmupProgress
             self.warmupPhase    = warmupPhase
             self.isEngineWarm   = isEngineWarm
@@ -156,6 +162,8 @@ public struct LyricsAttributes: ActivityAttributes {
             songTitle   : "CarLyrics",
             artist      : "",
             oilTemp     : 20,
+            coolantTemp : 90,
+            boostBar    : 0.0,
             warmupPhase : .cold
         )
     }

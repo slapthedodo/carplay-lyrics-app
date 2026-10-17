@@ -46,8 +46,9 @@ public final class MusicObserver: ObservableObject {
     private let systemPlayer = MPMusicPlayerController.systemMusicPlayer
     private var lyrics       : ParsedLyrics?
     private var duration     : TimeInterval = 0
-    private var lineTimer    : Timer?
-    private var cancellables : Set<AnyCancellable> = []
+    private var lineTimer        : Timer?
+    private var telemetryTimer   : Timer?
+    private var cancellables     : Set<AnyCancellable> = []
 
     // ActivityKit
     private var liveActivity : Activity<LyricsAttributes>?
@@ -55,7 +56,7 @@ public final class MusicObserver: ObservableObject {
     // Rate-Limit & Throttle State
     private var lastActivityUpdate : Date         = .distantPast
     private let minUpdateInterval  : TimeInterval = 0.8   // Strenger Schutz vor Apple Throttling
-    private let telemetryInterval  : TimeInterval = 2.5   // Regelmäßiges Telemetrie-Update
+    private let telemetryInterval  : TimeInterval = 2.0   // Regelmäßiges Telemetrie-Update
     private var lastSentG          : Double       = 0
     private let gDeltaThreshold    : Double       = 0.08  // Erst ab 0.08G Delta aktualisieren
 
@@ -80,12 +81,16 @@ public final class MusicObserver: ObservableObject {
         if !spotify.isAuthenticated {
             syncSystemItem()
         }
+
+        // Live Activity & Telemetrie-Heartbeat sofort starten (immer sichtbar)
+        startTelemetryHeartbeat()
     }
 
     deinit {
         systemPlayer.endGeneratingPlaybackNotifications()
         NotificationCenter.default.removeObserver(self)
         lineTimer?.invalidate()
+        telemetryTimer?.invalidate()
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -180,7 +185,7 @@ public final class MusicObserver: ObservableObject {
         currentLine       = ""
         nextLine          = ""
         isPlaying         = false
-        Task { await endLiveActivity() }
+        Task { await updateLiveActivity(force: false) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -199,6 +204,8 @@ public final class MusicObserver: ObservableObject {
             await startLiveActivity(title: title, artist: artist)
         } catch {
             lyricsStatus = .error(error.localizedDescription)
+            // Trotz Lyrics-Fehler die Live Activity für Motortelemetrie aktiv halten
+            await updateLiveActivity(force: true)
         }
     }
 
@@ -214,6 +221,23 @@ public final class MusicObserver: ObservableObject {
     }
 
     private func stopLineTimer() { lineTimer?.invalidate(); lineTimer = nil }
+
+    private func startTelemetryHeartbeat() {
+        telemetryTimer?.invalidate()
+        // Aktualisiert alle 1.5 Sekunden die Motordaten und G-Kräfte in Dynamic Island & Sperrbildschirm
+        telemetryTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.liveActivity == nil {
+                    let title = self.currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : self.currentTrackTitle
+                    let artist = self.currentArtist.isEmpty ? "Motor-Monitor" : self.currentArtist
+                    await self.startLiveActivity(title: title, artist: artist)
+                } else {
+                    await self.updateLiveActivity(force: false)
+                }
+            }
+        }
+    }
 
     private func tick() {
         guard let lyrics else { return }
@@ -259,15 +283,18 @@ public final class MusicObserver: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: ActivityKit Lifecycle
+    // MARK: ActivityKit Lifecycle (Dauerhaft aktiv bis Task-Manager-Kill)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startLiveActivity(title: String, artist: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        await endLiveActivity()
+        if liveActivity != nil {
+            await updateLiveActivity(force: true)
+            return
+        }
 
         let attrs   = LyricsAttributes(trackId: "\(artist)|\(title)")
-        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(35))
+        let content = ActivityContent(state: makeState(), staleDate: nil)
         do {
             liveActivity = try Activity<LyricsAttributes>.request(
                 attributes: attrs, content: content, pushType: nil)
@@ -277,9 +304,14 @@ public final class MusicObserver: ObservableObject {
     }
 
     private func updateLiveActivity(force: Bool) async {
-        guard let activity = liveActivity else { return }
+        guard let activity = liveActivity else {
+            let title = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
+            let artist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
+            await startLiveActivity(title: title, artist: artist)
+            return
+        }
         lastActivityUpdate = Date()
-        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(35))
+        let content = ActivityContent(state: makeState(), staleDate: nil)
         await activity.update(content)
     }
 
@@ -293,7 +325,7 @@ public final class MusicObserver: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: State Builder (mit OBD-II Fallback)
+    // MARK: State Builder (mit OBD-II Fallback & Telemetrie)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func makeState() -> LyricsAttributes.ContentState {
@@ -324,23 +356,18 @@ public final class MusicObserver: ObservableObject {
 
         let progressVal = wm?.warmupProgress ?? 0
         let phaseVal    = wm?.phase ?? .cold
+        let effectiveBoost = obd.isEnabled && obd.connectionState == .connected ? (obd.liveBoostBar ?? 0.0) : 0.0
+        let effectiveCoolant = obd.isEnabled && obd.connectionState == .connected ? (obd.liveCoolantTemp ?? 90) : (oilTemp > 70 ? 90 : max(20, oilTemp + 10))
 
-        // In UserDefaults für Home Screen / Lock Screen Widgets ablegen
-        UserDefaults.standard.set(oilTemp, forKey: "last_oil_temp")
-        UserDefaults.standard.set(phaseVal.rawValue, forKey: "last_warmup_phase")
-        if let peak = mm?.peakG, peak > 0 {
-            UserDefaults.standard.set(peak, forKey: "last_peak_g")
-        }
-        if !currentTrackTitle.isEmpty {
-            UserDefaults.standard.set(currentTrackTitle, forKey: "last_song_title")
-            UserDefaults.standard.set(currentArtist, forKey: "last_song_artist")
-        }
+        // Werte für Home- & Sperrbildschirm-Widgets speichern
+        UserDefaults.standard.set(oilTemp, forKey: "widget_oil_temp")
+        UserDefaults.standard.set(effectiveBoost, forKey: "widget_boost_bar")
 
         return LyricsAttributes.ContentState(
-            currentLine    : currentLine,
+            currentLine    : currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine,
             nextLine       : nextLine,
-            songTitle      : currentTrackTitle,
-            artist         : currentArtist,
+            songTitle      : currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle,
+            artist         : currentArtist.isEmpty ? "Motor-Monitor" : currentArtist,
             progress       : progress,
             isPlaying      : isPlaying,
             currentG       : mm?.currentG ?? 0,
@@ -348,6 +375,8 @@ public final class MusicObserver: ObservableObject {
             gVectorX       : mm?.gX       ?? 0,
             gVectorY       : mm?.gY       ?? 0,
             oilTemp        : oilTemp,
+            coolantTemp    : effectiveCoolant,
+            boostBar       : effectiveBoost,
             warmupProgress : progressVal,
             warmupPhase    : phaseVal,
             isEngineWarm   : isEngineWarm

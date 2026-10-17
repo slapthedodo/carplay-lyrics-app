@@ -14,48 +14,30 @@ public struct ContentView: View {
     @ObservedObject private var spotify = SpotifyManager.shared
     @ObservedObject private var obd     = OBDManager.shared
 
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
-    @State private var forceCockpitMode = false
     @State private var showMockSheet    = false
     @State private var showSpotifySheet = false
     @State private var showOBDSheet     = false
     @State private var selectedTab      = 0
 
-    private var isCockpitMode: Bool {
-        forceCockpitMode || verticalSizeClass == .compact
-    }
-
     public var body: some View {
         ZStack {
             CockpitBackground()
 
-            if isCockpitMode {
-                SportCockpitView(
-                    observer : observer,
-                    warmup   : warmup,
-                    motion   : motion,
-                    obd      : obd,
-                    onClose  : { withAnimation { forceCockpitMode = false } }
-                )
-                .transition(.opacity)
-            } else {
-                TabView(selection: $selectedTab) {
-                    NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
-                        .tabItem { Label("Lyrics", systemImage: "music.note") }
-                        .tag(0)
+            TabView(selection: $selectedTab) {
+                NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
+                    .tabItem { Label("Lyrics", systemImage: "music.note") }
+                    .tag(0)
 
-                    TelemetryTab(warmup: warmup, motion: motion, obd: obd)
-                        .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
-                        .tag(1)
+                TelemetryTab(warmup: warmup, motion: motion, obd: obd)
+                    .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
+                    .tag(1)
 
-                    SettingsTab(spotify: spotify, obd: obd)
-                        .tabItem { Label("Setup", systemImage: "gearshape.fill") }
-                        .tag(2)
-                }
-                .tint(.cyan)
+                SettingsTab(spotify: spotify, obd: obd)
+                    .tabItem { Label("Setup", systemImage: "gearshape.fill") }
+                    .tag(2)
             }
+            .tint(.cyan)
         }
-        .animation(.easeInOut(duration: 0.25), value: isCockpitMode)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showMockSheet) {
             MockInjectorView(observer: observer)
@@ -105,16 +87,6 @@ public struct ContentView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    // Cockpit Vollbild Button
-                    Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            forceCockpitMode.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "speedometer")
-                            .foregroundStyle(forceCockpitMode ? .green : .cyan)
-                    }
-
                     // Spotify Button
                     Button { showSpotifySheet = true } label: {
                         Image(systemName: spotify.isAuthenticated ? "waveform.circle.fill" : "waveform.circle")
@@ -167,6 +139,10 @@ struct NowPlayingTab: View {
 // MARK: Telemetry Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Telemetry Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
 struct TelemetryTab: View {
     @ObservedObject var warmup : WarmupManager
     @ObservedObject var motion : MotionManager
@@ -197,6 +173,7 @@ struct TelemetryTab: View {
                 }
 
                 WarmupCard(warmup: warmup, obd: obd)
+                BoostCard(obd: obd)
                 GForceCard(motion: motion)
             }
             .padding(.horizontal)
@@ -299,6 +276,30 @@ struct SettingsTab: View {
                         Text("Bei vielen VW / VAG Modellen mit 2.0 TFSI wird PID 01 5C (Öltemperatur) über Standard-OBD2 als 'NO DATA' beantwortet. CarLyrics nutzt in diesem Fall automatisch die Kühlmitteltemperatur (PID 01 05) mit TFSI-Offset oder fällt auf das thermische Simulationsmodell zurück.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                // 4. FaceTime beim Fahren (Kamera-Fix)
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("FaceTime mit Kamera beim Fahren", systemImage: "video.fill")
+                            .font(.headline).foregroundStyle(.cyan)
+                        Text("iOS schaltet beim Verbinden mit dem Auto automatisch den Fokus 'Fahren' ein, der die Kamera sperrt.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("Lösung: Gehe in Einstellungen > Fokus > Fahren und deaktiviere die automatische Aktivierung mit CarPlay/Bluetooth. In der Handyhalterung bleibt die Kamera dann während der Fahrt aktiv!")
+                            .font(.caption.bold()).foregroundStyle(.white)
+                    }
+                }
+
+                // 5. Blitzer.de während Anrufen (Audio-Fix)
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Blitzer-App Ton während Telefonaten", systemImage: "speaker.wave.3.fill")
+                            .font(.headline).foregroundStyle(.green)
+                        Text("Bei Telefonaten schaltet das Auto auf Mono-Telefonie um und dämpft andere Apps.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("Lösung: Stelle in Blitzer.de unter Einstellungen > Audio > Audioausgang auf 'Gerätelautsprecher'. Die Warnungen kommen dann glasklar aus deinem iPhone-Lautsprecher, selbst wenn du telefonierst!")
+                            .font(.caption.bold()).foregroundStyle(.white)
                     }
                 }
             }
@@ -423,9 +424,9 @@ struct MiniTelemetryCard: View {
                             .foregroundStyle(tempColor(currentTemp))
                     }
                     .frame(width: 52, height: 52)
-                    Text(obd.isEnabled ? "OBD ÖL" : "SIM ÖL")
+                    Text(obd.isEnabled && obd.connectionState == .connected ? "OBD ÖL" : "SIM ÖL")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(obd.isEnabled && obd.connectionState == .connected ? .green : .secondary)
                 }
 
                 Spacer()
@@ -443,7 +444,7 @@ struct MiniTelemetryCard: View {
 
                 Spacer()
 
-                // Status
+                // Status & Ladedruck
                 VStack(spacing: 4) {
                     let phase = currentTemp < 60 ? "KALT" : (currentTemp < 80 ? "AUFWÄRMEN" : "BEREIT")
                     Text(phase)
@@ -453,7 +454,11 @@ struct MiniTelemetryCard: View {
                         .padding(.vertical, 4)
                         .background(tempColor(currentTemp).opacity(0.15), in: Capsule())
 
-                    if obd.isEnabled && obd.liveRPM > 0 {
+                    if obd.isEnabled && obd.connectionState == .connected, let boost = obd.liveBoostBar {
+                        Text(String(format: "%.2f b", boost))
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    } else if obd.isEnabled && obd.liveRPM > 0 {
                         Text("\(obd.liveRPM) U/min")
                             .font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(.secondary)
@@ -493,9 +498,27 @@ struct WarmupCard: View {
                         .font(.headline).foregroundStyle(.cyan)
                     Spacer()
                     if obd.isEnabled {
-                        Text("LIVE OBD")
+                        if obd.connectionState == .connected {
+                            Text("LIVE OBD")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.green)
+                        } else if obd.connectionState == .scanning {
+                            Text("SUCHE ADAPTER…")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.orange)
+                        } else if obd.connectionState == .connecting || obd.connectionState == .initializing {
+                            Text("VERBINDE…")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text("GETRENNT (SIMULATION)")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("2.0 TFSI SIMULATION")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.green)
+                            .foregroundStyle(.cyan)
                     }
                 }
 
@@ -536,6 +559,67 @@ struct WarmupCard: View {
         if t < 60 { return "Kaltstart – Max. 2.500 U/min, kein Ladedruck!" }
         if t < 80 { return "Öl wärmt auf – Gemäßigt fahren" }
         return "90°C erreicht – Voller Ladedruck frei! 🏁"
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Boost Card (Ladedruck & Ansaugung)
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct BoostCard: View {
+    @ObservedObject var obd: OBDManager
+
+    var boostVal: Double {
+        obd.isEnabled && obd.connectionState == .connected ? (obd.liveBoostBar ?? 0.0) : 0.0
+    }
+
+    var body: some View {
+        GlassCard {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Label("Ladedruck & Ansaugung", systemImage: "gauge.with.needle.fill")
+                        .font(.headline).foregroundStyle(.cyan)
+                    Spacer()
+                    if obd.isEnabled && obd.connectionState == .connected {
+                        Text("LIVE OBD")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("OBD ERFORDERLICH")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                HStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(format: "%.2f", boostVal))
+                            .font(.system(size: 38, weight: .black, design: .monospaced))
+                            .foregroundStyle(boostVal > 0.8 ? .orange : (boostVal > 0.1 ? .green : .cyan))
+                        Text("BAR RELATIV (MAP - BARO)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .trailing, spacing: 5) {
+                        if let map = obd.liveMAP {
+                            Text("MAP: \(map) kPa").font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(.white)
+                        }
+                        if let iat = obd.liveIAT {
+                            Text("IAT: \(iat) °C").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.cyan)
+                        }
+                        if let load = obd.liveEngineLoad {
+                            Text("Last: \(load) %").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.orange)
+                        }
+                        if !obd.isEnabled || obd.connectionState != .connected {
+                            Text("Verbinde deinen OBD-Adapter").font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -650,6 +734,30 @@ struct OBDDebugSheet: View {
                             .foregroundStyle(.cyan)
                     }
                     HStack {
+                        Text("Ladedruck (Relativ)")
+                        Spacer()
+                        Text(obd.liveBoostBar != nil ? String(format: "%.2f bar", obd.liveBoostBar!) : "—")
+                            .foregroundStyle(.cyan)
+                    }
+                    HStack {
+                        Text("Saugrohrdruck (PID 01 0B MAP)")
+                        Spacer()
+                        Text(obd.liveMAP != nil ? "\(obd.liveMAP!) kPa" : "—")
+                            .foregroundStyle(.white)
+                    }
+                    HStack {
+                        Text("Ansauglufttemp (PID 01 0F IAT)")
+                        Spacer()
+                        Text(obd.liveIAT != nil ? "\(obd.liveIAT!) °C" : "—")
+                            .foregroundStyle(.cyan)
+                    }
+                    HStack {
+                        Text("Motorlast (PID 01 04)")
+                        Spacer()
+                        Text(obd.liveEngineLoad != nil ? "\(obd.liveEngineLoad!) %" : "—")
+                            .foregroundStyle(.orange)
+                    }
+                    HStack {
                         Text("Motordrehzahl (RPM)")
                         Spacer()
                         Text("\(obd.liveRPM) U/min")
@@ -702,11 +810,28 @@ struct SpotifySetupSheet: View {
                     }
                 }
 
-                Section("1-Klick Login") {
-                    Text("Melde dich direkt über Safari mit deinem Spotify-Konto an:")
+                Section("1-Klick Login (Dauerhaft)") {
+                    Text("Um Spotify direkt abzufragen, erstelle eine kostenlose App im Spotify Developer Dashboard:")
                         .font(.caption).foregroundStyle(.secondary)
 
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("1. developer.spotify.com/dashboard öffnen").font(.caption2)
+                        Text("2. 'Create App' anklicken").font(.caption2)
+                        Text("3. Redirect URI eintragen:").font(.caption2)
+                        Text("carlyrics://spotify-callback")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+                        Text("4. Client ID kopieren und unten einfügen:").font(.caption2)
+                    }
+                    .padding(.vertical, 4)
+
+                    TextField("Spotify Client ID hier einfügen", text: $clientId)
+                        .font(.system(.caption, design: .monospaced))
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
                     Button {
+                        spotify.clientId = clientId.trimmingCharacters(in: .whitespaces)
                         spotify.startWebAuthSession { success in
                             if success { dismiss() }
                         }
@@ -721,6 +846,13 @@ struct SpotifySetupSheet: View {
                         .padding(.vertical, 6)
                     }
                     .buttonStyle(CockpitButtonStyle(color: .green))
+                    .disabled(clientId.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    if clientId.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text("⚠ Trage zuerst deine Client ID ein, um 'client id invalid' zu verhindern.")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 Section("Alternativ: Manueller Access Token") {
@@ -883,190 +1015,3 @@ struct MockInjectorView: View {
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Sport Cockpit View (Audi RS / Golf R Track Display)
-// ─────────────────────────────────────────────────────────────────────────────
-
-struct SportCockpitView: View {
-    @ObservedObject var observer : MusicObserver
-    @ObservedObject var warmup   : WarmupManager
-    @ObservedObject var motion   : MotionManager
-    @ObservedObject var obd      : OBDManager
-    var onClose: () -> Void
-
-    var currentTemp: Int {
-        if obd.isEnabled && obd.connectionState == .connected {
-            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
-        }
-        return warmup.oilTempInt
-    }
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            VStack(spacing: 8) {
-                // Top Telemetry Header Bar
-                HStack {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(obd.isEnabled && obd.connectionState == .connected ? Color.green : Color.cyan)
-                            .frame(width: 8, height: 8)
-                        Text(obd.isEnabled ? "OBD II LIVE" : "TFSI SIMULATION")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
-
-                        if obd.liveRPM > 0 {
-                            Text("• \(obd.liveRPM) RPM")
-                                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.cyan)
-                        }
-                    }
-
-                    Spacer()
-
-                    // Calibrate G-Zero button
-                    Button {
-                        motion.calibrate()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "scope")
-                            Text("G-Nullpunkt")
-                        }
-                        .font(.system(size: 11, weight: .semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.white.opacity(0.12), in: Capsule())
-                    }
-
-                    // Exit Cockpit button
-                    Button {
-                        onClose()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-
-                // Main 3-Column Racing Layout
-                HStack(spacing: 16) {
-                    // LEFT: 2.0 TFSI Oil Gauge
-                    VStack(spacing: 6) {
-                        Text("2.0 TFSI ÖLTEMPERATUR")
-                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(.secondary)
-
-                        ZStack {
-                            Circle()
-                                .stroke(Color.white.opacity(0.08), lineWidth: 10)
-                            Circle()
-                                .trim(from: 0, to: warmup.warmupProgress)
-                                .stroke(tempColor(currentTemp), style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                                .rotationEffect(.degrees(-90))
-
-                            VStack(spacing: 2) {
-                                Text("\(currentTemp)°")
-                                    .font(.system(size: 36, weight: .black, design: .monospaced))
-                                    .foregroundStyle(tempColor(currentTemp))
-                                Text("ZIEL 90°C")
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .frame(width: 130, height: 130)
-
-                        Text(rpmAdvice(currentTemp))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(tempColor(currentTemp))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .frame(maxWidth: 160)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // CENTER: Large Live Synchronized Lyrics
-                    VStack(spacing: 8) {
-                        VStack(spacing: 2) {
-                            Text(observer.currentTrackTitle.isEmpty ? "Kein Song aktiv" : observer.currentTrackTitle)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            Text(observer.currentArtist)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.white.opacity(0.5))
-                                .lineLimit(1)
-                        }
-
-                        // Big readable current lyric
-                        Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
-                            .font(.system(size: 24, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .shadow(color: .cyan.opacity(0.4), radius: 8)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(3)
-                            .frame(maxHeight: .infinity)
-
-                        if !observer.nextLine.isEmpty {
-                            Text(observer.nextLine)
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.45))
-                                .lineLimit(1)
-                        }
-
-                        if observer.progress > 0 {
-                            ProgressView(value: observer.progress)
-                                .tint(.cyan)
-                                .padding(.horizontal, 20)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    // RIGHT: G-Force Friction Circle (Kammscher Kreis)
-                    VStack(spacing: 6) {
-                        Text("KAMMSCHER KREIS")
-                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(.secondary)
-
-                        GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG)
-                            .frame(width: 130, height: 130)
-
-                        HStack(spacing: 16) {
-                            VStack {
-                                Text("LIVE").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
-                                Text(motion.currentGFormatted)
-                                    .font(.system(size: 18, weight: .black, design: .monospaced))
-                                    .foregroundStyle(gColor(motion.currentG))
-                            }
-                            VStack {
-                                Text("PEAK").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
-                                Text(motion.peakGFormatted)
-                                    .font(.system(size: 18, weight: .black, design: .monospaced))
-                                    .foregroundStyle(.orange)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 12)
-            }
-        }
-    }
-
-    private func tempColor(_ t: Int) -> Color {
-        if t < 60 { return .blue }
-        if t < 80 { return .orange }
-        return .green
-    }
-
-    private func rpmAdvice(_ t: Int) -> String {
-        if t < 60 { return "❄️ Max 2.500 U/min\nKein Ladedruck" }
-        if t < 80 { return "⚡ Max 3.500 U/min\nÖl wärmt auf" }
-        return "🔥 80°C+ Erreicht\nFeuer frei!"
-    }
-}
-

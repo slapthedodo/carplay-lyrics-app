@@ -24,21 +24,35 @@ struct LyricsActivityWidget: Widget {
 
                 // ── Expanded ─────────────────────────────────────────────
                 DynamicIslandExpandedRegion(.leading) {
-                    OilTempBadge(
-                        temp     : context.state.oilTemp,
-                        progress : context.state.warmupProgress,
-                        phase    : context.state.warmupPhase
-                    )
-                    .frame(width: 52, height: 52)
+                    VStack(alignment: .leading, spacing: 2) {
+                        OilTempBadge(
+                            temp     : context.state.oilTemp,
+                            progress : context.state.warmupProgress,
+                            phase    : context.state.warmupPhase
+                        )
+                        .frame(width: 44, height: 44)
+
+                        Text("Wasser: \(context.state.coolantTemp)°")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
                     .padding(.leading, 4)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    GForceCompact(
-                        currentG: context.state.currentG,
-                        peakG   : context.state.peakG
-                    )
-                    .frame(width: 56)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        GForceCompact(
+                            currentG: context.state.currentG,
+                            peakG   : context.state.peakG
+                        )
+                        .frame(width: 56)
+
+                        if context.state.boostBar > 0.05 {
+                            Text(String(format: "%.2f bar", context.state.boostBar))
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                        }
+                    }
                     .padding(.trailing, 4)
                 }
 
@@ -76,28 +90,37 @@ struct LyricsActivityWidget: Widget {
                 }
 
             } compactLeading: {
-                // ── Oil Temp ring ─────────────────────────────────────────
-                OilTempBadge(
-                    temp     : context.state.oilTemp,
-                    progress : context.state.warmupProgress,
-                    phase    : context.state.warmupPhase
-                )
-                .frame(width: 26, height: 26)
+                // ── Oil Temp Badge (Sauber formatiert, niemals abgeschnitten) ──
+                HStack(spacing: 2) {
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    Text("\(context.state.oilTemp)°")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                }
 
             } compactTrailing: {
-                // ── Live G-Force ──────────────────────────────────────────
-                Text(String(format: "%.1fG", context.state.currentG))
-                    .font(.system(.caption2, design: .monospaced, weight: .bold))
-                    .foregroundStyle(gColor(context.state.currentG))
-                    .contentTransition(.numericText())
+                // ── Live Ladedruck oder G-Kräfte ───────────────────────────
+                HStack(spacing: 2) {
+                    if context.state.boostBar > 0.1 {
+                        Text(String(format: "%.1fb", context.state.boostBar))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    } else {
+                        Text(String(format: "%.1fG", context.state.currentG))
+                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .foregroundStyle(gColor(context.state.currentG))
+                            .contentTransition(.numericText())
+                    }
+                }
 
             } minimal: {
-                OilTempBadge(
-                    temp     : context.state.oilTemp,
-                    progress : context.state.warmupProgress,
-                    phase    : context.state.warmupPhase
-                )
-                .frame(width: 20, height: 20)
+                HStack(spacing: 1) {
+                    Text("\(context.state.oilTemp)°")
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                }
             }
         }
     }
@@ -188,8 +211,13 @@ struct TelemetryBar: View {
 
             Spacer()
 
-            // G-Force column
+            // Boost & G-Force column
             VStack(alignment: .trailing, spacing: 1) {
+                if state.boostBar > 0.05 {
+                    Text(String(format: "%.2f BAR", state.boostBar))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.cyan)
+                }
                 Text(String(format: "%.2f G", state.currentG))
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(gColor(state.currentG))
@@ -289,6 +317,200 @@ func gColor(_ g: Double) -> Color {
     case ..<0.6:  return .yellow
     case ..<0.9:  return .orange
     default:      return .red
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - TelemetryCockpitWidget (Home Screen & Lock Screen Widgets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct TelemetryEntry: TimelineEntry {
+    let date        : Date
+    let oilTemp     : Int
+    let coolantTemp : Int
+    let boostBar    : Double
+    let currentG    : Double
+    let peakG       : Double
+    let phase       : WarmupPhase
+}
+
+struct TelemetryTimelineProvider: TimelineProvider {
+    func placeholder(in context: Context) -> TelemetryEntry {
+        TelemetryEntry(date: Date(), oilTemp: 85, coolantTemp: 90, boostBar: 1.15, currentG: 0.35, peakG: 0.95, phase: .ready)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (TelemetryEntry) -> Void) {
+        completion(placeholder(in: context))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<TelemetryEntry>) -> Void) {
+        let temp = UserDefaults.standard.integer(forKey: "widget_oil_temp")
+        let displayTemp = temp > 0 ? temp : 82
+        let boost = UserDefaults.standard.double(forKey: "widget_boost_bar")
+        let displayBoost = boost > 0 ? boost : 1.1
+
+        let entry = TelemetryEntry(
+            date        : Date(),
+            oilTemp     : displayTemp,
+            coolantTemp : 90,
+            boostBar    : displayBoost,
+            currentG    : 0.28,
+            peakG       : 0.85,
+            phase       : displayTemp < 60 ? .cold : (displayTemp < 80 ? .warming : .ready)
+        )
+        let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60 * 15)))
+        completion(timeline)
+    }
+}
+
+struct TelemetryWidgetEntryView: View {
+    @Environment(\.widgetFamily) var family
+    let entry: TelemetryEntry
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular:
+            ZStack {
+                AccessoryWidgetBackground()
+                VStack(spacing: 0) {
+                    Image(systemName: "drop.fill").font(.system(size: 8))
+                    Text("\(entry.oilTemp)°")
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                }
+            }
+
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Image(systemName: "gauge.with.needle").font(.system(size: 9))
+                    Text("TFSI 2.0 TELEMETRIE").font(.system(size: 8, weight: .bold))
+                }
+                Text("Öl: \(entry.oilTemp)°C (\(entry.phase.rawValue))")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(String(format: "Boost: %.2fb • Peak: %.1fG", entry.boostBar, entry.peakG))
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+        case .accessoryInline:
+            Text("TFSI: \(entry.oilTemp)°C Öl • \(String(format: "%.1fb", entry.boostBar))")
+
+        case .systemSmall:
+            ZStack {
+                Color.black
+                VStack(spacing: 8) {
+                    HStack {
+                        Label("TFSI 2.0", systemImage: "gauge.with.needle")
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(.cyan)
+                        Spacer()
+                        Text(entry.phase.rawValue)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(phaseColor(entry.phase))
+                    }
+
+                    HStack(spacing: 12) {
+                        OilTempBadge(temp: entry.oilTemp, progress: Double(entry.oilTemp) / 90.0, phase: entry.phase)
+                            .frame(width: 50, height: 50)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(format: "%.2f", entry.boostBar))
+                                .font(.system(size: 17, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                            Text("BAR BOOST")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Text("PEAK \(String(format: "%.1f", entry.peakG))G")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("Wasser \(entry.coolantTemp)°")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(12)
+            }
+
+        default: // .systemMedium
+            ZStack {
+                Color.black
+                HStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Image(systemName: "engine.combustion.fill").foregroundStyle(.cyan)
+                            Text("2.0 TFSI Cockpit").font(.headline).foregroundStyle(.white)
+                        }
+                        Text(entry.phase.label)
+                            .font(.system(size: 9))
+                            .foregroundStyle(phaseColor(entry.phase))
+                            .lineLimit(1)
+
+                        HStack(spacing: 14) {
+                            VStack(alignment: .leading) {
+                                Text("ÖLTEMP").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+                                Text("\(entry.oilTemp) °C")
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(phaseColor(entry.phase))
+                            }
+                            VStack(alignment: .leading) {
+                                Text("WASSER").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+                                Text("\(entry.coolantTemp) °C")
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.white)
+                            }
+                            VStack(alignment: .leading) {
+                                Text("LADEDRUCK").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+                                Text(String(format: "%.2f b", entry.boostBar))
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    VStack(spacing: 4) {
+                        Text("G-KRÄFTE").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
+                        Text(String(format: "%.2fG", entry.currentG))
+                            .font(.system(size: 20, weight: .bold, design: .monospaced))
+                            .foregroundStyle(gColor(entry.currentG))
+                        Text("MAX \(String(format: "%.1f", entry.peakG))G")
+                            .font(.system(size: 8, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(8)
+                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(14)
+            }
+        }
+    }
+}
+
+public struct TelemetryCockpitWidget: Widget {
+    public let kind: String = "TelemetryCockpitWidget"
+
+    public init() {}
+
+    public var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
+            TelemetryWidgetEntryView(entry: entry)
+                .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("TFSI 2.0 Telemetrie")
+        .description("Zeigt Öltemperatur, Kühlwasser, Ladedruck und G-Kräfte auf Home- und Sperrbildschirm.")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline
+        ])
     }
 }
 

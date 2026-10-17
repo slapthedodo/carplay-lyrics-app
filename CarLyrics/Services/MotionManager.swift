@@ -37,11 +37,8 @@ public final class MotionManager: ObservableObject {
     private var calibrationOffsetX: Double = 0
     private var calibrationOffsetY: Double = 0
 
-    // Low-pass filter factor (0 = no filtering, 1 = fully damped)
-    private let alpha: Double = 0.88
-
-    private var filteredX: Double = 0
-    private var filteredY: Double = 0
+    private var rawX: Double = 0
+    private var rawY: Double = 0
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Public API
@@ -53,7 +50,7 @@ public final class MotionManager: ObservableObject {
 
     public func start() {
         guard motion.isDeviceMotionAvailable, !isActive else { return }
-        motion.deviceMotionUpdateInterval = 0.1   // 10 Hz
+        motion.deviceMotionUpdateInterval = 0.05   // 20 Hz – ultraschnelle Reaktion
         rawSampleCount = 0
         motion.startDeviceMotionUpdates(
             using: .xArbitraryZVertical,
@@ -62,7 +59,7 @@ public final class MotionManager: ObservableObject {
             guard let self, let data else { return }
             Task { @MainActor in 
                 self.process(data)
-                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (1.5 Sekunden)
+                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (ca. 0.75 Sekunden)
                 if self.rawSampleCount < 15 {
                     self.rawSampleCount += 1
                     if self.rawSampleCount == 15 {
@@ -82,8 +79,8 @@ public final class MotionManager: ObservableObject {
     /// Zero out the current reading as the new "straight & level" baseline.
     /// Call this once the phone is mounted in the car holder.
     public func calibrate() {
-        calibrationOffsetX = filteredX
-        calibrationOffsetY = filteredY
+        calibrationOffsetX = rawX
+        calibrationOffsetY = rawY
         peakG = 0
     }
 
@@ -92,33 +89,28 @@ public final class MotionManager: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Private processing
+    // MARK: Private processing (Direkte, ungefilterte G-Kräfte)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func process(_ data: CMDeviceMotion) {
-        let rawX = data.userAcceleration.x
-        let rawY = data.userAcceleration.y
+        rawX = data.userAcceleration.x
+        rawY = data.userAcceleration.y
 
-        // Low-pass filter to smooth road vibrations and hand jitters
-        filteredX = alpha * filteredX + (1 - alpha) * rawX
-        filteredY = alpha * filteredY + (1 - alpha) * rawY
+        // Direkte G-Kräfte ohne Tiefpassfilter (Reagiert unverzögert auf jede Beschleunigung & Kurve)
+        let calX = rawX - calibrationOffsetX
+        let calY = rawY - calibrationOffsetY
 
-        // Apply calibration offset
-        let calX = filteredX - calibrationOffsetX
-        let calY = filteredY - calibrationOffsetY
-
-        // Combined 2-D G-force in the horizontal plane
+        // Kombinierte G-Kraft im 2D-Fahrzeugvektor
         let combined = sqrt(calX * calX + calY * calY)
-
-        // Ignore micro road bumps under 0.04G
-        let cleanG = combined < 0.04 ? 0.0 : combined
 
         gX = calX
         gY = calY
-        currentG = cleanG
+        currentG = combined
 
-        // Peak tracking (clamped to 1.35G for road car physics)
-        if cleanG > peakG && cleanG <= 1.35 { peakG = cleanG }
+        // Peak tracking – unbegrenzt, erfasst alle tatsächlichen Kräfte
+        if combined > peakG {
+            peakG = combined
+        }
     }
 }
 

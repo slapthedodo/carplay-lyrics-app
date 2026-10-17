@@ -32,6 +32,11 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var liveCoolantTemp : Int? = nil           // PID 01 05 (immer bei VW)
     @Published public var liveRPM         : Int  = 0             // PID 01 0C
     @Published public var liveSpeed       : Int  = 0             // PID 01 0D
+    @Published public var liveBoostBar    : Double? = nil        // Berechneter Ladedruck in Bar (PID 01 0B - Baro)
+    @Published public var liveMAP         : Int? = nil           // Saugrohr-Absolutdruck in kPa (PID 01 0B)
+    @Published public var liveIAT         : Int? = nil           // Ansauglufttemperatur in °C (PID 01 0F)
+    @Published public var liveEngineLoad  : Int? = nil           // Motorlast in % (PID 01 04)
+    @Published public var liveBaro        : Int  = 101           // Atmosphärendruck in kPa (PID 01 33 oder 101.3 kPa)
     @Published public var hasOilTempPID   : Bool = false         // Wurde PID 01 5C quittiert?
     @Published public var debugLogs       : [String] = []
 
@@ -56,7 +61,7 @@ public final class OBDManager: NSObject, ObservableObject {
     private var pollTimer       : Timer?
     private var receiveBuffer   : String = ""
     private var currentPIDIndex : Int = 0
-    private let queryCycle      : [String] = ["015C", "0105", "010C", "010D"]
+    private let queryCycle      : [String] = ["010B", "015C", "0105", "010C", "010D", "010F", "0104", "0133"]
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -83,6 +88,18 @@ public final class OBDManager: NSObject, ObservableObject {
             centralManager.cancelPeripheralConnection(p)
         }
         connectionState = .disconnected
+        resetTelemetryValues()
+    }
+
+    private func resetTelemetryValues() {
+        liveOilTemp = nil
+        liveCoolantTemp = nil
+        liveBoostBar = nil
+        liveMAP = nil
+        liveIAT = nil
+        liveEngineLoad = nil
+        liveRPM = 0
+        liveSpeed = 0
     }
 
     public func toggleOBD() {
@@ -163,7 +180,21 @@ public final class OBDManager: NSObject, ObservableObject {
         log("RX: \(clean)")
         let compact = clean.replacingOccurrences(of: " ", with: "").uppercased()
 
-        // 1. Öltemperatur (PID 01 5C -> Antwort 415C XX)
+        // 1. Saugrohrdruck & Ladedruck (PID 01 0B -> Antwort 410B XX)
+        if let range = compact.range(of: "410B") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    let mapKpa = Int(val)
+                    liveMAP = mapKpa
+                    // Relative boost = (MAP - Baro) / 100 in bar
+                    let rawBoost = (Double(mapKpa) - Double(liveBaro)) / 100.0
+                    liveBoostBar = max(-1.0, min(3.5, rawBoost))
+                }
+            }
+        }
+        // 2. Öltemperatur (PID 01 5C -> Antwort 415C XX)
         if let range = compact.range(of: "415C") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2 {
@@ -174,7 +205,7 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 2. Kühlmitteltemperatur (PID 01 05 -> Antwort 4105 XX)
+        // 3. Kühlmitteltemperatur (PID 01 05 -> Antwort 4105 XX)
         if let range = compact.range(of: "4105") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2 {
@@ -184,7 +215,7 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 3. Drehzahl RPM (PID 01 0C -> Antwort 410C AA BB)
+        // 4. Motordrehzahl RPM (PID 01 0C -> Antwort 410C AA BB)
         if let range = compact.range(of: "410C") {
             let after = String(compact[range.upperBound...])
             if after.count >= 4 {
@@ -195,7 +226,7 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 4. Geschwindigkeit Speed (PID 01 0D -> Antwort 410D XX)
+        // 5. Geschwindigkeit Speed (PID 01 0D -> Antwort 410D XX)
         if let range = compact.range(of: "410D") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2 {
@@ -205,10 +236,40 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 5. VW 2.0 TFSI Besonderheit Check
+        // 6. Ansauglufttemperatur (PID 01 0F -> Antwort 410F XX)
+        if let range = compact.range(of: "410F") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveIAT = Int(val) - 40
+                }
+            }
+        }
+        // 7. Berechnete Motorlast (PID 01 04 -> Antwort 4104 XX)
+        if let range = compact.range(of: "4104") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveEngineLoad = Int(Double(val) * 100.0 / 255.0)
+                }
+            }
+        }
+        // 8. Barometrischer Umgebungsdruck (PID 01 33 -> Antwort 4133 XX)
+        if let range = compact.range(of: "4133") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveBaro = Int(val)
+                }
+            }
+        }
+        // 9. VW 2.0 TFSI Besonderheit Check
         if compact.contains("NODATA") && compact.contains("5C") {
             hasOilTempPID = false
-            log("⚠ VW meldet 'NO DATA' für Öltemperatur (PID 01 5C). Fallback aktiv!")
+            log("⚠ VW meldet 'NO DATA' für Öltemperatur (PID 01 5C). Fallback auf Kühlmittel aktiv!")
         }
     }
 }
@@ -274,6 +335,7 @@ extension OBDManager: CBCentralManagerDelegate {
                                error: Error?) {
         log("OBD-Adapter getrennt.")
         connectionState = .disconnected
+        resetTelemetryValues()
         self.peripheral = nil
         txChar = nil
         rxChar = nil

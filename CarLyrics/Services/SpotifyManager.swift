@@ -273,9 +273,12 @@ public final class SpotifyManager: ObservableObject {
     }
 
     public func startWebAuthSession(completion: @escaping (Bool) -> Void) {
-        let cid = clientId.trimmingCharacters(in: .whitespaces).isEmpty
-            ? "751c1106bb9b49b384f50682ba1850fb"
-            : clientId
+        let cid = clientId.trimmingCharacters(in: .whitespaces)
+        guard !cid.isEmpty else {
+            self.lastSyncError = "Bitte trage zuerst deine Spotify Client ID ein (developer.spotify.com)."
+            completion(false)
+            return
+        }
         let redirect = "carlyrics://spotify-callback"
         let scope = "user-read-currently-playing%20user-read-playback-state"
 
