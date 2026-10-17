@@ -5,6 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Foundation
+import UIKit
 import CoreBluetooth
 import Combine
 
@@ -65,9 +66,10 @@ public final class OBDManager: NSObject, ObservableObject {
         CBUUID(string: "0000FFF0-0000-1000-8000-00805F9B34FB")
     ]
 
-    private var pollTimer       : Timer?
-    private var receiveBuffer   : String = ""
-    private var currentPIDIndex : Int = 0
+    private var pollTimer          : Timer?
+    private var receiveBuffer      : String = ""
+    private var currentPIDIndex    : Int = 0
+    private var isInitializingUART : Bool = false
     // VAG EA113 Bosch MED 9.1 Zyklus (KWP2000 / ISO 9141):
     // Alle Standard OBD-II Mode 01 PIDs — die auf diesem Steuergerät wirklich antworten.
     // PID 01 5C (Öltemperatur) ist auf KWP2000-Steuergeräten oft NICHT implementiert.
@@ -125,6 +127,7 @@ public final class OBDManager: NSObject, ObservableObject {
         liveRPM = 0
         liveSpeed = 0
         hasOilTempPID = false
+        isInitializingUART = false
     }
 
     public func toggleOBD() {
@@ -142,8 +145,10 @@ public final class OBDManager: NSObject, ObservableObject {
         }
         connectionState = .scanning
         log("Starte BLE-Scan nach ELM327 / OBDII…")
-        // Scan nach bekannten UUIDs (erforderlich für Hintergrund-Betrieb)
-        centralManager.scanForPeripherals(withServices: serviceUUIDs, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
+        // Im Vordergrund scannen wir ohne Service-Filter (findet 100% aller Adapter, auch Klone ohne Advertised Services)
+        let isBackground = UIApplication.shared.applicationState == .background
+        let targetServices: [CBUUID]? = isBackground ? serviceUUIDs : nil
+        centralManager.scanForPeripherals(withServices: targetServices, options: [CBCentralManagerScanOptionAllowDuplicatesKey: false])
     }
 
     public func stopScan() {
@@ -359,12 +364,18 @@ extension OBDManager: CBCentralManagerDelegate {
         let name = peripheral.name ?? (advertisementData[CBAdvertisementDataLocalNameKey] as? String) ?? ""
         let lower = name.lowercased()
 
-        // Filtert nach gängigen OBD2 / ELM327 BLE Namen
+        // Filtert nach allen gängigen OBD2 / ELM327 BLE Adapter-Namen
         let isOBD = lower.contains("obd") ||
                     lower.contains("elm") ||
                     lower.contains("v-link") ||
+                    lower.contains("vlink") ||
                     lower.contains("allstric") ||
                     lower.contains("ios-vlink") ||
+                    lower.contains("vgate") ||
+                    lower.contains("icar") ||
+                    lower.contains("viecar") ||
+                    lower.contains("konnwei") ||
+                    lower.contains("ble-obd") ||
                     lower.contains("ble")
 
         if isOBD || !name.isEmpty {
@@ -403,6 +414,7 @@ extension OBDManager: CBCentralManagerDelegate {
         self.peripheral = nil
         txChar = nil
         rxChar = nil
+        isInitializingUART = false
         pollTimer?.invalidate()
         if isEnabled {
             // Reconnect-Versuch nach 2 Sekunden
@@ -441,8 +453,9 @@ extension OBDManager: CBPeripheralDelegate {
             }
         }
 
-        // Sobald TX und RX gefunden wurden, initialisieren
-        if txChar != nil && rxChar != nil && connectionState == .initializing {
+        // Sobald TX und RX gefunden wurden, genau 1x initialisieren
+        if txChar != nil && rxChar != nil && connectionState == .initializing && !isInitializingUART {
+            isInitializingUART = true
             log("GATT UART bereit. Sende ELM327 Init-Sequenz…")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.sendCommand("ATZ")   // Reset
@@ -451,6 +464,7 @@ extension OBDManager: CBPeripheralDelegate {
                     self?.sendCommand("ATL0")  // Linefeeds off
                     self?.sendCommand("ATSP0") // Auto Protocol (KWP2000 ISO 9141 / CAN)
                     self?.connectionState = .connected
+                    self?.isInitializingUART = false
                     self?.log("ELM327 initialisiert. Starte PID-Abfragen.")
                     self?.startPolling()
                 }
