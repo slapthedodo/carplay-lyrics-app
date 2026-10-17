@@ -218,19 +218,19 @@
 
 		/* App target files */
 		97C1B0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsApp.swift;            path = CarLyricsApp.swift;              sourceTree = "<group>"; };
-		97C1B0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift;             path = Views/ContentView.swift;          sourceTree = "<group>"; };
-		97C1B0032A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserver.swift;           path = Services/MusicObserver.swift;     sourceTree = "<group>"; };
-		97C1B0042A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsService.swift;           path = Services/LyricsService.swift;     sourceTree = "<group>"; };
-		97C1B0052A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LRCParser.swift;               path = Services/LRCParser.swift;         sourceTree = "<group>"; };
-		97C1B0062A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsModels.swift;            path = Models/LyricsModels.swift;        sourceTree = "<group>"; };
+		97C1B0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ContentView.swift;             path = ContentView.swift;                sourceTree = "<group>"; };
+		97C1B0032A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MusicObserver.swift;           path = MusicObserver.swift;             sourceTree = "<group>"; };
+		97C1B0042A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsService.swift;           path = LyricsService.swift;             sourceTree = "<group>"; };
+		97C1B0052A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LRCParser.swift;               path = LRCParser.swift;                 sourceTree = "<group>"; };
+		97C1B0062A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsModels.swift;            path = LyricsModels.swift;              sourceTree = "<group>"; };
 		97C1B0072A000001 = { isa = PBXFileReference; lastKnownFileType = text.plist.xml;   name = "Info.plist";                  path = "Info.plist";                     sourceTree = "<group>"; };
 
 		/* NEW v2 service files */
-		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift;           path = Services/WarmupManager.swift;     sourceTree = "<group>"; };
-		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift;           path = Services/MotionManager.swift;     sourceTree = "<group>"; };
-		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = Services/BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
-		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = Services/SpotifyManager.swift;     sourceTree = "<group>"; };
-		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = Services/OBDManager.swift;         sourceTree = "<group>"; };
+		97C1B0082A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WarmupManager.swift;           path = WarmupManager.swift;             sourceTree = "<group>"; };
+		97C1B0092A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionManager.swift;           path = MotionManager.swift;             sourceTree = "<group>"; };
+		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
+		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = SpotifyManager.swift;             sourceTree = "<group>"; };
+		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = OBDManager.swift;                 sourceTree = "<group>"; };
 		97C1B00D2A000001 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets;             path = Assets.xcassets;                  sourceTree = "<group>"; };
 
 		/* Widget target files */
