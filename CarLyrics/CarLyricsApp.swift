@@ -38,7 +38,7 @@ struct CarLyricsApp: App {
             }
         } else if host == "toggle" || path.contains("toggle") {
             Task { @MainActor in
-                if MusicObserver.shared.liveActivity != nil {
+                if MusicObserver.shared.hasActiveLiveActivity {
                     await MusicObserver.shared.endAllLiveActivities()
                     BackgroundKeepAliveManager.shared.stop()
                     MotionManager.shared.stop()
@@ -99,7 +99,7 @@ public struct ToggleDynamicIslandIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult {
-        if MusicObserver.shared.liveActivity != nil {
+        if MusicObserver.shared.hasActiveLiveActivity {
             await MusicObserver.shared.endAllLiveActivities()
             BackgroundKeepAliveManager.shared.stop()
             MotionManager.shared.stop()

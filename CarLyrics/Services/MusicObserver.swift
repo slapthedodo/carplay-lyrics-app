@@ -55,6 +55,10 @@ public final class MusicObserver: ObservableObject {
     // ActivityKit
     private var liveActivity : Activity<LyricsAttributes>?
 
+    public var hasActiveLiveActivity: Bool {
+        return liveActivity != nil || !Activity<LyricsAttributes>.activities.isEmpty
+    }
+
     // Rate-Limit & Throttle State
     private var lastActivityUpdate : Date         = .distantPast
     private let minUpdateInterval  : TimeInterval = 0.8   // Strenger Schutz vor Apple Throttling
