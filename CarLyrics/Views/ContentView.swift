@@ -982,6 +982,18 @@ struct OBDDebugSheet: View {
                         .onChange(of: obd.isEnabled) { _, val in
                             if val { obd.enableOBD() } else { obd.disableOBD() }
                         }
+                    if obd.isEnabled {
+                        Button {
+                            obd.reconnect()
+                        } label: {
+                            HStack {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Verbindung neu starten")
+                            }
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(.cyan)
+                        }
+                    }
                 }
 
                 Section("Ausgelesene Live-Werte") {
