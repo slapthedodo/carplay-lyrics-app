@@ -472,63 +472,53 @@ public final class OBDManager: NSObject, ObservableObject {
         }
     }
 
+    private var sequenceQueue: [String] = []
+    private var sequenceAccumulated: String = ""
+    private var sequenceCompletion: (@MainActor (String, Bool) -> Void)? = nil
+    private var sequenceTimer: Timer? = nil
+    private var pendingSequenceHandler: ((String) -> Void)? = nil
+
     private func sendSequence(cmds: [String], timeout: TimeInterval, completion: @escaping @MainActor (String, Bool) -> Void) {
-        var queue = cmds
-        var accumulatedResponse = ""
-
-        func sendNext() {
-            guard !queue.isEmpty else {
-                completion(accumulatedResponse, true)
-                return
-            }
-            let nextCmd = queue.removeFirst()
-            self.sendCommandRaw(nextCmd)
-
-            // Warte auf > oder Timeout
-            let stepTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.isWaitingForResponse = false
-                    completion(accumulatedResponse, false)
-                }
-            }
-
-            self.pendingSequenceHandler = { [weak self] response in
-                Task { @MainActor [weak self] in
-                    stepTimer.invalidate()
-                    accumulatedResponse += " " + response
-                    self?.sendSequenceNext(queue: &queue, accumulated: &accumulatedResponse, timeout: timeout, completion: completion)
-                }
-            }
-        }
-
-        sendNext()
+        sequenceQueue = cmds
+        sequenceAccumulated = ""
+        sequenceCompletion = completion
+        sendNextInSequence(timeout: timeout)
     }
 
-    private func sendSequenceNext(queue: inout [String], accumulated: inout String, timeout: TimeInterval, completion: @escaping @MainActor (String, Bool) -> Void) {
-        guard !queue.isEmpty else {
-            completion(accumulated, true)
+    private func sendNextInSequence(timeout: TimeInterval) {
+        sequenceTimer?.invalidate()
+        sequenceTimer = nil
+
+        guard !sequenceQueue.isEmpty else {
+            let comp = sequenceCompletion
+            sequenceCompletion = nil
+            pendingSequenceHandler = nil
+            comp?(sequenceAccumulated, true)
             return
         }
-        let nextCmd = queue.removeFirst()
-        self.sendCommandRaw(nextCmd)
 
-        let stepTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+        let nextCmd = sequenceQueue.removeFirst()
+        sendCommandRaw(nextCmd)
+
+        sequenceTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.isWaitingForResponse = false
-                completion(accumulated, false)
+                guard let self = self else { return }
+                self.isWaitingForResponse = false
+                let comp = self.sequenceCompletion
+                self.sequenceCompletion = nil
+                self.pendingSequenceHandler = nil
+                comp?(self.sequenceAccumulated, false)
             }
         }
 
-        self.pendingSequenceHandler = { [weak self] response in
+        pendingSequenceHandler = { [weak self] response in
             Task { @MainActor [weak self] in
-                stepTimer.invalidate()
-                accumulated += " " + response
-                self?.sendSequenceNext(queue: &queue, accumulated: &accumulated, timeout: timeout, completion: completion)
+                guard let self = self else { return }
+                self.sequenceAccumulated += " " + response
+                self.sendNextInSequence(timeout: timeout)
             }
         }
     }
-
-    private var pendingSequenceHandler: ((String) -> Void)? = nil
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Robust Initialization Sequence
