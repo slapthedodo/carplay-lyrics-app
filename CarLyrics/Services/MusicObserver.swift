@@ -459,8 +459,10 @@ public final class MusicObserver: ObservableObject {
                     oilTemp = realOil
                     isEngineWarm = realOil >= 80
                 } else if let coolant = obd.liveCoolantTemp {
-                    // VW Fallback: Kühlmittel ca. 5-10°C wärmer als Öl in der Aufwärmphase
-                    let estimatedOil = max(20, coolant - 8)
+                    // VW EA113 2.0 TFSI: Kühlmittel erwärmt sich über den Öl-Wasser-Wärmetauscher zuerst
+                    let baseOil = max(20, coolant - 8)
+                    let loadBonus = (coolant >= 85 && (obd.liveRPM > 2600 || (obd.liveBoostBar ?? 0) > 0.2)) ? min(15, max(0, Int((obd.liveBoostBar ?? 0) * 10))) : 0
+                    let estimatedOil = baseOil + loadBonus
                     oilTemp = estimatedOil
                     isEngineWarm = estimatedOil >= 80
                 } else {
