@@ -87,7 +87,7 @@ struct CarLyricsApp: App {
 public struct StartDynamicIslandIntent: AppIntent {
     public static var title: LocalizedStringResource = "Dynamic Island starten"
     public static var description = IntentDescription("Startet die CarLyrics Dynamic Island mit Live-Telemetrie und Lyrics.")
-    public static var openAppWhenRun: Bool = false
+    public static var openAppWhenRun: Bool = true
 
     public init() {}
 
@@ -122,7 +122,7 @@ public struct StopDynamicIslandIntent: AppIntent {
 public struct ToggleDynamicIslandIntent: AppIntent {
     public static var title: LocalizedStringResource = "Dynamic Island umschalten"
     public static var description = IntentDescription("Schaltet die CarLyrics Dynamic Island ein oder aus.")
-    public static var openAppWhenRun: Bool = false
+    public static var openAppWhenRun: Bool = true
 
     public init() {}
 

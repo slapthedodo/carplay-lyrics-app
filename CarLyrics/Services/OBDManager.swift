@@ -41,6 +41,7 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var liveBoostBar    : Double? = nil        // Berechneter Ladedruck in Bar (PID 01 0B - Baro)
     @Published public var liveMAP         : Int? = nil           // Saugrohr-Absolutdruck in kPa (PID 01 0B)
     @Published public var liveIAT         : Int? = nil           // Ansauglufttemperatur in °C (PID 01 0F)
+    @Published public var liveMAF         : Double? = nil        // Luftmasse in g/s (PID 01 10)
     @Published public var liveEngineLoad  : Int? = nil           // Motorlast in % (PID 01 04)
     @Published public var liveBaro        : Int  = 101           // Atmosphärendruck in kPa (PID 01 33 oder 101.3 kPa)
     @Published public var hasOilTempPID   : Bool = false         // Wurde PID 01 5C quittiert?
@@ -67,7 +68,7 @@ public final class OBDManager: NSObject, ObservableObject {
     private var pollTimer       : Timer?
     private var receiveBuffer   : String = ""
     private var currentPIDIndex : Int = 0
-    private let queryCycle      : [String] = ["010B", "015C", "0105", "010C", "010D", "010F", "0104", "0133"]
+    private let queryCycle      : [String] = ["0105", "010C", "010F", "0110", "010B", "015C", "010D", "0104"]
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -106,6 +107,7 @@ public final class OBDManager: NSObject, ObservableObject {
         liveBoostBar = nil
         liveMAP = nil
         liveIAT = nil
+        liveMAF = nil
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0
@@ -285,10 +287,33 @@ public final class OBDManager: NSObject, ObservableObject {
                 }
             }
         }
-        // 9. VW 2.0 TFSI Besonderheit Check
+        // 9. Luftmasse MAF (PID 01 10 -> Antwort 4110 AA BB)
+        if let range = compact.range(of: "4110") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 4 {
+                let b1Str = String(after.prefix(2))
+                let b2Str = String(after.dropFirst(2).prefix(2))
+                if let b1 = UInt8(b1Str, radix: 16), let b2 = UInt8(b2Str, radix: 16) {
+                    let maf = Double((Int(b1) * 256) + Int(b2)) / 100.0
+                    liveMAF = maf
+                    // VW 2.0 TFSI Fallback: Wenn MAP (010B) fehlt, Ladedruck aus MAF und RPM berechnen!
+                    if liveMAP == nil && liveRPM > 650 {
+                        let theoreticalNA = (Double(liveRPM) / 60.0) * 1.006
+                        if theoreticalNA > 4.0 {
+                            let boost = (maf / theoreticalNA) - 1.0
+                            liveBoostBar = max(-0.8, min(2.5, boost))
+                        }
+                    }
+                }
+            }
+        }
+        // 10. VW 2.0 TFSI Besonderheit Check
         if compact.contains("NODATA") && compact.contains("5C") {
             hasOilTempPID = false
-            log("⚠ VW meldet 'NO DATA' für Öltemperatur (PID 01 5C). Fallback auf Kühlmittel aktiv!")
+            log("ℹ VW meldet 'NO DATA' für PID 01 5C. Kühlmittel-Fallback aktiv!")
+        }
+        if compact.contains("SEARCHING") {
+            log("ELM327 sucht CAN-Bus Protokoll…")
         }
     }
 }

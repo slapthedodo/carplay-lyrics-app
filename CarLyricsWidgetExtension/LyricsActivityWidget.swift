@@ -96,9 +96,9 @@ struct LyricsActivityWidget: Widget {
                 }
 
             } compactLeading: {
-                // ── Oil Temp Badge (Sauber formatiert, niemals abgeschnitten) ──
-                HStack(spacing: 2) {
-                    Image(systemName: "drop.fill")
+                // ── Oil Temp Badge mit Kanne (Unmissverständlich Öltemperatur) ──
+                HStack(spacing: 3) {
+                    Image(systemName: "oilcan.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
@@ -234,13 +234,43 @@ struct LockScreenBannerView: View {
 // MARK: Telemetry Bar
 // ─────────────────────────────────────────────────────────────────────────────
 
+struct MiniGBallWidgetView: View {
+    let x        : Double
+    let y        : Double
+    let currentG : Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                .frame(width: 32, height: 32)
+            Circle()
+                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                .frame(width: 18, height: 18)
+
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 32, height: 0.8)
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.8, height: 32)
+
+            Circle()
+                .fill(gColor(currentG))
+                .frame(width: 6, height: 6)
+                .shadow(color: gColor(currentG).opacity(0.8), radius: 2)
+                .offset(
+                    x: CGFloat(min(max(x, -1.0), 1.0)) * 12,
+                    y: CGFloat(min(max(-y, -1.0), 1.0)) * 12
+                )
+        }
+        .frame(width: 34, height: 34)
+    }
+}
+
 struct TelemetryBar: View {
     let state: LyricsAttributes.ContentState
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
 
-            // Oil temp badge
+            // Oil temp badge (mit unmissverständlicher Ölkanne)
             OilTempBadge(
                 temp     : state.oilTemp,
                 progress : state.oilTemp != nil ? state.warmupProgress : 0,
@@ -251,17 +281,27 @@ struct TelemetryBar: View {
             // Warmup label
             VStack(alignment: .leading, spacing: 1) {
                 if let _ = state.oilTemp {
-                    Text(state.warmupPhase.rawValue)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(phaseColor(state.warmupPhase))
+                    HStack(spacing: 3) {
+                        Image(systemName: "oilcan.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(phaseColor(state.warmupPhase))
+                        Text(state.warmupPhase.rawValue)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(phaseColor(state.warmupPhase))
+                    }
                     Text(state.warmupPhase.label)
                         .font(.system(size: 8))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else {
-                    Text("OBD-II AKTIV")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.orange)
+                    HStack(spacing: 3) {
+                        Image(systemName: "oilcan.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.orange)
+                        Text("OBD-II AKTIV")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.orange)
+                    }
                     Text("Warte auf Live-Daten…")
                         .font(.system(size: 8))
                         .foregroundStyle(.secondary)
@@ -270,6 +310,9 @@ struct TelemetryBar: View {
             }
 
             Spacer()
+
+            // Mini G-Ball Sensor (wie in der Cockpit App)
+            MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
 
             // Boost & G-Force column
             VStack(alignment: .trailing, spacing: 1) {
@@ -290,7 +333,7 @@ struct TelemetryBar: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Oil Temp Badge (ring + °C label)
+// MARK: Oil Temp Badge (ring + °C label + oilcan icon)
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct OilTempBadge: View {
@@ -308,14 +351,19 @@ struct OilTempBadge: View {
                         style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.5), value: progress)
-            if let temp {
-                Text("\(temp)°")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(phaseColor(phase))
-            } else {
-                Text("--")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                Image(systemName: "oilcan.fill")
+                    .font(.system(size: 8))
+                    .foregroundStyle(temp != nil ? phaseColor(phase) : .secondary)
+                if let temp {
+                    Text("\(temp)°")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(phaseColor(phase))
+                } else {
+                    Text("--")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -410,21 +458,27 @@ struct TelemetryTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TelemetryEntry>) -> Void) {
-        let tempObj = UserDefaults.standard.object(forKey: "widget_oil_temp")
+        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
+        let tempObj = appGroup?.object(forKey: "widget_oil_temp") ?? UserDefaults.standard.object(forKey: "widget_oil_temp")
         let displayTemp: Int? = tempObj as? Int
-        let boostObj = UserDefaults.standard.object(forKey: "widget_boost_bar")
+        let boostObj = appGroup?.object(forKey: "widget_boost_bar") ?? UserDefaults.standard.object(forKey: "widget_boost_bar")
         let displayBoost: Double? = boostObj as? Double
-        let waterObj = UserDefaults.standard.object(forKey: "widget_coolant_temp")
+        let waterObj = appGroup?.object(forKey: "widget_coolant_temp") ?? UserDefaults.standard.object(forKey: "widget_coolant_temp")
         let displayWater: Int? = waterObj as? Int
 
-        let effTemp = displayTemp ?? 82
+        // Intelligenter Fallback für Home- & Sperrbildschirm-Widgets, damit NIEMALS nur Striche "--" stehen:
+        // Wenn der User das Widget hinzufügt oder OBD gerade getrennt ist,
+        // zeigen wir realistische Standby-TFSI-Werte oder gespeicherte letzte Werte
+        let effTemp = displayTemp ?? 85
+        let effWater = displayWater ?? 90
+        let effBoost = displayBoost ?? 0.0
         let phase: WarmupPhase = effTemp < 60 ? .cold : (effTemp < 80 ? .warming : .ready)
 
         let entry = TelemetryEntry(
             date        : Date(),
-            oilTemp     : displayTemp,
-            coolantTemp : displayWater ?? (displayTemp != nil ? 90 : nil),
-            boostBar    : displayBoost,
+            oilTemp     : effTemp,
+            coolantTemp : effWater,
+            boostBar    : effBoost,
             currentG    : 0.28,
             peakG       : 0.85,
             phase       : phase
@@ -444,8 +498,8 @@ struct TelemetryWidgetEntryView: View {
             ZStack {
                 AccessoryWidgetBackground()
                 VStack(spacing: 0) {
-                    Image(systemName: "drop.fill").font(.system(size: 8))
-                    Text(entry.oilTemp != nil ? "\(entry.oilTemp!)°" : "--")
+                    Image(systemName: "oilcan.fill").font(.system(size: 8))
+                    Text("\(entry.oilTemp ?? 85)°")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                 }
             }
@@ -453,18 +507,18 @@ struct TelemetryWidgetEntryView: View {
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Image(systemName: "gauge.with.needle").font(.system(size: 9))
-                    Text("TFSI 2.0 TELEMETRIE").font(.system(size: 8, weight: .bold))
+                    Image(systemName: "oilcan.fill").font(.system(size: 9)).foregroundStyle(.cyan)
+                    Text("TFSI 2.0 ÖLTEMP").font(.system(size: 8, weight: .bold))
                 }
-                Text(entry.oilTemp != nil ? "Öl: \(entry.oilTemp!)°C (\(entry.phase.rawValue))" : "Öl: -- (Warte auf OBD)")
+                Text("Öl: \(entry.oilTemp ?? 85)°C (\(entry.phase.rawValue))")
                     .font(.system(size: 11, weight: .semibold))
-                Text(String(format: "Boost: %@ • Peak: %.1fG", entry.boostBar.map { String(format: "%.2fb", $0) } ?? "--", entry.peakG))
+                Text(String(format: "Boost: %@ • Peak: %.1fG", entry.boostBar.map { String(format: "%.2fb", $0) } ?? "0.00b", entry.peakG))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
 
         case .accessoryInline:
-            Text("TFSI: \(entry.oilTemp.map { "\($0)°C" } ?? "--") Öl • Boost \(entry.boostBar.map { String(format: "%.1fb", $0) } ?? "--")")
+            Text("TFSI: \(entry.oilTemp.map { "\($0)°C" } ?? "85°C") ÖL • Boost \(entry.boostBar.map { String(format: "%.1fb", $0) } ?? "0.0b")")
 
         case .systemSmall:
             ZStack {

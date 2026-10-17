@@ -13,6 +13,7 @@ import MediaPlayer
 import ActivityKit
 import Combine
 import CoreMotion
+import WidgetKit
 
 @MainActor
 public final class MusicObserver: ObservableObject {
@@ -485,22 +486,30 @@ public final class MusicObserver: ObservableObject {
         let progressVal = wm?.warmupProgress ?? 0
         let phaseVal    = wm?.phase ?? .cold
 
-        // Werte für Home- & Sperrbildschirm-Widgets speichern
+        // Werte für Home- & Sperrbildschirm-Widgets speichern (sowohl standard als auch AppGroup)
+        let groupDefaults = UserDefaults(suiteName: "group.com.carlyrics")
         if let oilTemp {
             UserDefaults.standard.set(oilTemp, forKey: "widget_oil_temp")
+            groupDefaults?.set(oilTemp, forKey: "widget_oil_temp")
         } else {
             UserDefaults.standard.removeObject(forKey: "widget_oil_temp")
+            groupDefaults?.removeObject(forKey: "widget_oil_temp")
         }
         if let effectiveBoost {
             UserDefaults.standard.set(effectiveBoost, forKey: "widget_boost_bar")
+            groupDefaults?.set(effectiveBoost, forKey: "widget_boost_bar")
         } else {
             UserDefaults.standard.removeObject(forKey: "widget_boost_bar")
+            groupDefaults?.removeObject(forKey: "widget_boost_bar")
         }
         if let effectiveCoolant {
             UserDefaults.standard.set(effectiveCoolant, forKey: "widget_coolant_temp")
+            groupDefaults?.set(effectiveCoolant, forKey: "widget_coolant_temp")
         } else {
             UserDefaults.standard.removeObject(forKey: "widget_coolant_temp")
+            groupDefaults?.removeObject(forKey: "widget_coolant_temp")
         }
+        WidgetCenter.shared.reloadAllTimelines()
 
         return LyricsAttributes.ContentState(
             currentLine    : currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine,

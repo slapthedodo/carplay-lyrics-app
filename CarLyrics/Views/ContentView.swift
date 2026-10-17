@@ -775,13 +775,13 @@ struct BoostCard: View {
                     Spacer()
                     if obd.isEnabled {
                         if obd.connectionState == .connected && obd.liveBoostBar != nil {
-                            Text("LIVE OBD")
+                            Text(obd.liveMAP != nil ? "LIVE (MAP)" : "LIVE (MAF)")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.green)
                         } else if obd.connectionState == .connected {
-                            Text("KEIN SENSOR (VW)")
+                            Text("OBD BEREIT")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(.cyan)
                         } else if obd.connectionState == .scanning {
                             Text("SUCHE ADAPTER…")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -809,7 +809,7 @@ struct BoostCard: View {
                                 .font(.system(size: 38, weight: .black, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
-                        Text("BAR RELATIV (MAP - BARO)")
+                        Text("BAR RELATIV (LADEDRUCK)")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.secondary)
                     }
@@ -817,11 +817,11 @@ struct BoostCard: View {
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: 5) {
-                        if let map = obd.liveMAP {
-                            Text("MAP: \(map) kPa").font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(.white)
-                        }
                         if let iat = obd.liveIAT {
-                            Text("IAT: \(iat) °C").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.cyan)
+                            Text("Ansaugluft: \(iat) °C").font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(.cyan)
+                        }
+                        if let maf = obd.liveMAF {
+                            Text(String(format: "Luftmasse: %.1f g/s", maf)).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.white)
                         }
                         if let load = obd.liveEngineLoad {
                             Text("Last: \(load) %").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.orange)
