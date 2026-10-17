@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build & Package CarLyrics and OBDTester
@@ -39,6 +42,7 @@ jobs:
 
       - name: Package CarLyrics IPA
         run: |
+          rm -rf Payload
           mkdir -p Payload
           cp -r build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app Payload/
           zip -r CarLyrics.ipa Payload
@@ -59,12 +63,13 @@ jobs:
                      PROVISIONING_PROFILE_SPECIFIER="" \
                      clean build
 
-      - name: Package OBDTester IPA
+      - name: Package OBDTester IPA (Standard Payload Directory)
         run: |
-          mkdir -p PayloadOBD
-          cp -r build_obd/Build/Products/Release-iphoneos/OBDTester.app PayloadOBD/
-          zip -r OBDTester.ipa PayloadOBD
-          rm -rf PayloadOBD
+          rm -rf Payload
+          mkdir -p Payload
+          cp -r build_obd/Build/Products/Release-iphoneos/OBDTester.app Payload/
+          zip -r OBDTester.ipa Payload
+          rm -rf Payload
 
       - name: Upload CarLyrics IPA Artifact
         uses: actions/upload-artifact@v4
@@ -79,3 +84,17 @@ jobs:
           name: OBDTester-Standalone-App
           path: OBDTester.ipa
           retention-days: 14
+
+      - name: Create or Update GitHub Release for Direct IPA Download
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: latest
+          name: CarLyrics & OBDTester Latest IPAs
+          draft: false
+          prerelease: false
+          files: |
+            CarLyrics.ipa
+            OBDTester.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
