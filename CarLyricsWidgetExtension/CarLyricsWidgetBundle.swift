@@ -10,14 +10,10 @@ import SwiftUI
 @main
 struct CarLyricsWidgetBundle: WidgetBundle {
     var body: some Widget {
-        // Live Activity & Dynamic Island Widget
+        // 1. Live Activity & Dynamic Island (Sperrbildschirm Banner mit allen 5 Kugeln & Songtext)
         LyricsActivityWidget()
 
-        // Modular Split Widgets (Lock Screen, Home Screen, StandBy)
-        OilTempWidget()
-        GForceWidget()
-        BoostPerformanceWidget()
-        LyricsWidget()
+        // 2. Das eine echte Cockpit Widget (Small 2x2, Medium 2x4, Sperrbildschirm)
         TelemetryCockpitWidget()
     }
 }
