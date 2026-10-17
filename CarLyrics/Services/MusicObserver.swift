@@ -314,16 +314,16 @@ public final class MusicObserver: ObservableObject {
             }
         }
 
-        // Telemetrie Check (G-Kraft Spitze erfassen)
+        // Telemetrie Check (G-Kraft Spitze erfassen – blitzschnell & reaktiv)
         let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
         let currentGVal = motionManager?.currentG ?? 0
         let gDelta = abs(currentGVal - lastSentG)
 
-        // Wenn G-Kraft sich spürbar ändert (>0.10G) und min 0.8s seit letztem Push vergangen sind:
-        if gDelta >= 0.10 && elapsed >= 0.8 {
+        // Wenn G-Kraft sich spürbar ändert (>0.06G) und min 0.35s vergangen sind:
+        if gDelta >= 0.06 && elapsed >= 0.35 {
             lastSentG = currentGVal
-            pushActivityUpdate(force: false)
+            pushActivityUpdate(force: true)
         }
     }
 
@@ -335,10 +335,10 @@ public final class MusicObserver: ObservableObject {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
-        // Apple Rate-Limit Schutz:
-        // Bei Songtext-Zeilenwechsel: min 0.3s Abstand
-        // Bei reinem Telemetrie-Update: min 1.2s Abstand
-        let minAllowed = force ? 0.3 : 1.2
+        // Apple Rate-Limit Schutz mit FrequentUpdates:
+        // Bei Songtext-Zeilenwechsel & G-Kraft Peaks: min 0.25s Abstand
+        // Bei reinem Telemetrie-Update: min 0.8s Abstand
+        let minAllowed = force ? 0.25 : 0.8
         if !force && elapsed < minAllowed {
             return
         }
