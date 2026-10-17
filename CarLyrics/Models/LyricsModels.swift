@@ -62,6 +62,26 @@ public enum WarmupPhase: String, Codable, Hashable, CaseIterable {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MARK: Lyrics Status
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum LyricsStatus: Equatable {
+    case idle
+    case loading
+    case loaded
+    case error(String)
+
+    public var label: String {
+        switch self {
+        case .idle:           return "Kein Song aktiv"
+        case .loading:        return "Lade Songtext…"
+        case .loaded:         return "Synchronisiert"
+        case .error(let msg): return "Fehler: \(msg)"
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MARK: ActivityKit – Live Activity Attributes  (v2)
 // ─────────────────────────────────────────────────────────────────────────────
 

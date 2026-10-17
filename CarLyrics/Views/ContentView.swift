@@ -807,3 +807,51 @@ private func gColor(_ g: Double) -> Color {
     default:      return .red
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Test / Mock Injector View
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct MockInjectorView: View {
+    @ObservedObject var observer: MusicObserver
+    @Environment(\.dismiss) private var dismiss
+    @State private var title  = "Bohemian Rhapsody"
+    @State private var artist = "Queen"
+    @State private var album  = "A Night at the Opera"
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Test Song") {
+                    TextField("Titel", text: $title)
+                    TextField("Künstler", text: $artist)
+                    TextField("Album", text: $album)
+
+                    Button("Test-Track einspeisen") {
+                        Task {
+                            await observer.injectTrack(
+                                title: title, artist: artist, album: album, duration: 354,
+                                lrc: """
+                                [00:00.00] Is this the real life?
+                                [00:04.00] Is this just fantasy?
+                                [00:08.00] Caught in a landslide
+                                [00:12.00] No escape from reality
+                                [00:16.00] Open your eyes
+                                [00:20.00] Look up to the skies and see
+                                """
+                            )
+                            dismiss()
+                        }
+                    }
+                    .buttonStyle(CockpitButtonStyle(color: .cyan))
+                }
+            }
+            .navigationTitle("Test Injektor")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Schließen") { dismiss() }
+                }
+            }
+        }
+    }
+}
