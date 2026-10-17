@@ -1,0 +1,28 @@
+name: iOS Build Check
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Projekt kompilieren
+    runs-on: macos-latest
+
+    steps:
+      - name: Code herunterladen
+        uses: actions/checkout@v4
+
+      - name: Xcode-Version anzeigen
+        run: xcodebuild -version
+
+      - name: Projekt für Simulator bauen (Code-Check)
+        run: |
+          xcodebuild -project CarLyrics.xcodeproj \
+                     -scheme CarLyrics \
+                     -sdk iphonesimulator \
+                     CODE_SIGN_IDENTITY="" \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO \
+                     build
