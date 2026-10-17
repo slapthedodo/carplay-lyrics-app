@@ -409,8 +409,8 @@ public enum TelemetrySharedStore {
         let savedTime = appGroupDefaults?.double(forKey: "carlyrics_warmup_started_at") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
         let savedTemp = appGroupDefaults?.double(forKey: "carlyrics_warmup_start_temp") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
 
-        let sTemp = (savedTemp != nil && savedTemp! > -20) ? savedTemp! : profile.ambientTemp
-        let sTime = (savedTime != nil && savedTime! > 0) ? savedTime! : now.timeIntervalSince1970
+        let sTemp = (savedTemp > -20 && savedTemp != 0) ? savedTemp : profile.ambientTemp
+        let sTime = (savedTime > 0) ? savedTime : now.timeIntervalSince1970
         let elapsed = max(0, now.timeIntervalSince1970 - sTime)
 
         let calculatedTemp = WarmupCalculator.calculateOilTemp(at: elapsed, from: sTemp)

@@ -8,15 +8,13 @@ import SwiftUI
 @main
 struct OBDTesterApp: App {
 
-    init() {
-        // Direkt beim App-Start Bluetooth-Scan & OBD aktivieren
-        OBDManager.shared.enableOBD()
-    }
-
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .preferredColorScheme(.dark)
+                .onAppear {
+                    OBDManager.shared.enableOBD()
+                }
         }
     }
 }
