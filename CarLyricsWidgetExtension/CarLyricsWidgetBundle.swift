@@ -13,7 +13,11 @@ struct CarLyricsWidgetBundle: WidgetBundle {
         // Live Activity & Dynamic Island Widget
         LyricsActivityWidget()
 
-        // Home Screen & Lock Screen Widgets (Small, Medium, Circular, Rectangular, Inline)
+        // Modular Split Widgets (Lock Screen, Home Screen, StandBy)
+        OilTempWidget()
+        GForceWidget()
+        BoostPerformanceWidget()
+        LyricsWidget()
         TelemetryCockpitWidget()
     }
 }

@@ -511,27 +511,63 @@ public final class MusicObserver: ObservableObject {
 
         // Werte für Home- & Sperrbildschirm-Widgets speichern (sowohl standard als auch AppGroup)
         let groupDefaults = UserDefaults(suiteName: "group.com.carlyrics")
+        let def = UserDefaults.standard
+
         if let oilTemp {
-            UserDefaults.standard.set(oilTemp, forKey: "widget_oil_temp")
+            def.set(oilTemp, forKey: "widget_oil_temp")
             groupDefaults?.set(oilTemp, forKey: "widget_oil_temp")
         } else {
-            UserDefaults.standard.removeObject(forKey: "widget_oil_temp")
+            def.removeObject(forKey: "widget_oil_temp")
             groupDefaults?.removeObject(forKey: "widget_oil_temp")
         }
         if let effectiveBoost {
-            UserDefaults.standard.set(effectiveBoost, forKey: "widget_boost_bar")
+            def.set(effectiveBoost, forKey: "widget_boost_bar")
             groupDefaults?.set(effectiveBoost, forKey: "widget_boost_bar")
         } else {
-            UserDefaults.standard.removeObject(forKey: "widget_boost_bar")
+            def.removeObject(forKey: "widget_boost_bar")
             groupDefaults?.removeObject(forKey: "widget_boost_bar")
         }
         if let effectiveCoolant {
-            UserDefaults.standard.set(effectiveCoolant, forKey: "widget_coolant_temp")
+            def.set(effectiveCoolant, forKey: "widget_coolant_temp")
             groupDefaults?.set(effectiveCoolant, forKey: "widget_coolant_temp")
         } else {
-            UserDefaults.standard.removeObject(forKey: "widget_coolant_temp")
+            def.removeObject(forKey: "widget_coolant_temp")
             groupDefaults?.removeObject(forKey: "widget_coolant_temp")
         }
+        if let mm {
+            def.set(mm.currentG, forKey: "widget_current_g")
+            groupDefaults?.set(mm.currentG, forKey: "widget_current_g")
+            def.set(mm.peakG, forKey: "widget_peak_g")
+            groupDefaults?.set(mm.peakG, forKey: "widget_peak_g")
+        }
+        if let effectiveIAT {
+            def.set(effectiveIAT, forKey: "widget_iat")
+            groupDefaults?.set(effectiveIAT, forKey: "widget_iat")
+        }
+        if let effectiveMAF {
+            def.set(effectiveMAF, forKey: "widget_maf")
+            groupDefaults?.set(effectiveMAF, forKey: "widget_maf")
+        }
+
+        let cleanTitle = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
+        let cleanArtist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
+        let cleanLyric = currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine
+
+        def.set(cleanTitle, forKey: "widget_song_title")
+        groupDefaults?.set(cleanTitle, forKey: "widget_song_title")
+        def.set(cleanArtist, forKey: "widget_artist")
+        groupDefaults?.set(cleanArtist, forKey: "widget_artist")
+        def.set(cleanLyric, forKey: "widget_current_line")
+        groupDefaults?.set(cleanLyric, forKey: "widget_current_line")
+        def.set(nextLine, forKey: "widget_next_line")
+        groupDefaults?.set(nextLine, forKey: "widget_next_line")
+        def.set(progress, forKey: "widget_song_progress")
+        groupDefaults?.set(progress, forKey: "widget_song_progress")
+        def.set(phaseVal.rawValue, forKey: "widget_warmup_phase")
+        groupDefaults?.set(phaseVal.rawValue, forKey: "widget_warmup_phase")
+        def.set(progressVal, forKey: "widget_warmup_progress")
+        groupDefaults?.set(progressVal, forKey: "widget_warmup_progress")
+
         WidgetCenter.shared.reloadAllTimelines()
 
         return LyricsAttributes.ContentState(
