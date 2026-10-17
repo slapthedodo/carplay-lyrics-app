@@ -27,14 +27,20 @@ struct LyricsActivityWidget: Widget {
                     VStack(alignment: .leading, spacing: 2) {
                         OilTempBadge(
                             temp     : context.state.oilTemp,
-                            progress : context.state.warmupProgress,
-                            phase    : context.state.warmupPhase
+                            progress : context.state.oilTemp != nil ? context.state.warmupProgress : 0,
+                            phase    : context.state.oilTemp != nil ? context.state.warmupPhase : .cold
                         )
                         .frame(width: 44, height: 44)
 
-                        Text("Wasser: \(context.state.coolantTemp)°")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
+                        if let water = context.state.coolantTemp {
+                            Text("Wasser: \(water)°")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Wasser: --")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.leading, 4)
                 }
@@ -47,8 +53,8 @@ struct LyricsActivityWidget: Widget {
                         )
                         .frame(width: 56)
 
-                        if context.state.boostBar > 0.05 {
-                            Text(String(format: "%.2f bar", context.state.boostBar))
+                        if let boost = context.state.boostBar, boost > 0.05 {
+                            Text(String(format: "%.2f bar", boost))
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.cyan)
                         }
@@ -94,17 +100,23 @@ struct LyricsActivityWidget: Widget {
                 HStack(spacing: 2) {
                     Image(systemName: "drop.fill")
                         .font(.system(size: 8))
-                        .foregroundStyle(phaseColor(context.state.warmupPhase))
-                    Text("\(context.state.oilTemp)°")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                        .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
+                    if let temp = context.state.oilTemp {
+                        Text("\(temp)°")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    } else {
+                        Text("--°")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
             } compactTrailing: {
                 // ── Live Ladedruck oder G-Kräfte ───────────────────────────
                 HStack(spacing: 2) {
-                    if context.state.boostBar > 0.1 {
-                        Text(String(format: "%.1fb", context.state.boostBar))
+                    if let boost = context.state.boostBar, boost > 0.1 {
+                        Text(String(format: "%.1fb", boost))
                             .font(.system(size: 12, weight: .bold, design: .monospaced))
                             .foregroundStyle(.cyan)
                     } else {
@@ -117,9 +129,15 @@ struct LyricsActivityWidget: Widget {
 
             } minimal: {
                 HStack(spacing: 1) {
-                    Text("\(context.state.oilTemp)°")
-                        .font(.system(size: 10, weight: .black, design: .monospaced))
-                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    if let temp = context.state.oilTemp {
+                        Text("\(temp)°")
+                            .font(.system(size: 10, weight: .black, design: .monospaced))
+                            .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    } else {
+                        Text("--")
+                            .font(.system(size: 10, weight: .black, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -193,28 +211,38 @@ struct TelemetryBar: View {
             // Oil temp badge
             OilTempBadge(
                 temp     : state.oilTemp,
-                progress : state.warmupProgress,
-                phase    : state.warmupPhase
+                progress : state.oilTemp != nil ? state.warmupProgress : 0,
+                phase    : state.oilTemp != nil ? state.warmupPhase : .cold
             )
             .frame(width: 40, height: 40)
 
             // Warmup label
             VStack(alignment: .leading, spacing: 1) {
-                Text(state.warmupPhase.rawValue)
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(phaseColor(state.warmupPhase))
-                Text(state.warmupPhase.label)
-                    .font(.system(size: 8))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if let _ = state.oilTemp {
+                    Text(state.warmupPhase.rawValue)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(phaseColor(state.warmupPhase))
+                    Text(state.warmupPhase.label)
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text("OBD-II AKTIV")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.orange)
+                    Text("Warte auf Live-Daten…")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
 
             // Boost & G-Force column
             VStack(alignment: .trailing, spacing: 1) {
-                if state.boostBar > 0.05 {
-                    Text(String(format: "%.2f BAR", state.boostBar))
+                if let boost = state.boostBar, boost > 0.05 {
+                    Text(String(format: "%.2f BAR", boost))
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundStyle(.cyan)
                 }
@@ -234,7 +262,7 @@ struct TelemetryBar: View {
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct OilTempBadge: View {
-    let temp     : Int
+    let temp     : Int?
     let progress : Double
     let phase    : WarmupPhase
 
@@ -243,14 +271,20 @@ struct OilTempBadge: View {
             Circle()
                 .stroke(Color.white.opacity(0.12), lineWidth: 3)
             Circle()
-                .trim(from: 0, to: progress)
-                .stroke(phaseColor(phase),
+                .trim(from: 0, to: temp != nil ? progress : 0)
+                .stroke(temp != nil ? phaseColor(phase) : Color.secondary.opacity(0.3),
                         style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.5), value: progress)
-            Text("\(temp)°")
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(phaseColor(phase))
+            if let temp {
+                Text("\(temp)°")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(phaseColor(phase))
+            } else {
+                Text("--")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -326,9 +360,9 @@ func gColor(_ g: Double) -> Color {
 
 struct TelemetryEntry: TimelineEntry {
     let date        : Date
-    let oilTemp     : Int
-    let coolantTemp : Int
-    let boostBar    : Double
+    let oilTemp     : Int?
+    let coolantTemp : Int?
+    let boostBar    : Double?
     let currentG    : Double
     let peakG       : Double
     let phase       : WarmupPhase
@@ -344,19 +378,24 @@ struct TelemetryTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TelemetryEntry>) -> Void) {
-        let temp = UserDefaults.standard.integer(forKey: "widget_oil_temp")
-        let displayTemp = temp > 0 ? temp : 82
-        let boost = UserDefaults.standard.double(forKey: "widget_boost_bar")
-        let displayBoost = boost > 0 ? boost : 1.1
+        let tempObj = UserDefaults.standard.object(forKey: "widget_oil_temp")
+        let displayTemp: Int? = tempObj as? Int
+        let boostObj = UserDefaults.standard.object(forKey: "widget_boost_bar")
+        let displayBoost: Double? = boostObj as? Double
+        let waterObj = UserDefaults.standard.object(forKey: "widget_coolant_temp")
+        let displayWater: Int? = waterObj as? Int
+
+        let effTemp = displayTemp ?? 82
+        let phase: WarmupPhase = effTemp < 60 ? .cold : (effTemp < 80 ? .warming : .ready)
 
         let entry = TelemetryEntry(
             date        : Date(),
             oilTemp     : displayTemp,
-            coolantTemp : 90,
+            coolantTemp : displayWater ?? (displayTemp != nil ? 90 : nil),
             boostBar    : displayBoost,
             currentG    : 0.28,
             peakG       : 0.85,
-            phase       : displayTemp < 60 ? .cold : (displayTemp < 80 ? .warming : .ready)
+            phase       : phase
         )
         let timeline = Timeline(entries: [entry], policy: .after(Date().addingTimeInterval(60 * 15)))
         completion(timeline)
@@ -374,7 +413,7 @@ struct TelemetryWidgetEntryView: View {
                 AccessoryWidgetBackground()
                 VStack(spacing: 0) {
                     Image(systemName: "drop.fill").font(.system(size: 8))
-                    Text("\(entry.oilTemp)°")
+                    Text(entry.oilTemp != nil ? "\(entry.oilTemp!)°" : "--")
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
                 }
             }
@@ -385,15 +424,15 @@ struct TelemetryWidgetEntryView: View {
                     Image(systemName: "gauge.with.needle").font(.system(size: 9))
                     Text("TFSI 2.0 TELEMETRIE").font(.system(size: 8, weight: .bold))
                 }
-                Text("Öl: \(entry.oilTemp)°C (\(entry.phase.rawValue))")
+                Text(entry.oilTemp != nil ? "Öl: \(entry.oilTemp!)°C (\(entry.phase.rawValue))" : "Öl: -- (Warte auf OBD)")
                     .font(.system(size: 11, weight: .semibold))
-                Text(String(format: "Boost: %.2fb • Peak: %.1fG", entry.boostBar, entry.peakG))
+                Text(String(format: "Boost: %@ • Peak: %.1fG", entry.boostBar.map { String(format: "%.2fb", $0) } ?? "--", entry.peakG))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
 
         case .accessoryInline:
-            Text("TFSI: \(entry.oilTemp)°C Öl • \(String(format: "%.1fb", entry.boostBar))")
+            Text("TFSI: \(entry.oilTemp.map { "\($0)°C" } ?? "--") Öl • Boost \(entry.boostBar.map { String(format: "%.1fb", $0) } ?? "--")")
 
         case .systemSmall:
             ZStack {
@@ -410,11 +449,11 @@ struct TelemetryWidgetEntryView: View {
                     }
 
                     HStack(spacing: 12) {
-                        OilTempBadge(temp: entry.oilTemp, progress: Double(entry.oilTemp) / 90.0, phase: entry.phase)
+                        OilTempBadge(temp: entry.oilTemp, progress: entry.oilTemp != nil ? Double(entry.oilTemp!) / 90.0 : 0, phase: entry.phase)
                             .frame(width: 50, height: 50)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(String(format: "%.2f", entry.boostBar))
+                            Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "--")
                                 .font(.system(size: 17, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.cyan)
                             Text("BAR BOOST")
@@ -428,7 +467,7 @@ struct TelemetryWidgetEntryView: View {
                             .font(.system(size: 9, design: .monospaced))
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("Wasser \(entry.coolantTemp)°")
+                        Text(entry.coolantTemp != nil ? "Wasser \(entry.coolantTemp!)°" : "Wasser --")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -453,19 +492,19 @@ struct TelemetryWidgetEntryView: View {
                         HStack(spacing: 14) {
                             VStack(alignment: .leading) {
                                 Text("ÖLTEMP").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text("\(entry.oilTemp) °C")
+                                Text(entry.oilTemp != nil ? "\(entry.oilTemp!) °C" : "-- °C")
                                     .font(.system(size: 18, weight: .bold, design: .monospaced))
                                     .foregroundStyle(phaseColor(entry.phase))
                             }
                             VStack(alignment: .leading) {
                                 Text("WASSER").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text("\(entry.coolantTemp) °C")
+                                Text(entry.coolantTemp != nil ? "\(entry.coolantTemp!) °C" : "-- °C")
                                     .font(.system(size: 18, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.white)
                             }
                             VStack(alignment: .leading) {
                                 Text("LADEDRUCK").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text(String(format: "%.2f b", entry.boostBar))
+                                Text(entry.boostBar.map { String(format: "%.2f b", $0) } ?? "-- b")
                                     .font(.system(size: 18, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.cyan)
                             }

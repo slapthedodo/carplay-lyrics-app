@@ -364,36 +364,62 @@ public final class MusicObserver: ObservableObject {
         let wm = warmupManager
         let mm = motionManager
 
-        // Öltemperatur: Prio 1: Echte OBD-Öltemp, Prio 2: OBD-Kühlmittel, Prio 3: Simulation
-        let oilTemp: Int
+        let oilTemp: Int?
         let isEngineWarm: Bool
+        let effectiveBoost: Double?
+        let effectiveCoolant: Int?
 
-        if obd.isEnabled && obd.connectionState == .connected {
-            if let realOil = obd.liveOilTemp {
-                oilTemp = realOil
-                isEngineWarm = realOil >= 80
-            } else if let coolant = obd.liveCoolantTemp {
-                // VW Fallback: Kühlmittel ca. 5-10°C wärmer als Öl in der Aufwärmphase
-                let estimatedOil = max(20, coolant - 8)
-                oilTemp = estimatedOil
-                isEngineWarm = estimatedOil >= 80
+        if obd.isEnabled {
+            if obd.connectionState == .connected {
+                if let realOil = obd.liveOilTemp {
+                    oilTemp = realOil
+                    isEngineWarm = realOil >= 80
+                } else if let coolant = obd.liveCoolantTemp {
+                    // VW Fallback: Kühlmittel ca. 5-10°C wärmer als Öl in der Aufwärmphase
+                    let estimatedOil = max(20, coolant - 8)
+                    oilTemp = estimatedOil
+                    isEngineWarm = estimatedOil >= 80
+                } else {
+                    oilTemp = nil
+                    isEngineWarm = false
+                }
+                effectiveBoost = obd.liveBoostBar
+                effectiveCoolant = obd.liveCoolantTemp
             } else {
-                oilTemp = wm?.oilTempInt ?? 20
-                isEngineWarm = wm?.isEngineWarm ?? false
+                // OBD ist aktiviert, aber noch nicht verbunden oder wartet auf Daten -> direkt "--"
+                oilTemp = nil
+                isEngineWarm = false
+                effectiveBoost = nil
+                effectiveCoolant = nil
             }
         } else {
-            oilTemp = wm?.oilTempInt ?? 20
+            // Reines TFSI Simulationsmodell
+            let simOil = wm?.oilTempInt ?? 20
+            oilTemp = simOil
             isEngineWarm = wm?.isEngineWarm ?? false
+            effectiveBoost = nil
+            effectiveCoolant = simOil > 70 ? 90 : max(20, simOil + 10)
         }
 
         let progressVal = wm?.warmupProgress ?? 0
         let phaseVal    = wm?.phase ?? .cold
-        let effectiveBoost = obd.isEnabled && obd.connectionState == .connected ? (obd.liveBoostBar ?? 0.0) : 0.0
-        let effectiveCoolant = obd.isEnabled && obd.connectionState == .connected ? (obd.liveCoolantTemp ?? 90) : (oilTemp > 70 ? 90 : max(20, oilTemp + 10))
 
         // Werte für Home- & Sperrbildschirm-Widgets speichern
-        UserDefaults.standard.set(oilTemp, forKey: "widget_oil_temp")
-        UserDefaults.standard.set(effectiveBoost, forKey: "widget_boost_bar")
+        if let oilTemp {
+            UserDefaults.standard.set(oilTemp, forKey: "widget_oil_temp")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "widget_oil_temp")
+        }
+        if let effectiveBoost {
+            UserDefaults.standard.set(effectiveBoost, forKey: "widget_boost_bar")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "widget_boost_bar")
+        }
+        if let effectiveCoolant {
+            UserDefaults.standard.set(effectiveCoolant, forKey: "widget_coolant_temp")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "widget_coolant_temp")
+        }
 
         return LyricsAttributes.ContentState(
             currentLine    : currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine,

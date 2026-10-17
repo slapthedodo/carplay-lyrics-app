@@ -466,9 +466,12 @@ struct MiniTelemetryCard: View {
     @ObservedObject var motion : MotionManager
     @ObservedObject var obd    : OBDManager
 
-    var currentTemp: Int {
-        if obd.isEnabled && obd.connectionState == .connected {
-            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
+    var currentTemp: Int? {
+        if obd.isEnabled {
+            if obd.connectionState == .connected {
+                return obd.liveOilTemp ?? obd.liveCoolantTemp.map { max(20, $0 - 8) }
+            }
+            return nil
         }
         return warmup.oilTempInt
     }
@@ -481,17 +484,17 @@ struct MiniTelemetryCard: View {
                     ZStack {
                         Circle().stroke(Color.white.opacity(0.1), lineWidth: 4)
                         Circle()
-                            .trim(from: 0, to: warmup.warmupProgress)
-                            .stroke(tempColor(currentTemp), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .trim(from: 0, to: currentTemp != nil ? warmup.warmupProgress : 0)
+                            .stroke(currentTemp != nil ? tempColor(currentTemp!) : Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round))
                             .rotationEffect(.degrees(-90))
-                        Text("\(currentTemp)°")
+                        Text(currentTemp != nil ? "\(currentTemp!)°" : "--")
                             .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(tempColor(currentTemp))
+                            .foregroundStyle(currentTemp != nil ? tempColor(currentTemp!) : .secondary)
                     }
                     .frame(width: 52, height: 52)
-                    Text(obd.isEnabled && obd.connectionState == .connected ? "OBD ÖL" : "SIM ÖL")
+                    Text(obd.isEnabled ? (obd.connectionState == .connected ? "OBD LIVE" : "OBD...") : "SIM ÖL")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(obd.isEnabled && obd.connectionState == .connected ? .green : .secondary)
+                        .foregroundStyle(obd.isEnabled ? (obd.connectionState == .connected ? .green : .orange) : .secondary)
                 }
 
                 Spacer()
@@ -511,13 +514,22 @@ struct MiniTelemetryCard: View {
 
                 // Status & Ladedruck
                 VStack(spacing: 4) {
-                    let phase = currentTemp < 60 ? "KALT" : (currentTemp < 80 ? "AUFWÄRMEN" : "BEREIT")
-                    Text(phase)
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundStyle(tempColor(currentTemp))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(tempColor(currentTemp).opacity(0.15), in: Capsule())
+                    if let t = currentTemp {
+                        let phase = t < 60 ? "KALT" : (t < 80 ? "AUFWÄRMEN" : "BEREIT")
+                        Text(phase)
+                            .font(.system(size: 10, weight: .black))
+                            .foregroundStyle(tempColor(t))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(tempColor(t).opacity(0.15), in: Capsule())
+                    } else {
+                        Text(obd.connectionState == .connected ? "LESE DATEN…" : "OBD WARTET")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.orange.opacity(0.15), in: Capsule())
+                    }
 
                     if obd.isEnabled && obd.connectionState == .connected, let boost = obd.liveBoostBar {
                         Text(String(format: "%.2f b", boost))
@@ -548,9 +560,12 @@ struct WarmupCard: View {
     @ObservedObject var warmup : WarmupManager
     @ObservedObject var obd    : OBDManager
 
-    var displayTemp: Int {
-        if obd.isEnabled && obd.connectionState == .connected {
-            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
+    var displayTemp: Int? {
+        if obd.isEnabled {
+            if obd.connectionState == .connected {
+                return obd.liveOilTemp ?? obd.liveCoolantTemp.map { max(20, $0 - 8) }
+            }
+            return nil
         }
         return warmup.oilTempInt
     }
@@ -576,7 +591,7 @@ struct WarmupCard: View {
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.orange)
                         } else {
-                            Text("GETRENNT (SIMULATION)")
+                            Text("OBD GETRENNT")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
@@ -588,26 +603,26 @@ struct WarmupCard: View {
                 }
 
                 // Gauge
-                Gauge(value: Double(displayTemp), in: 20...110) {
+                Gauge(value: Double(displayTemp ?? 20), in: 20...110) {
                     Text("Temperatur")
                 } currentValueLabel: {
-                    Text("\(displayTemp)°C")
+                    Text(displayTemp != nil ? "\(displayTemp!)°C" : "-- °C")
                         .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .foregroundStyle(tempColor(displayTemp))
+                        .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
                 } minimumValueLabel: {
                     Text("20°").font(.caption2)
                 } maximumValueLabel: {
                     Text("110°").font(.caption2)
                 }
                 .gaugeStyle(.accessoryCircular)
-                .tint(Gradient(colors: [.blue, .orange, .green]))
+                .tint(displayTemp != nil ? Gradient(colors: [.blue, .orange, .green]) : Gradient(colors: [.secondary.opacity(0.3)]))
                 .frame(width: 120, height: 120)
 
                 // Phasenhinweis
                 Text(phaseText(displayTemp))
                     .font(.caption)
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(tempColor(displayTemp))
+                    .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
                     .padding(.horizontal)
             }
             .frame(maxWidth: .infinity)
@@ -620,7 +635,16 @@ struct WarmupCard: View {
         return .green
     }
 
-    private func phaseText(_ t: Int) -> String {
+    private func phaseText(_ t: Int?) -> String {
+        guard let t else {
+            if obd.connectionState == .scanning {
+                return "OBD aktiviert – Suche nach Bluetooth-Adapter…"
+            } else if obd.connectionState == .connecting || obd.connectionState == .initializing {
+                return "OBD verbindet – Lese Steuergerät aus…"
+            } else {
+                return "OBD aktiviert – Warte auf Adapter & Daten…"
+            }
+        }
         if t < 60 { return "Kaltstart – Max. 2.500 U/min, kein Ladedruck!" }
         if t < 80 { return "Öl wärmt auf – Gemäßigt fahren" }
         return "90°C erreicht – Voller Ladedruck frei! 🏁"
@@ -634,8 +658,8 @@ struct WarmupCard: View {
 struct BoostCard: View {
     @ObservedObject var obd: OBDManager
 
-    var boostVal: Double {
-        obd.isEnabled && obd.connectionState == .connected ? (obd.liveBoostBar ?? 0.0) : 0.0
+    var boostVal: Double? {
+        obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil
     }
 
     var body: some View {
@@ -645,22 +669,42 @@ struct BoostCard: View {
                     Label("Ladedruck & Ansaugung", systemImage: "gauge.with.needle.fill")
                         .font(.headline).foregroundStyle(.cyan)
                     Spacer()
-                    if obd.isEnabled && obd.connectionState == .connected {
-                        Text("LIVE OBD")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.green)
+                    if obd.isEnabled {
+                        if obd.connectionState == .connected && obd.liveBoostBar != nil {
+                            Text("LIVE OBD")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.green)
+                        } else if obd.connectionState == .connected {
+                            Text("KEIN SENSOR (VW)")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.orange)
+                        } else if obd.connectionState == .scanning {
+                            Text("SUCHE ADAPTER…")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.orange)
+                        } else {
+                            Text("OBD GETRENNT")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                     } else {
-                        Text("OBD ERFORDERLICH")
+                        Text("SIMULATION (KEIN OBD)")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.cyan)
                     }
                 }
 
                 HStack(spacing: 20) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(String(format: "%.2f", boostVal))
-                            .font(.system(size: 38, weight: .black, design: .monospaced))
-                            .foregroundStyle(boostVal > 0.8 ? .orange : (boostVal > 0.1 ? .green : .cyan))
+                        if let val = boostVal {
+                            Text(String(format: "%.2f", val))
+                                .font(.system(size: 38, weight: .black, design: .monospaced))
+                                .foregroundStyle(val > 0.8 ? .orange : (val > 0.1 ? .green : .cyan))
+                        } else {
+                            Text("--")
+                                .font(.system(size: 38, weight: .black, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                         Text("BAR RELATIV (MAP - BARO)")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.secondary)
@@ -679,7 +723,8 @@ struct BoostCard: View {
                             Text("Last: \(load) %").font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(.orange)
                         }
                         if !obd.isEnabled || obd.connectionState != .connected {
-                            Text("Verbinde deinen OBD-Adapter").font(.caption2).foregroundStyle(.secondary)
+                            Text(obd.isEnabled ? "Warte auf OBD-Daten" : "Schalte OBD ein für Ladedruck")
+                                .font(.caption2).foregroundStyle(.secondary)
                         }
                     }
                 }

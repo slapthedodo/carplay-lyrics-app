@@ -26,8 +26,14 @@ public final class OBDManager: NSObject, ObservableObject {
     // MARK: Published State
     // ─────────────────────────────────────────────────────────────────────────
 
+    private static let obdEnabledKey = "carlyrics_obd_enabled"
+
     @Published public var connectionState : OBDConnectionState = .disconnected
-    @Published public var isEnabled       : Bool = false         // Toggle: OBD vs Simulation
+    @Published public var isEnabled       : Bool = UserDefaults.standard.bool(forKey: "carlyrics_obd_enabled") {
+        didSet {
+            UserDefaults.standard.set(isEnabled, forKey: Self.obdEnabledKey)
+        }
+    }
     @Published public var liveOilTemp     : Int? = nil           // PID 01 5C (wenn unterstützt)
     @Published public var liveCoolantTemp : Int? = nil           // PID 01 05 (immer bei VW)
     @Published public var liveRPM         : Int  = 0             // PID 01 0C
@@ -69,6 +75,8 @@ public final class OBDManager: NSObject, ObservableObject {
 
     public override init() {
         super.init()
+        let saved = UserDefaults.standard.bool(forKey: Self.obdEnabledKey)
+        self.isEnabled = saved
         centralManager = CBCentralManager(delegate: self, queue: nil)
     }
 
@@ -78,6 +86,7 @@ public final class OBDManager: NSObject, ObservableObject {
 
     public func enableOBD() {
         isEnabled = true
+        resetTelemetryValues()
         startScan()
     }
 
@@ -91,7 +100,7 @@ public final class OBDManager: NSObject, ObservableObject {
         resetTelemetryValues()
     }
 
-    private func resetTelemetryValues() {
+    public func resetTelemetryValues() {
         liveOilTemp = nil
         liveCoolantTemp = nil
         liveBoostBar = nil
@@ -100,6 +109,7 @@ public final class OBDManager: NSObject, ObservableObject {
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0
+        hasOilTempPID = false
     }
 
     public func toggleOBD() {
@@ -281,9 +291,11 @@ public final class OBDManager: NSObject, ObservableObject {
 extension OBDManager: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn && isEnabled {
+            resetTelemetryValues()
             startScan()
         } else if central.state != .poweredOn {
             connectionState = .disconnected
+            resetTelemetryValues()
             log("Bluetooth deaktiviert oder nicht verfügbar.")
         }
     }

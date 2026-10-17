@@ -112,9 +112,9 @@ public struct LyricsAttributes: ActivityAttributes {
         public var gVectorY    : Double   // longitudinal (-1 … +1)
 
         // ── Engine Warm-Up & OBD Telemetry ───────────────────────────────────
-        public var oilTemp         : Int          // °C
-        public var coolantTemp     : Int          // °C
-        public var boostBar        : Double       // Bar (relative boost)
+        public var oilTemp         : Int?         // °C (nil = wartet auf OBD)
+        public var coolantTemp     : Int?         // °C (nil = wartet auf OBD)
+        public var boostBar        : Double?      // Bar (relative boost, nil = nicht aktiv/kein Sensor)
         public var warmupProgress  : Double       // 0.0 … 1.0
         public var warmupPhase     : WarmupPhase
         public var isEngineWarm    : Bool         // oilTemp >= 80°C
@@ -131,9 +131,9 @@ public struct LyricsAttributes: ActivityAttributes {
             peakG          : Double       = 0,
             gVectorX       : Double       = 0,
             gVectorY       : Double       = 0,
-            oilTemp        : Int          = 20,
-            coolantTemp    : Int          = 90,
-            boostBar       : Double       = 0.0,
+            oilTemp        : Int?         = 20,
+            coolantTemp    : Int?         = 90,
+            boostBar       : Double?      = nil,
             warmupProgress : Double       = 0,
             warmupPhase    : WarmupPhase  = .cold,
             isEngineWarm   : Bool         = false
@@ -163,7 +163,7 @@ public struct LyricsAttributes: ActivityAttributes {
             artist      : "",
             oilTemp     : 20,
             coolantTemp : 90,
-            boostBar    : 0.0,
+            boostBar    : nil,
             warmupPhase : .cold
         )
     }
