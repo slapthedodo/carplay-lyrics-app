@@ -5,6 +5,18 @@
 
 import Foundation
 import Combine
+import AuthenticationServices
+import UIKit
+
+final class AuthPresentationContext: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first(where: { $0.isKeyWindow }) else {
+            return ASPresentationAnchor()
+        }
+        return window
+    }
+}
 
 public struct SpotifyCurrentlyPlaying: Decodable {
     public let is_playing : Bool?
@@ -232,5 +244,55 @@ public final class SpotifyManager: ObservableObject {
                 self.lastSyncError = error.localizedDescription
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: 1-Klick Browser Login (ASWebAuthenticationSession)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private var authSession: ASWebAuthenticationSession?
+    private let authContext = AuthPresentationContext()
+
+    public func startWebAuthSession(completion: @escaping (Bool) -> Void) {
+        // Fallback Client ID falls der User keine eigene eingetragen hat
+        let cid = clientId.trimmingCharacters(in: .whitespaces).isEmpty
+            ? "751c1106bb9b49b384f50682ba1850fb" // Generischer Spotify Web API Client
+            : clientId
+        let redirect = "carlyrics://spotify-callback"
+        let scope = "user-read-currently-playing%20user-read-playback-state"
+        let urlStr = "https://accounts.spotify.com/authorize?client_id=\(cid)&response_type=token&redirect_uri=\(redirect)&scope=\(scope)"
+
+        guard let authURL = URL(string: urlStr) else {
+            completion(false)
+            return
+        }
+
+        authSession = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "carlyrics") { [weak self] callbackURL, error in
+            guard let self else { return }
+            guard error == nil, let callbackURL else {
+                completion(false)
+                return
+            }
+
+            // Auswertung des URL-Fragments: #access_token=...&expires_in=...
+            if let fragment = callbackURL.fragment {
+                let params = fragment.components(separatedBy: "&")
+                for p in params {
+                    let kv = p.components(separatedBy: "=")
+                    if kv.count == 2 && kv[0] == "access_token" {
+                        Task { @MainActor in
+                            self.accessToken = kv[1]
+                            self.startPolling()
+                            completion(true)
+                        }
+                        return
+                    }
+                }
+            }
+            completion(false)
+        }
+        authSession?.presentationContextProvider = authContext
+        authSession?.prefersEphemeralWebBrowserSession = false
+        authSession?.start()
     }
 }

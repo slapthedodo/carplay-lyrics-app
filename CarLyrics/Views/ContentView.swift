@@ -674,7 +674,28 @@ struct SpotifySetupSheet: View {
                     }
                 }
 
-                Section("Schnellstart: Access Token") {
+                Section("1-Klick Login") {
+                    Text("Melde dich direkt über Safari mit deinem Spotify-Konto an:")
+                        .font(.caption).foregroundStyle(.secondary)
+
+                    Button {
+                        spotify.startWebAuthSession { success in
+                            if success { dismiss() }
+                        }
+                    } label: {
+                        HStack {
+                            Image(systemName: "waveform.circle.fill")
+                                .font(.title3)
+                            Text("Mit Spotify einloggen")
+                                .font(.headline)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(CockpitButtonStyle(color: .green))
+                }
+
+                Section("Alternativ: Manueller Access Token") {
                     Text("Einmaliger 1-Stunden Token von developer.spotify.com:")
                         .font(.caption).foregroundStyle(.secondary)
 

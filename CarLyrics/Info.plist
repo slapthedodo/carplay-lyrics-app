@@ -26,8 +26,20 @@
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
 
-    <key>CFBundleVersion</key>
-    <string>1</string>
+    <!-- ───── Custom URL Scheme (Spotify Callback) ───── -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.carlyrics.spotify</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>carlyrics</string>
+            </array>
+        </dict>
+    </array>
 
     <!-- ───── Live Activities ───── -->
     <!--
