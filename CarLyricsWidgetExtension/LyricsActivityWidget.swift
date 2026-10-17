@@ -449,89 +449,61 @@ struct LockScreenBannerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
 
-            // ── OBERE LEISTE: Öltemperatur + Telemetrie + G-Kraft ──
-            HStack(alignment: .center, spacing: 10) {
-
-                // 1. Öltemperatur (Sehr groß, fett, sofort lesbar)
-                HStack(spacing: 6) {
-                    Image(systemName: "thermometer.medium")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(phaseColor(state.warmupPhase))
-
-                    VStack(alignment: .leading, spacing: -2) {
-                        HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            if let temp = state.oilTemp {
-                                Text("\(temp)")
-                                    .font(.system(size: 24, weight: .black, design: .rounded))
-                                    .foregroundStyle(phaseColor(state.warmupPhase))
-                                Text("°C")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundStyle(phaseColor(state.warmupPhase).opacity(0.8))
-                            } else {
-                                Text("--")
-                                    .font(.system(size: 24, weight: .black, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                Text("°C")
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-
-                        Text(state.warmupPhase.rawValue)
-                            .font(.system(size: 7.5, weight: .black))
-                            .foregroundStyle(phaseColor(state.warmupPhase))
-                            .lineLimit(1)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(phaseColor(state.warmupPhase).opacity(0.12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .stroke(phaseColor(state.warmupPhase).opacity(0.3), lineWidth: 1)
-                        )
+            // ── OBERE LEISTE: Die 5 Kugeln nebeneinander (ÖL, BOOST, IAT, MAF, G-KRAFT) ──
+            HStack(spacing: 0) {
+                // Kugel 1: Öltemperatur mit Thermometer & Aufwärmring
+                OilTempBadge(
+                    temp     : state.oilTemp,
+                    progress : state.oilTemp != nil ? state.warmupProgress : 0,
+                    phase    : state.oilTemp != nil ? state.warmupPhase : .cold,
+                    size     : 42
                 )
-
-                // 2. Telemetrie Pillen (Kühlwasser & Turbo Boost)
-                VStack(alignment: .leading, spacing: 4) {
-                    // Wasser
-                    HStack(spacing: 3) {
-                        Text("Wasser:")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.6))
-                        Text(state.coolantTemp != nil ? "\(state.coolantTemp!)°" : "--°")
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(state.coolantTemp != nil ? (state.coolantTemp! >= 80 ? .green : .cyan) : .secondary)
-                    }
-
-                    // Boost
-                    HStack(spacing: 3) {
-                        Text("Boost:")
-                            .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.6))
-                        Text(state.boostBar.map { String(format: "%.2fb", $0) } ?? "0.00b")
-                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.cyan)
-                    }
-                }
 
                 Spacer()
 
-                // 3. User G-Kraft Badge (Lila Rundinstrument mit Scope & Bogen nach Bild)
-                GForceGaugeBadge(currentG: state.currentG, maxG: 1.2, size: 48)
+                // Kugel 2: Turbo Ladedruck
+                BoostGaugeBadge(
+                    boost    : state.boostBar,
+                    maxBoost : 1.6,
+                    size     : 42
+                )
+
+                Spacer()
+
+                // Kugel 3: Ansaugluft (IAT)
+                IATGaugeBadge(
+                    iat  : state.iatTemp,
+                    size : 42
+                )
+
+                Spacer()
+
+                // Kugel 4: Luftmasse (MAF)
+                MAFGaugeBadge(
+                    maf  : state.mafVal,
+                    size : 42
+                )
+
+                Spacer()
+
+                // Kugel 5: G-Kraft Rundinstrument (Fadenkreuz, lila Bogen, G-KRAFT nach User-Bild)
+                GForceGaugeBadge(
+                    currentG : state.currentG,
+                    maxG     : 1.2,
+                    size     : 42
+                )
             }
+            .padding(.horizontal, 4)
 
             Divider()
                 .overlay(Color.white.opacity(0.15))
 
-            // ── MITTLERER BEREICH: Track-Info & Riesiger Live-Songtext ──
-            VStack(alignment: .leading, spacing: 3) {
+            // ── MITTLERER BEREICH: Track-Info & Live-Songtext ──
+            VStack(alignment: .leading, spacing: 2.5) {
                 // Track & Artist Badge
                 HStack(spacing: 4) {
                     Image(systemName: "music.note")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 8.5, weight: .bold))
                         .foregroundStyle(.green)
                     Text("\(state.songTitle) • \(state.artist)")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -539,18 +511,17 @@ struct LockScreenBannerView: View {
                         .lineLimit(1)
                 }
 
-                // Großer, fetter, hochkontrastiger Live-Songtext (20pt!)
+                // Großer, klarer Live-Songtext (18pt bold)
                 Text(state.currentLine.isEmpty ? "♪" : state.currentLine)
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .minimumScaleFactor(0.85)
-                    .shadow(color: .black.opacity(0.6), radius: 2, y: 1)
 
                 // Nächste Zeile dezent
                 if !state.nextLine.isEmpty {
                     Text(state.nextLine)
-                        .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.55))
                         .lineLimit(1)
                 }
