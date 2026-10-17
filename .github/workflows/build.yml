@@ -1,4 +1,4 @@
-name: iOS Build Check
+name: Build CarLyrics IPA
 
 on:
   push:
@@ -7,22 +7,38 @@ on:
 
 jobs:
   build:
-    name: Projekt kompilieren
-    runs-on: macos-latest
+    name: Build & Package CarLyrics IPA
+    runs-on: macos-14
 
     steps:
-      - name: Code herunterladen
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Xcode-Version anzeigen
+      - name: Show Xcode Version
         run: xcodebuild -version
 
-      - name: Projekt für Simulator bauen (Code-Check)
+      - name: Build iOS App & Widget (Release Device Build)
         run: |
           xcodebuild -project CarLyrics.xcodeproj \
                      -scheme CarLyrics \
-                     -sdk iphonesimulator \
-                     CODE_SIGN_IDENTITY="" \
-                     CODE_SIGNING_REQUIRED=NO \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath build \
                      CODE_SIGNING_ALLOWED=NO \
-                     build
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGN_IDENTITY="" \
+                     clean build
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/CarLyrics.app Payload/
+          zip -r CarLyrics.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CarLyrics-iOS-App
+          path: CarLyrics.ipa
+          retention-days: 14
