@@ -96,10 +96,10 @@ struct LyricsActivityWidget: Widget {
                 }
 
             } compactLeading: {
-                // ── Öltemperatur Anzeige (Klartext ÖL + Temp) ──
+                // ── Öltemperatur Anzeige mit Thermometer ──
                 HStack(spacing: 2) {
-                    Text("ÖL")
-                        .font(.system(size: 9, weight: .black, design: .rounded))
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
@@ -161,8 +161,8 @@ struct LyricsActivityWidget: Widget {
 
             } minimal: {
                 HStack(spacing: 1) {
-                    Text("ÖL")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 7, weight: .bold))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
@@ -376,7 +376,7 @@ struct MAFGaugeBadge: View {
     }
 }
 
-// ── Runde Öltemperatur Anzeige (ohne verwirrendes Symbol, klare Typografie) ──
+// ── Runde Öltemperatur Anzeige (mit Thermometer Symbol) ──
 struct OilTempBadge: View {
     let temp     : Int?
     let progress : Double
@@ -392,9 +392,9 @@ struct OilTempBadge: View {
                         style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.5), value: progress)
-            VStack(spacing: -1) {
-                Text("ÖL")
-                    .font(.system(size: 7, weight: .black, design: .rounded))
+            VStack(spacing: -2) {
+                Image(systemName: "thermometer.medium")
+                    .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(temp != nil ? phaseColor(phase) : .secondary)
                 if let temp {
                     Text("\(temp)°")
@@ -578,8 +578,8 @@ struct TelemetryWidgetEntryView: View {
             ZStack {
                 AccessoryWidgetBackground()
                 VStack(spacing: -1) {
-                    Text("ÖL")
-                        .font(.system(size: 8, weight: .black, design: .rounded))
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(.cyan)
                     Text("\(entry.oilTemp ?? 85)°")
                         .font(.system(size: 13, weight: .bold, design: .monospaced))
@@ -589,7 +589,7 @@ struct TelemetryWidgetEntryView: View {
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text("ÖL").font(.system(size: 8, weight: .black, design: .rounded)).foregroundStyle(.cyan)
+                    Image(systemName: "thermometer.medium").font(.system(size: 8)).foregroundStyle(.cyan)
                     Text("TFSI 2.0 TELEMETRIE").font(.system(size: 8, weight: .bold))
                 }
                 Text("Öl: \(entry.oilTemp ?? 85)°C (\(entry.phase.rawValue))")
