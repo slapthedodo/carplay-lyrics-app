@@ -21,15 +21,17 @@ jobs:
 
       - name: Build iOS App & Widget (Ad-Hoc Signed for Device)
         run: |
+          set -o pipefail
           xcodebuild -project CarLyrics.xcodeproj \
                      -scheme CarLyrics \
                      -configuration Release \
-                     -sdk iphoneos \
+                     -destination 'generic/platform=iOS' \
                      -derivedDataPath build \
                      CODE_SIGN_STYLE=Manual \
                      CODE_SIGN_IDENTITY="-" \
                      CODE_SIGNING_REQUIRED=NO \
                      AD_HOC_CODE_SIGNING_ALLOWED=YES \
+                     PROVISIONING_PROFILE_SPECIFIER="" \
                      clean build
 
       - name: Package into IPA

@@ -15,7 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import AVFoundation
-import os.log
+import os
 
 public final class BackgroundKeepAliveManager {
 

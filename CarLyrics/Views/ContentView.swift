@@ -162,7 +162,7 @@ struct TelemetryTab: View {
                         Toggle("", isOn: $obd.isEnabled)
                             .labelsHidden()
                             .tint(.green)
-                            .onChange(of: obd.isEnabled) { enabled in
+                            .onChange(of: obd.isEnabled) { _, enabled in
                                 if enabled { obd.enableOBD() } else { obd.disableOBD() }
                             }
                     }
@@ -603,7 +603,7 @@ struct OBDDebugSheet: View {
                             .foregroundStyle(obd.connectionState == .connected ? .green : .orange)
                     }
                     Toggle("OBD-Adapter aktiv", isOn: $obd.isEnabled)
-                        .onChange(of: obd.isEnabled) { val in
+                        .onChange(of: obd.isEnabled) { _, val in
                             if val { obd.enableOBD() } else { obd.disableOBD() }
                         }
                 }
