@@ -267,6 +267,71 @@ struct MiniGBallWidgetView: View {
     }
 }
 
+// ── Runde G-Kraft Anzeige nach User-Design (mit Fadenkreuz, lila Bogen, 'G-KRAFT', Zahl und 'G') ──
+struct GForceGaugeBadge: View {
+    let currentG : Double
+    var maxG     : Double = 1.2
+    var size     : CGFloat = 36
+
+    var body: some View {
+        let ratio = min(max(currentG / max(0.4, maxG), 0.0), 1.0)
+        let purpleColor = Color(red: 0.68, green: 0.35, blue: 0.98) // #ae5bf7
+
+        ZStack {
+            // Schwarzer runder Hintergrund
+            Circle()
+                .fill(Color.black.opacity(0.85))
+
+            // Äußerer feiner Ring
+            Circle()
+                .stroke(Color.white.opacity(0.15), lineWidth: size > 60 ? 3 : 2)
+
+            // 4 Fadenkreuz-Markierungen (12, 3, 6, 9 Uhr)
+            ForEach([0, 90, 180, 270], id: \.self) { deg in
+                Rectangle()
+                    .fill(Color.white.opacity(0.45))
+                    .frame(width: size > 60 ? 1.5 : 1, height: size > 60 ? 6 : 3.5)
+                    .offset(y: -(size / 2 - (size > 60 ? 3 : 2)))
+                    .rotationEffect(.degrees(Double(deg)))
+            }
+
+            // Lila Bogen / Fortschrittsanzeige
+            Circle()
+                .trim(from: 0.0, to: CGFloat(max(0.04, ratio * 0.75)))
+                .stroke(
+                    LinearGradient(
+                        colors: [purpleColor.opacity(0.4), purpleColor],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: size > 60 ? 4.5 : 2.5, lineCap: .round)
+                )
+                .rotationEffect(.degrees(135))
+
+            // Text & Fadenkreuz-Layout
+            VStack(spacing: size > 60 ? 3 : -1) {
+                // Weißes Fadenkreuz Icon (wie im Bild)
+                Image(systemName: "scope")
+                    .font(.system(size: size > 60 ? 18 : 8, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text("G-KRAFT")
+                    .font(.system(size: size > 60 ? 10 : 5, weight: .black, design: .rounded))
+                    .foregroundStyle(purpleColor)
+
+                Text(String(format: "%.1f", currentG))
+                    .font(.system(size: size > 60 ? 24 : 9.5, weight: .heavy, design: .rounded))
+                    .foregroundStyle(purpleColor)
+
+                Text("G")
+                    .font(.system(size: size > 60 ? 8 : 4.5, weight: .black, design: .rounded))
+                    .foregroundStyle(purpleColor.opacity(0.9))
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // ── Runde Ladedruck Anzeige ──
 struct BoostGaugeBadge: View {
     let boost: Double?
@@ -432,19 +497,8 @@ struct TelemetryBar: View {
 
             Spacer()
 
-            // G-Kräfte oben rechts: Live & Peak G + 2D G-Ball Fadenkreuz
-            HStack(spacing: 5) {
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(String(format: "%.2fG", state.currentG))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(gColor(state.currentG))
-                    Text("PK \(String(format: "%.1f", state.peakG))")
-                        .font(.system(size: 8, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-
-                MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
-            }
+            // G-Kräfte oben rechts: GForceGaugeBadge (wie vom User gewünscht)
+            GForceGaugeBadge(currentG: state.currentG, maxG: 1.2, size: 38)
         }
     }
 }
