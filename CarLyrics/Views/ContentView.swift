@@ -928,7 +928,7 @@ struct SportCockpitView: View {
 
                     // Calibrate G-Zero button
                     Button {
-                        motion.calibrateZero()
+                        motion.calibrate()
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "scope")
