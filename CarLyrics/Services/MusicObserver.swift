@@ -159,8 +159,9 @@ public final class MusicObserver: ObservableObject {
     }
 
     @objc private func appWillTerminate() {
-        for activity in Activity<LyricsAttributes>.activities {
-            Task {
+        let all = Activity<LyricsAttributes>.activities
+        for activity in all {
+            Task.detached {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
@@ -222,16 +223,14 @@ public final class MusicObserver: ObservableObject {
 
     private func stopLineTimer() { lineTimer?.invalidate(); lineTimer = nil }
 
-    private func startTelemetryHeartbeat() {
+    public func startTelemetryHeartbeat() {
         telemetryTimer?.invalidate()
         // Aktualisiert alle 1.5 Sekunden die Motordaten und G-Kräfte in Dynamic Island & Sperrbildschirm
         telemetryTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.liveActivity == nil {
-                    let title = self.currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : self.currentTrackTitle
-                    let artist = self.currentArtist.isEmpty ? "Motor-Monitor" : self.currentArtist
-                    await self.startLiveActivity(title: title, artist: artist)
+                    await self.reattachOrCreateLiveActivity()
                 } else {
                     await self.updateLiveActivity(force: false)
                 }
@@ -283,8 +282,33 @@ public final class MusicObserver: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: ActivityKit Lifecycle (Dauerhaft aktiv bis Task-Manager-Kill)
+    // MARK: ActivityKit Lifecycle (Robuste Anbindung & Auto-Cleanup)
     // ─────────────────────────────────────────────────────────────────────────
+
+    public func reattachOrCreateLiveActivity() async {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let all = Activity<LyricsAttributes>.activities
+        if let existing = all.first {
+            // Re-Attach an bestehende Activity anstatt eine tote Leiche im System zu lassen!
+            self.liveActivity = existing
+            for extra in all.dropFirst() {
+                await extra.end(nil, dismissalPolicy: .immediate)
+            }
+            await updateLiveActivity(force: true)
+        } else {
+            let title = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
+            let artist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
+            await startLiveActivity(title: title, artist: artist)
+        }
+    }
+
+    public func resetLiveActivities() async {
+        for act in Activity<LyricsAttributes>.activities {
+            await act.end(nil, dismissalPolicy: .immediate)
+        }
+        self.liveActivity = nil
+        await reattachOrCreateLiveActivity()
+    }
 
     private func startLiveActivity(title: String, artist: String) async {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
@@ -293,8 +317,16 @@ public final class MusicObserver: ObservableObject {
             return
         }
 
+        // Falls noch eine alte Activity im System existiert, sofort re-attachen
+        if let existing = Activity<LyricsAttributes>.activities.first {
+            self.liveActivity = existing
+            await updateLiveActivity(force: true)
+            return
+        }
+
         let attrs   = LyricsAttributes(trackId: "\(artist)|\(title)")
-        let content = ActivityContent(state: makeState(), staleDate: nil)
+        // staleDate: 8 Sekunden -> Schützt davor, dass die Dynamic Island nach App-Kill einfriert!
+        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(8))
         do {
             liveActivity = try Activity<LyricsAttributes>.request(
                 attributes: attrs, content: content, pushType: nil)
@@ -305,17 +337,17 @@ public final class MusicObserver: ObservableObject {
 
     private func updateLiveActivity(force: Bool) async {
         guard let activity = liveActivity else {
-            let title = currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle
-            let artist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
-            await startLiveActivity(title: title, artist: artist)
+            await reattachOrCreateLiveActivity()
             return
         }
         lastActivityUpdate = Date()
-        let content = ActivityContent(state: makeState(), staleDate: nil)
+        // Frisches staleDate von 8s: Solange App läuft, wird es alle 1.5s verlängert.
+        // Wird die App gekillt, blendet iOS die Activity nach 8s automatisch sauber aus!
+        let content = ActivityContent(state: makeState(), staleDate: Date().addingTimeInterval(8))
         await activity.update(content)
     }
 
-    private func endLiveActivity() async {
+    public func endLiveActivity() async {
         guard let activity = liveActivity else { return }
         var final = makeState()
         final.isPlaying = false

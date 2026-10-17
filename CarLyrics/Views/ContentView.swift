@@ -32,7 +32,7 @@ public struct ContentView: View {
                     .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
                     .tag(1)
 
-                SettingsTab(spotify: spotify, obd: obd)
+                SettingsTab(spotify: spotify, obd: obd, observer: observer)
                     .tabItem { Label("Setup", systemImage: "gearshape.fill") }
                     .tag(2)
             }
@@ -58,6 +58,12 @@ public struct ContentView: View {
             }
             motion.start()
             BackgroundKeepAliveManager.shared.start()
+
+            // Dynamic Island Live Activity re-attachen oder starten
+            Task {
+                await observer.reattachOrCreateLiveActivity()
+            }
+            observer.startTelemetryHeartbeat()
 
             if spotify.isAuthenticated {
                 spotify.startPolling()
@@ -189,12 +195,57 @@ struct TelemetryTab: View {
 struct SettingsTab: View {
     @ObservedObject var spotify : SpotifyManager
     @ObservedObject var obd     : OBDManager
+    @ObservedObject var observer: MusicObserver
     @State private var tokenInput: String = ""
+    @State private var resetSuccess: Bool = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // 1. CarPlay Audio-Verzögerung
+                // 1. Dynamic Island & Live Activity Steuerung
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Dynamic Island & Sperrbildschirm", systemImage: "capsule.fill")
+                            .font(.headline)
+                            .foregroundStyle(.cyan)
+
+                        Text("Die Dynamic Island aktualisiert Öltemperatur, Ladedruck, G-Kraft und Songtexte live. Beim Beenden der App wird sie nach 8 Sekunden automatisch entfernt.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            Button {
+                                Task {
+                                    await observer.resetLiveActivities()
+                                }
+                                resetSuccess = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                    resetSuccess = false
+                                }
+                            } label: {
+                                Label(resetSuccess ? "Zurückgesetzt ✓" : "Dynamic Island zurücksetzen",
+                                      systemImage: resetSuccess ? "checkmark.circle.fill" : "arrow.clockwise.circle.fill")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(resetSuccess ? .green : .white)
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: resetSuccess ? .green : .cyan))
+
+                            Spacer()
+
+                            Button {
+                                Task {
+                                    await observer.reattachOrCreateLiveActivity()
+                                }
+                            } label: {
+                                Label("Neu starten", systemImage: "play.circle.fill")
+                                    .font(.subheadline.bold())
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: .secondary))
+                        }
+                    }
+                }
+
+                // 2. CarPlay Audio-Verzögerung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("CarPlay Audio-Latenz Kompensation", systemImage: "clock.arrow.circlepath")
@@ -227,7 +278,7 @@ struct SettingsTab: View {
                     }
                 }
 
-                // 2. Spotify Verbindung
+                // 3. Spotify Verbindung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("Spotify Web API", systemImage: "waveform.circle.fill")
@@ -268,7 +319,21 @@ struct SettingsTab: View {
                     }
                 }
 
-                // 3. Info & Hinweise
+                // 4. CarPlay & Widgets Erklärung
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Widgets in CarPlay & Sperrbildschirm", systemImage: "car.circle.fill")
+                            .font(.headline).foregroundStyle(.yellow)
+                        Text("• CarPlay: Apple erlaubt auf dem CarPlay-Display nur autorisierte Navigations-/Audio-Apps. Das Now Playing Widget auf dem CarPlay Dashboard wird automatisch von Spotify/CarPlay versorgt.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("• Dynamic Island im Auto: Die CarLyrics Dynamic Island und der Live-Banner bleiben oben auf deinem iPhone oder im Sperrbildschirm in der Halterung immer sichtbar.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text("• iOS Widgets: Du kannst jetzt die neuen 'CarLyrics Cockpit' Widgets (Öl, Boost, G-Ball) direkt auf deinem iPhone Home- & Sperrbildschirm hinzufügen!")
+                            .font(.caption.bold()).foregroundStyle(.white)
+                    }
+                }
+
+                // 5. Hinweis zu VW & OBD-II
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Hinweis zu VW & OBD-II", systemImage: "info.circle")
@@ -279,7 +344,7 @@ struct SettingsTab: View {
                     }
                 }
 
-                // 4. FaceTime beim Fahren (Kamera-Fix)
+                // 6. FaceTime beim Fahren (Kamera-Fix)
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("FaceTime mit Kamera beim Fahren", systemImage: "video.fill")
@@ -291,7 +356,7 @@ struct SettingsTab: View {
                     }
                 }
 
-                // 5. Blitzer.de während Anrufen (Audio-Fix)
+                // 7. Blitzer.de während Anrufen (Audio-Fix)
                 GlassCard {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Blitzer-App Ton während Telefonaten", systemImage: "speaker.wave.3.fill")
@@ -825,10 +890,43 @@ struct SpotifySetupSheet: View {
                     }
                     .padding(.vertical, 4)
 
-                    TextField("Spotify Client ID hier einfügen", text: $clientId)
-                        .font(.system(.caption, design: .monospaced))
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    HStack {
+                        TextField("Spotify Client ID", text: $clientId)
+                            .font(.system(.caption, design: .monospaced))
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+
+                        if !clientId.isEmpty {
+                            Button {
+                                clientId = ""
+                                spotify.clientId = ""
+                                UserDefaults.standard.removeObject(forKey: "spotify_client_id")
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    if !clientId.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("WICHTIG bei 'redirect uri not matching config':")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.orange)
+                            Text("Falls du eine bestehende Client ID nutzt, öffne developer.spotify.com/dashboard -> deine App -> Settings -> trage unter 'Redirect URIs' exakt ein:")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                            Text("carlyrics://spotify-callback")
+                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.green)
+                            Text("und klicke ganz unten auf 'Save'!")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.orange)
+                        }
+                        .padding(8)
+                        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                    }
 
                     Button {
                         spotify.clientId = clientId.trimmingCharacters(in: .whitespaces)
