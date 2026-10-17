@@ -24,17 +24,13 @@ public struct ContentView: View {
             CockpitBackground()
 
             TabView(selection: $selectedTab) {
-                NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
-                    .tabItem { Label("Lyrics", systemImage: "music.note") }
+                CockpitTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
+                    .tabItem { Label("Cockpit", systemImage: "gauge.with.needle") }
                     .tag(0)
-
-                TelemetryTab(warmup: warmup, motion: motion, obd: obd)
-                    .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
-                    .tag(1)
 
                 SettingsTab(spotify: spotify, obd: obd, observer: observer)
                     .tabItem { Label("Setup", systemImage: "gearshape.fill") }
-                    .tag(2)
+                    .tag(1)
             }
             .tint(.cyan)
         }
@@ -108,10 +104,10 @@ public struct ContentView: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Now Playing Tab
+// MARK: Cockpit Tab (Lyrics + Telemetrie kombiniert)
 // ─────────────────────────────────────────────────────────────────────────────
 
-struct NowPlayingTab: View {
+struct CockpitTab: View {
     @ObservedObject var observer : MusicObserver
     @ObservedObject var warmup   : WarmupManager
     @ObservedObject var motion   : MotionManager
@@ -122,38 +118,15 @@ struct NowPlayingTab: View {
             VStack(spacing: 18) {
                 NowPlayingCard(observer: observer)
                 LyricsCard(observer: observer)
-                MiniTelemetryCard(warmup: warmup, motion: motion, obd: obd)
-            }
-            .padding(.horizontal)
-            .padding(.top, 8)
-        }
-    }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Telemetry Tab
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Telemetry Tab
-// ─────────────────────────────────────────────────────────────────────────────
-
-struct TelemetryTab: View {
-    @ObservedObject var warmup : WarmupManager
-    @ObservedObject var motion : MotionManager
-    @ObservedObject var obd    : OBDManager
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                // OBD Toggle Card
+                // OBD Toggle Card (kompakt)
                 GlassCard {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Datenquelle für Öltemperatur")
+                            Text("Datenquelle")
                                 .font(.caption.bold())
                                 .foregroundStyle(.secondary)
-                            Text(obd.isEnabled ? "ELM327 Bluetooth Adapter (Live)" : "TFSI 2.0L Simulation")
+                            Text(obd.isEnabled ? "OBD Live" : "TFSI Simulation")
                                 .font(.subheadline.bold())
                                 .foregroundStyle(obd.isEnabled ? .green : .cyan)
                         }
@@ -532,31 +505,50 @@ struct LyricsCard: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 16)
                 } else {
-                    VStack(alignment: .leading, spacing: 12) {
-                        // Zeile davor (Previous Line)
+                    VStack(alignment: .leading, spacing: 10) {
+                        // 2 Zeilen davor (ganz leicht sichtbar)
+                        if !observer.previousLine2.isEmpty {
+                            Text(observer.previousLine2)
+                                .font(.system(size: 15, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.18))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.previousLine2)
+                        }
+
+                        // 1 Zeile davor
                         if !observer.previousLine.isEmpty {
                             Text(observer.previousLine)
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.35))
+                                .font(.system(size: 19, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.38))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.previousLine)
                         }
 
-                        // Aktuelle Zeile mit Leuchteffekt (Extra Groß & Kontrastreich fürs Auto)
+                        // ═══ Aktuelle Zeile (Extra Groß & Leuchtend) ═══
                         Text(observer.currentLine)
-                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .font(.system(size: 30, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
                             .shadow(color: .cyan.opacity(0.45), radius: 8)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                             .animation(.easeInOut(duration: 0.25), value: observer.currentLine)
+                            .padding(.vertical, 4)
 
-                        // Zeile danach (Next Line)
+                        // 1 Zeile danach
                         if !observer.nextLine.isEmpty {
                             Text(observer.nextLine)
-                                .font(.system(size: 20, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.45))
+                                .font(.system(size: 19, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.40))
                                 .transition(.opacity)
                                 .animation(.easeInOut(duration: 0.25), value: observer.nextLine)
+                        }
+
+                        // 2 Zeilen danach (ganz leicht sichtbar)
+                        if !observer.nextLine2.isEmpty {
+                            Text(observer.nextLine2)
+                                .font(.system(size: 15, weight: .regular, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.18))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.nextLine2)
                         }
                     }
                 }
@@ -565,96 +557,7 @@ struct LyricsCard: View {
     }
 }
 
-struct MiniTelemetryCard: View {
-    @ObservedObject var warmup : WarmupManager
-    @ObservedObject var motion : MotionManager
-    @ObservedObject var obd    : OBDManager
 
-    var currentTemp: Int? {
-        if obd.isEnabled {
-            if obd.connectionState == .connected {
-                return obd.liveOilTemp ?? obd.liveCoolantTemp.map { max(20, $0 - 8) }
-            }
-            return nil
-        }
-        return warmup.oilTempInt
-    }
-
-    var body: some View {
-        GlassCard {
-            HStack {
-                // Öltemperatur Ring
-                VStack(spacing: 4) {
-                    ZStack {
-                        Circle().stroke(Color.white.opacity(0.1), lineWidth: 4)
-                        Circle()
-                            .trim(from: 0, to: currentTemp != nil ? warmup.warmupProgress : 0)
-                            .stroke(currentTemp != nil ? tempColor(currentTemp!) : Color.secondary.opacity(0.3), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                        Text(currentTemp != nil ? "\(currentTemp!)°" : "--")
-                            .font(.system(size: 14, weight: .bold, design: .monospaced))
-                            .foregroundStyle(currentTemp != nil ? tempColor(currentTemp!) : .secondary)
-                    }
-                    .frame(width: 52, height: 52)
-                    Text(obd.isEnabled ? (obd.connectionState == .connected ? "OBD LIVE" : "OBD...") : "SIM ÖL")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(obd.isEnabled ? (obd.connectionState == .connected ? .green : .orange) : .secondary)
-                }
-
-                Spacer()
-
-                // G-Force Live
-                VStack(spacing: 3) {
-                    Text(motion.currentGFormatted)
-                        .font(.system(size: 24, weight: .bold, design: .monospaced))
-                        .foregroundStyle(gColor(motion.currentG))
-                        .contentTransition(.numericText())
-                    Text("PEAK \(motion.peakGFormatted)")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                // Status & Ladedruck
-                VStack(spacing: 4) {
-                    if let t = currentTemp {
-                        let phase = t < 60 ? "KALT" : (t < 80 ? "AUFWÄRMEN" : "BEREIT")
-                        Text(phase)
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundStyle(tempColor(t))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(tempColor(t).opacity(0.15), in: Capsule())
-                    } else {
-                        Text(obd.connectionState == .connected ? "LESE DATEN…" : "OBD WARTET")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundStyle(.orange)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.orange.opacity(0.15), in: Capsule())
-                    }
-
-                    if obd.isEnabled && obd.connectionState == .connected, let boost = obd.liveBoostBar {
-                        Text(String(format: "%.2f b", boost))
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.cyan)
-                    } else if obd.isEnabled && obd.liveRPM > 0 {
-                        Text("\(obd.liveRPM) U/min")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        }
-    }
-
-    private func tempColor(_ t: Int) -> Color {
-        if t < 60 { return .blue }
-        if t < 80 { return .orange }
-        return .green
-    }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: Warmup Card

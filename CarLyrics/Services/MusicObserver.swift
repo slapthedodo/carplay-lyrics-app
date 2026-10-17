@@ -28,9 +28,11 @@ public final class MusicObserver: ObservableObject {
     @Published public var currentArtist     : String       = ""
     @Published public var currentAlbum      : String       = ""
     @Published public var isPlaying         : Bool         = false
-    @Published public var previousLine      : String       = ""
+    @Published public var previousLine2     : String       = ""  // 2 Zeilen davor
+    @Published public var previousLine      : String       = ""  // 1 Zeile davor
     @Published public var currentLine       : String       = ""
-    @Published public var nextLine          : String       = ""
+    @Published public var nextLine          : String       = ""  // 1 Zeile danach
+    @Published public var nextLine2         : String       = ""  // 2 Zeilen danach
     @Published public var lyricsStatus      : LyricsStatus = .idle
     @Published public var progress          : Double       = 0
 
@@ -287,15 +289,19 @@ public final class MusicObserver: ObservableObject {
 
         if let lyrics = lyrics {
             if let idx = lyrics.activeIndex(at: time) {
+                let newPrev2   = idx > 1 ? lyrics.lines[idx - 2].text : ""
                 let newPrev    = idx > 0 ? lyrics.lines[idx - 1].text : ""
                 let newCurrent = lyrics.lines[idx].text
                 let newNext    = idx + 1 < lyrics.lines.count ? lyrics.lines[idx + 1].text : ""
+                let newNext2   = idx + 2 < lyrics.lines.count ? lyrics.lines[idx + 2].text : ""
 
                 let lineChanged = (newCurrent != currentLine || newNext != nextLine || newPrev != previousLine)
                 if lineChanged {
+                    previousLine2 = newPrev2
                     previousLine = newPrev
                     currentLine  = newCurrent
                     nextLine     = newNext
+                    nextLine2    = newNext2
                     // Bei Zeilenwechsel sofort die Dynamic Island aktualisieren!
                     pushActivityUpdate(force: true)
                 }
