@@ -24,6 +24,8 @@ import Combine
 @MainActor
 public final class WarmupManager: ObservableObject {
 
+    public static let shared = WarmupManager()
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Published state
     // ─────────────────────────────────────────────────────────────────────────

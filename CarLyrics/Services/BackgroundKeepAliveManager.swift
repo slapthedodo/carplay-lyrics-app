@@ -38,8 +38,8 @@ public final class BackgroundKeepAliveManager {
         guard !isActive else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            // .mixWithOthers → Spotify / Apple Music keep playing
-            try session.setCategory(.playback, options: [.mixWithOthers])
+            // .mixWithOthers + bluetooth → Spotify / Apple Music / CarPlay keep playing uninterrupted
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowBluetooth, .allowBluetoothA2DP])
             try session.setActive(true)
             try engine.start()
             scheduleBuffer()
@@ -74,10 +74,16 @@ public final class BackgroundKeepAliveManager {
     }
 
     private func scheduleBuffer() {
-        // 1-frame silent buffer — smallest possible footprint
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1) else { return }
-        buffer.frameLength = 1
+        // 3 Sekunden lautloser Puffer — verhindert CPU-Wakeup-Stalls in iOS im Hintergrund
+        let sampleRate: Double = 44_100
+        let frameCount = AVAudioFrameCount(sampleRate * 3)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
+        buffer.frameLength = frameCount
+
+        if let channelData = buffer.floatChannelData?[0] {
+            memset(channelData, 0, Int(frameCount) * MemoryLayout<Float>.size)
+        }
 
         player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
     }

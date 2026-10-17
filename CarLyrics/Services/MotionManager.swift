@@ -19,6 +19,8 @@ import Combine
 @MainActor
 public final class MotionManager: ObservableObject {
 
+    public static let shared = MotionManager()
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Published state
     // ─────────────────────────────────────────────────────────────────────────

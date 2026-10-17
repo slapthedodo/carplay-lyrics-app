@@ -127,12 +127,14 @@ public final class SpotifyManager: ObservableObject {
         pollTimer?.invalidate()
         fetchCurrentlyPlaying()
 
-        // Fragt alle 1.5 Sekunden den Spotify Server ab für Drift-Korrektur und Track-Wechsel
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        // Fragt alle 1.5 Sekunden den Spotify Server ab für Drift-Korrektur und Track-Wechsel auch im Hintergrund
+        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 self?.fetchCurrentlyPlaying()
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        pollTimer = timer
     }
 
     public func stopPolling() {

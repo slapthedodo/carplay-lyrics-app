@@ -8,11 +8,11 @@ import MediaPlayer
 
 public struct ContentView: View {
 
-    @StateObject private var observer = MusicObserver()
-    @StateObject private var warmup   = WarmupManager()
-    @StateObject private var motion   = MotionManager()
-    @ObservedObject private var spotify = SpotifyManager.shared
-    @ObservedObject private var obd     = OBDManager.shared
+    @ObservedObject private var observer = MusicObserver.shared
+    @ObservedObject private var warmup   = WarmupManager.shared
+    @ObservedObject private var motion   = MotionManager.shared
+    @ObservedObject private var spotify  = SpotifyManager.shared
+    @ObservedObject private var obd      = OBDManager.shared
 
     @State private var showMockSheet    = false
     @State private var showSpotifySheet = false
@@ -68,10 +68,6 @@ public struct ContentView: View {
             if spotify.isAuthenticated {
                 spotify.startPolling()
             }
-        }
-        .onDisappear {
-            motion.stop()
-            BackgroundKeepAliveManager.shared.stop()
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -241,6 +237,69 @@ struct SettingsTab: View {
                                     .font(.subheadline.bold())
                             }
                             .buttonStyle(CockpitButtonStyle(color: .secondary))
+                        }
+                    }
+                }
+
+                // Apple Kurzbefehle & Automation
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Apple Kurzbefehle (Shortcuts) & Automation", systemImage: "bolt.badge.automatic.fill")
+                            .font(.headline)
+                            .foregroundStyle(.purple)
+
+                        Text("Du kannst die Dynamic Island jetzt direkt über Apple Kurzbefehle, Siri oder automatisierte Auslöser steuern:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.purple).font(.caption)
+                                Text("Aktionen: 'Dynamic Island beenden' & 'Dynamic Island starten'")
+                                    .font(.caption.bold())
+                            }
+                            HStack {
+                                Image(systemName: "link").foregroundStyle(.cyan).font(.caption)
+                                Text("URL-Befehle: carlyrics://stop und carlyrics://start")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+
+                        Text("Empfohlene Automation beim Fahren:")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                        Text("In Kurzbefehle > Automation > 'Wenn CarPlay trennt' > Aktion 'Dynamic Island beenden'. Sobald du den Schlüssel ziehst, schließt sich die Dynamic Island automatisch!")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 12) {
+                            Button {
+                                Task {
+                                    await observer.endAllLiveActivities()
+                                    BackgroundKeepAliveManager.shared.stop()
+                                    MotionManager.shared.stop()
+                                }
+                            } label: {
+                                Label("Jetzt beenden (Aus)", systemImage: "stop.circle.fill")
+                                    .font(.caption.bold())
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: .red))
+
+                            Button {
+                                Task {
+                                    BackgroundKeepAliveManager.shared.start()
+                                    MotionManager.shared.start()
+                                    await observer.reattachOrCreateLiveActivity()
+                                    observer.startTelemetryHeartbeat()
+                                }
+                            } label: {
+                                Label("Jetzt starten (Ein)", systemImage: "play.circle.fill")
+                                    .font(.caption.bold())
+                            }
+                            .buttonStyle(CockpitButtonStyle(color: .green))
                         }
                     }
                 }

@@ -17,6 +17,8 @@ import CoreMotion
 @MainActor
 public final class MusicObserver: ObservableObject {
 
+    public static let shared = MusicObserver()
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Published State
     // ─────────────────────────────────────────────────────────────────────────
@@ -34,8 +36,8 @@ public final class MusicObserver: ObservableObject {
     // MARK: Subsystem References
     // ─────────────────────────────────────────────────────────────────────────
 
-    public var warmupManager : WarmupManager?
-    public var motionManager : MotionManager?
+    public var warmupManager : WarmupManager? = WarmupManager.shared
+    public var motionManager : MotionManager? = MotionManager.shared
     public let spotify       = SpotifyManager.shared
     public let obd           = OBDManager.shared
 
@@ -216,17 +218,19 @@ public final class MusicObserver: ObservableObject {
 
     private func startLineTimer() {
         lineTimer?.invalidate()
-        lineTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.tick() }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        lineTimer = timer
     }
 
     private func stopLineTimer() { lineTimer?.invalidate(); lineTimer = nil }
 
     public func startTelemetryHeartbeat() {
         telemetryTimer?.invalidate()
-        // Aktualisiert alle 1.5 Sekunden die Motordaten und G-Kräfte in Dynamic Island & Sperrbildschirm
-        telemetryTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        // Aktualisiert alle 1.5 Sekunden die Motordaten und G-Kräfte in Dynamic Island & Sperrbildschirm auch im Hintergrund
+        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.liveActivity == nil {
@@ -236,6 +240,8 @@ public final class MusicObserver: ObservableObject {
                 }
             }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        telemetryTimer = timer
     }
 
     private func tick() {
@@ -308,6 +314,13 @@ public final class MusicObserver: ObservableObject {
         }
         self.liveActivity = nil
         await reattachOrCreateLiveActivity()
+    }
+
+    public func endAllLiveActivities() async {
+        for act in Activity<LyricsAttributes>.activities {
+            await act.end(nil, dismissalPolicy: .immediate)
+        }
+        self.liveActivity = nil
     }
 
     private func startLiveActivity(title: String, artist: String) async {
