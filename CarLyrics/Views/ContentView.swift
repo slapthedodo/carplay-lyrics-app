@@ -88,17 +88,10 @@ public struct ContentView: View {
             }
 
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    // Spotify Button
-                    Button { showSpotifySheet = true } label: {
-                        Image(systemName: spotify.isAuthenticated ? "waveform.circle.fill" : "waveform.circle")
-                            .foregroundStyle(spotify.isAuthenticated ? .green : .secondary)
-                    }
-
-                    // Test-Injektor
-                    Button { showMockSheet = true } label: {
-                        Image(systemName: "testtube.2").foregroundStyle(.cyan)
-                    }
+                // Spotify Button
+                Button { showSpotifySheet = true } label: {
+                    Image(systemName: spotify.isAuthenticated ? "waveform.circle.fill" : "waveform.circle")
+                        .foregroundStyle(spotify.isAuthenticated ? .green : .secondary)
                 }
             }
         }
@@ -320,9 +313,9 @@ struct SettingsTab: View {
                         Button {
                             WarmupManager.shared.requestNotificationPermission()
                             let content = UNMutableNotificationContent()
-                            content.title = "🏁 Test: 2.0 TFSI Betriebswarm!"
-                            content.subtitle = "Öl: 80°C erreicht"
-                            content.body = "Voller Ladedruck und Drehzahlen freigegeben. Gute Fahrt!"
+                            content.title = "Motor ist warm 🏎️"
+                            content.subtitle = "Öltemperatur: 80°C"
+                            content.body = "Kannst Gas geben, Betriebstemperatur ist erreicht!"
                             content.sound = .default
                             if #available(iOS 15.0, *) {
                                 content.interruptionLevel = .timeSensitive
@@ -374,7 +367,7 @@ struct SettingsTab: View {
                 // 3. G-Kraft Sensor & Maximalwert Slider
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("G-Kraft Sensor & Maximalwert", systemImage: "gyroscope")
+                        Text("G-Kraft Sensor & Maximalwert")
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
@@ -467,55 +460,6 @@ struct SettingsTab: View {
                         }
                     }
                 }
-
-                // 4. CarPlay & Widgets Erklärung
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Widgets in CarPlay & Sperrbildschirm", systemImage: "car.circle.fill")
-                            .font(.headline).foregroundStyle(.yellow)
-                        Text("• CarPlay: Apple erlaubt auf dem CarPlay-Display nur autorisierte Navigations-/Audio-Apps. Das Now Playing Widget auf dem CarPlay Dashboard wird automatisch von Spotify/CarPlay versorgt.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text("• Dynamic Island im Auto: Die CarLyrics Dynamic Island und der Live-Banner bleiben oben auf deinem iPhone oder im Sperrbildschirm in der Halterung immer sichtbar.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text("• iOS Widgets: Du kannst jetzt die neuen 'CarLyrics Cockpit' Widgets (Öl, Boost, G-Ball) direkt auf deinem iPhone Home- & Sperrbildschirm hinzufügen!")
-                            .font(.caption.bold()).foregroundStyle(.white)
-                    }
-                }
-
-                // 5. Hinweis zu VW & OBD-II
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Hinweis zu VW & OBD-II", systemImage: "info.circle")
-                            .font(.headline).foregroundStyle(.orange)
-                        Text("Bei vielen VW / VAG Modellen mit 2.0 TFSI wird PID 01 5C (Öltemperatur) über Standard-OBD2 als 'NO DATA' beantwortet. CarLyrics nutzt in diesem Fall automatisch die Kühlmitteltemperatur (PID 01 05) mit TFSI-Offset oder fällt auf das thermische Simulationsmodell zurück.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // 6. FaceTime beim Fahren (Kamera-Fix)
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("FaceTime mit Kamera beim Fahren", systemImage: "video.fill")
-                            .font(.headline).foregroundStyle(.cyan)
-                        Text("iOS schaltet beim Verbinden mit dem Auto automatisch den Fokus 'Fahren' ein, der die Kamera sperrt.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text("Lösung: Gehe in Einstellungen > Fokus > Fahren und deaktiviere die automatische Aktivierung mit CarPlay/Bluetooth. In der Handyhalterung bleibt die Kamera dann während der Fahrt aktiv!")
-                            .font(.caption.bold()).foregroundStyle(.white)
-                    }
-                }
-
-                // 7. Blitzer.de während Anrufen (Audio-Fix)
-                GlassCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Blitzer-App Ton während Telefonaten", systemImage: "speaker.wave.3.fill")
-                            .font(.headline).foregroundStyle(.green)
-                        Text("Bei Telefonaten schaltet das Auto auf Mono-Telefonie um und dämpft andere Apps.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text("Lösung: Stelle in Blitzer.de unter Einstellungen > Audio > Audioausgang auf 'Gerätelautsprecher'. Die Warnungen kommen dann glasklar aus deinem iPhone-Lautsprecher, selbst wenn du telefonierst!")
-                            .font(.caption.bold()).foregroundStyle(.white)
-                    }
-                }
             }
             .padding(.horizontal)
             .padding(.top, 8)
@@ -587,22 +531,34 @@ struct LyricsCard: View {
                     Text(observer.lyricsStatus.label)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 16)
                 } else {
-                    // Aktive Zeile mit Leuchteffekt (Hoher Kontrast fürs Auto)
-                    Text(observer.currentLine)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .shadow(color: .cyan.opacity(0.35), radius: 6)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                        .animation(.easeInOut(duration: 0.25), value: observer.currentLine)
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Zeile davor (Previous Line)
+                        if !observer.previousLine.isEmpty {
+                            Text(observer.previousLine)
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.previousLine)
+                        }
 
-                    if !observer.nextLine.isEmpty {
-                        Text(observer.nextLine)
-                            .font(.system(size: 16, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.45))
-                            .transition(.opacity)
-                            .animation(.easeInOut(duration: 0.25), value: observer.nextLine)
+                        // Aktuelle Zeile mit Leuchteffekt (Extra Groß & Kontrastreich fürs Auto)
+                        Text(observer.currentLine)
+                            .font(.system(size: 32, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .shadow(color: .cyan.opacity(0.45), radius: 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .animation(.easeInOut(duration: 0.25), value: observer.currentLine)
+
+                        // Zeile danach (Next Line)
+                        if !observer.nextLine.isEmpty {
+                            Text(observer.nextLine)
+                                .font(.system(size: 20, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.45))
+                                .transition(.opacity)
+                                .animation(.easeInOut(duration: 0.25), value: observer.nextLine)
+                        }
                     }
                 }
             }
@@ -892,7 +848,7 @@ struct GForceCard: View {
     var body: some View {
         GlassCard {
             VStack(spacing: 16) {
-                Label("G-Kräfte Telemetrie", systemImage: "gyroscope")
+                Text("G-Kräfte Telemetrie")
                     .font(.headline).foregroundStyle(.cyan)
 
                 GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG, maxG: motion.maxG)

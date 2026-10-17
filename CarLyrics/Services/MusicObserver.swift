@@ -27,6 +27,7 @@ public final class MusicObserver: ObservableObject {
     @Published public var currentArtist     : String       = ""
     @Published public var currentAlbum      : String       = ""
     @Published public var isPlaying         : Bool         = false
+    @Published public var previousLine      : String       = ""
     @Published public var currentLine       : String       = ""
     @Published public var nextLine          : String       = ""
     @Published public var lyricsStatus      : LyricsStatus = .idle
@@ -167,6 +168,7 @@ public final class MusicObserver: ObservableObject {
         duration          = dur
         isPlaying         = systemPlayer.playbackState == .playing
         lyrics            = nil
+        previousLine      = ""
         currentLine       = ""
         nextLine          = ""
 
@@ -211,6 +213,7 @@ public final class MusicObserver: ObservableObject {
         stopLineTimer()
         currentTrackTitle = ""
         currentArtist     = ""
+        previousLine      = ""
         currentLine       = ""
         nextLine          = ""
         isPlaying         = false
@@ -283,13 +286,15 @@ public final class MusicObserver: ObservableObject {
 
         if let lyrics = lyrics {
             if let idx = lyrics.activeIndex(at: time) {
+                let newPrev    = idx > 0 ? lyrics.lines[idx - 1].text : ""
                 let newCurrent = lyrics.lines[idx].text
                 let newNext    = idx + 1 < lyrics.lines.count ? lyrics.lines[idx + 1].text : ""
 
-                let lineChanged = (newCurrent != currentLine || newNext != nextLine)
+                let lineChanged = (newCurrent != currentLine || newNext != nextLine || newPrev != previousLine)
                 if lineChanged {
-                    currentLine = newCurrent
-                    nextLine    = newNext
+                    previousLine = newPrev
+                    currentLine  = newCurrent
+                    nextLine     = newNext
                     // Bei Zeilenwechsel sofort die Dynamic Island aktualisieren!
                     pushActivityUpdate(force: true)
                 }
