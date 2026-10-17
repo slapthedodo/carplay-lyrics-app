@@ -227,6 +227,7 @@
 		97C1B00A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackgroundKeepAliveManager.swift; path = Services/BackgroundKeepAliveManager.swift; sourceTree = "<group>"; };
 		97C1B00B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifyManager.swift;           path = Services/SpotifyManager.swift;     sourceTree = "<group>"; };
 		97C1B00C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDManager.swift;               path = Services/OBDManager.swift;         sourceTree = "<group>"; };
+		97C1B00D2A000001 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets;             path = Assets.xcassets;                  sourceTree = "<group>"; };
 
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift;   path = CarLyricsWidgetBundle.swift;      sourceTree = "<group>"; };
@@ -271,7 +272,9 @@
 		97C1E0032A000001 = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+				97C1E0202A000001, /* Assets.xcassets in Resources */
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 
@@ -336,6 +339,7 @@
 		97C1E01D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00A2A000001; };
 		97C1E01E2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00B2A000001; };
 		97C1E01F2A000001 = { isa = PBXBuildFile; fileRef = 97C1B00C2A000001; };
+		97C1E0202A000001 = { isa = PBXBuildFile; fileRef = 97C1B00D2A000001; };
 
 /* ─────────────────────── Groups ─────────────────────── */
 
@@ -361,6 +365,7 @@
 			children = (
 				97C1B0012A000001,
 				97C1B0072A000001,
+				97C1B00D2A000001, /* Assets.xcassets */
 				97C1F0022A000001, /* Models */
 				97C1F0032A000001, /* Services */
 				97C1F0042A000001, /* Views */

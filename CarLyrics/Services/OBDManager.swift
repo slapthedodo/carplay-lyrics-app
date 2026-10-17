@@ -161,52 +161,55 @@ public final class OBDManager: NSObject, ObservableObject {
                        .trimmingCharacters(in: .whitespaces)
 
         log("RX: \(clean)")
+        let compact = clean.replacingOccurrences(of: " ", with: "").uppercased()
 
-        // Check auf Standard-Antworten
-        if clean.contains("41 5C") {
-            // Öltemperatur: 41 5C XX -> Wert = XX (hex) - 40
-            if let temp = parseSingleBytePID(clean, prefix: "41 5C") {
-                liveOilTemp = temp - 40
-                hasOilTempPID = true
+        // 1. Öltemperatur (PID 01 5C -> Antwort 415C XX)
+        if let range = compact.range(of: "415C") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveOilTemp = Int(val) - 40
+                    hasOilTempPID = true
+                }
             }
-        } else if clean.contains("41 05") {
-            // Kühlmitteltemperatur: 41 05 XX -> Wert = XX - 40
-            if let temp = parseSingleBytePID(clean, prefix: "41 05") {
-                liveCoolantTemp = temp - 40
+        }
+        // 2. Kühlmitteltemperatur (PID 01 05 -> Antwort 4105 XX)
+        if let range = compact.range(of: "4105") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveCoolantTemp = Int(val) - 40
+                }
             }
-        } else if clean.contains("41 0C") {
-            // RPM: 41 0C AA BB -> ((AA*256)+BB)/4
-            if let rpm = parseTwoBytePID(clean, prefix: "41 0C") {
-                liveRPM = rpm / 4
+        }
+        // 3. Drehzahl RPM (PID 01 0C -> Antwort 410C AA BB)
+        if let range = compact.range(of: "410C") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 4 {
+                let b1Str = String(after.prefix(2))
+                let b2Str = String(after.dropFirst(2).prefix(2))
+                if let b1 = UInt8(b1Str, radix: 16), let b2 = UInt8(b2Str, radix: 16) {
+                    liveRPM = ((Int(b1) * 256) + Int(b2)) / 4
+                }
             }
-        } else if clean.contains("41 0D") {
-            // Speed: 41 0D XX -> XX km/h
-            if let speed = parseSingleBytePID(clean, prefix: "41 0D") {
-                liveSpeed = speed
+        }
+        // 4. Geschwindigkeit Speed (PID 01 0D -> Antwort 410D XX)
+        if let range = compact.range(of: "410D") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2 {
+                let hexByte = String(after.prefix(2))
+                if let val = UInt8(hexByte, radix: 16) {
+                    liveSpeed = Int(val)
+                }
             }
-        } else if clean.contains("NO DATA") && clean.contains("5C") {
-            // VW 2.0 TFSI Besonderheit: Generisches OBD-II unterstützt oft kein 01 5C
+        }
+        // 5. VW 2.0 TFSI Besonderheit Check
+        if compact.contains("NODATA") && compact.contains("5C") {
             hasOilTempPID = false
             log("⚠ VW meldet 'NO DATA' für Öltemperatur (PID 01 5C). Fallback aktiv!")
         }
-    }
-
-    private func parseSingleBytePID(_ text: String, prefix: String) -> Int? {
-        guard let range = text.range(of: prefix) else { return nil }
-        let after = text[range.upperBound...].trimmingCharacters(in: .whitespaces)
-        let parts = after.components(separatedBy: " ")
-        guard let first = parts.first, let val = UInt8(first, radix: 16) else { return nil }
-        return Int(val)
-    }
-
-    private func parseTwoBytePID(_ text: String, prefix: String) -> Int? {
-        guard let range = text.range(of: prefix) else { return nil }
-        let after = text[range.upperBound...].trimmingCharacters(in: .whitespaces)
-        let parts = after.components(separatedBy: " ")
-        guard parts.count >= 2,
-              let b1 = UInt8(parts[0], radix: 16),
-              let b2 = UInt8(parts[1], radix: 16) else { return nil }
-        return (Int(b1) * 256) + Int(b2)
     }
 }
 
@@ -338,9 +341,10 @@ extension OBDManager: CBPeripheralDelegate {
         }
 
         receiveBuffer.append(str)
-        if receiveBuffer.contains(">") || receiveBuffer.contains("\r") {
-            parseResponse(receiveBuffer)
+        if receiveBuffer.contains(">") {
+            let fullMsg = receiveBuffer
             receiveBuffer = ""
+            parseResponse(fullMsg)
         }
     }
 }

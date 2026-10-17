@@ -60,6 +60,7 @@ public actor LyricsService {
 
     private let session: URLSession
     private var cache: [String: ParsedLyrics] = [:]
+    private var failedTracks: Set<String> = []
 
     private init() {
         let config = URLSessionConfiguration.default
@@ -78,8 +79,9 @@ public actor LyricsService {
                             artist: String,
                             album: String = "",
                             duration: TimeInterval? = nil) async throws -> ParsedLyrics {
-        let cacheKey = "\(artist)|\(title)"
+        let cacheKey = "\(artist)|\(title)".lowercased().trimmingCharacters(in: .whitespaces)
         if let cached = cache[cacheKey] { return cached }
+        if failedTracks.contains(cacheKey) { throw LyricsServiceError.noSyncedLyrics }
 
         // 1. Precise lookup
         if let result = try? await fetchExact(title: title,
@@ -91,9 +93,14 @@ public actor LyricsService {
         }
 
         // 2. Fuzzy search fallback
-        let result = try await fetchSearch(title: title, artist: artist)
-        cache[cacheKey] = result
-        return result
+        do {
+            let result = try await fetchSearch(title: title, artist: artist)
+            cache[cacheKey] = result
+            return result
+        } catch {
+            failedTracks.insert(cacheKey)
+            throw error
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

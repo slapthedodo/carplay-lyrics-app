@@ -655,6 +655,9 @@ struct SpotifySetupSheet: View {
     @ObservedObject var spotify: SpotifyManager
     @Environment(\.dismiss) private var dismiss
     @State private var token = ""
+    @State private var clientId = ""
+    @State private var clientSecret = ""
+    @State private var refreshToken = ""
 
     var body: some View {
         NavigationStack {
@@ -667,16 +670,16 @@ struct SpotifySetupSheet: View {
                             .foregroundStyle(spotify.isAuthenticated ? .green : .red)
                     }
                     if let err = spotify.lastSyncError {
-                        Text("Fehler: \(err)").font(.caption).foregroundStyle(.red)
+                        Text("Status: \(err)").font(.caption).foregroundStyle(.orange)
                     }
                 }
 
-                Section("OAuth Token") {
-                    Text("Du kannst einen Spotify Access Token von https://developer.spotify.com/dashboard oder deinem Token-Generator einfügen:")
+                Section("Schnellstart: Access Token") {
+                    Text("Einmaliger 1-Stunden Token von developer.spotify.com:")
                         .font(.caption).foregroundStyle(.secondary)
 
                     TextField("Bearer Token", text: $token)
-                        .font(.caption)
+                        .font(.system(.caption, design: .monospaced))
 
                     Button("Speichern & Starten") {
                         spotify.accessToken = token
@@ -685,8 +688,40 @@ struct SpotifySetupSheet: View {
                     }
                     .disabled(token.isEmpty)
                 }
+
+                Section("Dauerbetrieb (Auto-Refresh)") {
+                    Text("Optional: Mit Client ID und Refresh Token erneuert die App den Token während der Fahrt vollautomatisch:")
+                        .font(.caption).foregroundStyle(.secondary)
+
+                    TextField("Client ID", text: $clientId)
+                        .font(.caption)
+                    SecureField("Client Secret", text: $clientSecret)
+                        .font(.caption)
+                    TextField("Refresh Token", text: $refreshToken)
+                        .font(.caption)
+
+                    Button("Dauerhafte Verbindung speichern") {
+                        if !clientId.isEmpty { spotify.clientId = clientId }
+                        if !clientSecret.isEmpty { spotify.clientSecret = clientSecret }
+                        if !refreshToken.isEmpty {
+                            spotify.refreshToken = refreshToken
+                            Task {
+                                await spotify.refreshAccessToken()
+                                spotify.startPolling()
+                                dismiss()
+                            }
+                        }
+                    }
+                    .disabled(clientId.isEmpty || refreshToken.isEmpty)
+                }
             }
             .navigationTitle("Spotify Connect")
+            .onAppear {
+                token = spotify.accessToken
+                clientId = spotify.clientId
+                clientSecret = spotify.clientSecret
+                refreshToken = spotify.refreshToken
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fertig") { dismiss() }

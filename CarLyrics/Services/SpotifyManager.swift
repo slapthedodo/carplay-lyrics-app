@@ -46,13 +46,23 @@ public final class SpotifyManager: ObservableObject {
         }
     }
 
+    @Published public var refreshToken    : String = "" {
+        didSet { UserDefaults.standard.set(refreshToken, forKey: "spotify_refresh_token") }
+    }
+    @Published public var clientId        : String = "" {
+        didSet { UserDefaults.standard.set(clientId, forKey: "spotify_client_id") }
+    }
+    @Published public var clientSecret    : String = "" {
+        didSet { UserDefaults.standard.set(clientSecret, forKey: "spotify_client_secret") }
+    }
+
     @Published public var trackTitle      : String = ""
     @Published public var artistName      : String = ""
     @Published public var albumName       : String = ""
     @Published public var durationSeconds : TimeInterval = 0
     @Published public var isPlaying       : Bool = false
 
-    /// Einstellbare CarPlay Audio-Verzögerung in Sekunden (Standard: 2.7s für Wireless CarPlay)
+    /// Einstellbare CarPlay Audio-Verzögerung in Sekunden (Standard: 2.5s für Wireless CarPlay)
     /// Wenn das Auto den Ton 2-3s später wiedergibt als Spotify ihn streamt,
     /// zieht dieser Offset die Zeit ab, sodass Text und Lautsprecher exakt synchron sind!
     @Published public var carPlayDelayCompensation : Double = 2.5 {
@@ -81,6 +91,15 @@ public final class SpotifyManager: ObservableObject {
             self.accessToken = savedToken
             self.isAuthenticated = !savedToken.isEmpty
         }
+        if let savedRefresh = UserDefaults.standard.string(forKey: "spotify_refresh_token") {
+            self.refreshToken = savedRefresh
+        }
+        if let savedClient = UserDefaults.standard.string(forKey: "spotify_client_id") {
+            self.clientId = savedClient
+        }
+        if let savedSecret = UserDefaults.standard.string(forKey: "spotify_client_secret") {
+            self.clientSecret = savedSecret
+        }
         let savedDelay = UserDefaults.standard.double(forKey: "carplay_audio_delay")
         if savedDelay > 0 {
             self.carPlayDelayCompensation = savedDelay
@@ -106,6 +125,47 @@ public final class SpotifyManager: ObservableObject {
     public func stopPolling() {
         pollTimer?.invalidate()
         pollTimer = nil
+    }
+
+    /// Tauscht das gespeicherte Refresh-Token automatisch gegen ein neues 1-Stunden-AccessToken ein
+    public func refreshAccessToken() async {
+        guard !refreshToken.isEmpty, !clientId.isEmpty else { return }
+
+        guard let url = URL(string: "https://accounts.spotify.com/api/token") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        var bodyComponents = URLComponents()
+        bodyComponents.queryItems = [
+            URLQueryItem(name: "grant_type", value: "refresh_token"),
+            URLQueryItem(name: "refresh_token", value: refreshToken),
+            URLQueryItem(name: "client_id", value: clientId)
+        ]
+        if !clientSecret.isEmpty {
+            let authStr = "\(clientId):\(clientSecret)"
+            if let authData = authStr.data(using: .utf8) {
+                req.setValue("Basic \(authData.base64EncodedString())", forHTTPHeaderField: "Authorization")
+            }
+        }
+
+        req.httpBody = bodyComponents.query?.data(using: .utf8)
+
+        do {
+            let (data, _) = try await session.data(for: req)
+            struct TokenResponse: Decodable {
+                let access_token: String
+                let refresh_token: String?
+            }
+            let resp = try JSONDecoder().decode(TokenResponse.self, from: data)
+            self.accessToken = resp.access_token
+            if let newRefresh = resp.refresh_token {
+                self.refreshToken = newRefresh
+            }
+            self.lastSyncError = nil
+        } catch {
+            self.lastSyncError = "Token Refresh fehlgeschlagen: \(error.localizedDescription)"
+        }
     }
 
     /// Berechnet die präzise aktuelle Wiedergabezeit unter Berücksichtigung
@@ -136,13 +196,18 @@ public final class SpotifyManager: ObservableObject {
                 let (data, response) = try await session.data(for: request)
                 if let httpResp = response as? HTTPURLResponse {
                     if httpResp.statusCode == 204 {
-                        // Nichts wird abgespielt
                         self.isPlaying = false
                         return
                     }
                     if httpResp.statusCode == 401 {
-                        self.lastSyncError = "Token abgelaufen"
-                        return
+                        // Automatischer Refresh wenn Refresh-Token vorhanden
+                        if !self.refreshToken.isEmpty {
+                            await self.refreshAccessToken()
+                            return
+                        } else {
+                            self.lastSyncError = "Token abgelaufen (Bitte erneuern)"
+                            return
+                        }
                     }
                 }
 
