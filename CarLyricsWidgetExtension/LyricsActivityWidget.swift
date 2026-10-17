@@ -246,24 +246,24 @@ struct MiniGBallWidgetView: View {
         ZStack {
             Circle()
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                .frame(width: 38, height: 38)
+                .frame(width: 34, height: 34)
             Circle()
                 .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-                .frame(width: 20, height: 20)
+                .frame(width: 18, height: 18)
 
-            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 38, height: 0.8)
-            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.8, height: 38)
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 34, height: 0.8)
+            Rectangle().fill(Color.white.opacity(0.15)).frame(width: 0.8, height: 34)
 
             Circle()
                 .fill(gColor(currentG))
-                .frame(width: 6, height: 6)
+                .frame(width: 5.5, height: 5.5)
                 .shadow(color: gColor(currentG).opacity(0.8), radius: 2)
                 .offset(
-                    x: CGFloat(min(max(x, -1.0), 1.0)) * 14,
-                    y: CGFloat(min(max(-y, -1.0), 1.0)) * 14
+                    x: CGFloat(min(max(x, -1.0), 1.0)) * 12,
+                    y: CGFloat(min(max(-y, -1.0), 1.0)) * 12
                 )
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 36, height: 36)
     }
 }
 
@@ -278,29 +278,101 @@ struct BoostGaugeBadge: View {
 
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.12), lineWidth: 3)
+                .stroke(Color.white.opacity(0.12), lineWidth: 2.5)
             Circle()
                 .trim(from: 0, to: boost != nil ? frac : 0)
                 .stroke(val > 0.8 ? Color.orange : (val > 0.1 ? Color.green : Color.cyan),
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.3), value: frac)
             VStack(spacing: -1) {
-                Text("BOOST")
+                Text("BAR")
                     .font(.system(size: 7, weight: .black, design: .rounded))
                     .foregroundStyle(boost != nil ? Color.cyan : .secondary)
                 if let boost {
                     Text(String(format: "%.1f", boost))
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundStyle(val > 0.8 ? Color.orange : (val > 0.1 ? Color.green : Color.cyan))
                 } else {
                     Text("--")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 36, height: 36)
+    }
+}
+
+// ── Runde Ansaugluft (IAT) Anzeige ──
+struct IATGaugeBadge: View {
+    let iat: Int?
+
+    var body: some View {
+        let val = Double(iat ?? 20)
+        let frac = min(max((val - 10.0) / 60.0, 0.0), 1.0)
+        let iatColor = val > 50 ? Color.orange : Color.cyan
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: 2.5)
+            Circle()
+                .trim(from: 0, to: iat != nil ? frac : 0)
+                .stroke(iatColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.5), value: frac)
+            VStack(spacing: -1) {
+                Text("IAT")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .foregroundStyle(iat != nil ? iatColor : .secondary)
+                if let iat {
+                    Text("\(iat)°")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(iatColor)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 36, height: 36)
+    }
+}
+
+// ── Runde Luftmasse (MAF) Anzeige ──
+struct MAFGaugeBadge: View {
+    let maf: Double?
+
+    var body: some View {
+        let val = maf ?? 0.0
+        let frac = min(max(val / 220.0, 0.0), 1.0)
+        let mafColor = val > 150 ? Color.purple : (val > 60 ? Color.white : Color.secondary)
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: 2.5)
+            Circle()
+                .trim(from: 0, to: maf != nil ? frac : 0)
+                .stroke(mafColor, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.3), value: frac)
+            VStack(spacing: -1) {
+                Text("MAF")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .foregroundStyle(maf != nil ? Color.white : .secondary)
+                if let maf {
+                    Text(String(format: "%.0f", maf))
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.white)
+                } else {
+                    Text("--")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 36, height: 36)
     }
 }
 
@@ -313,29 +385,29 @@ struct OilTempBadge: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.white.opacity(0.12), lineWidth: 3)
+                .stroke(Color.white.opacity(0.12), lineWidth: 2.5)
             Circle()
                 .trim(from: 0, to: temp != nil ? progress : 0)
                 .stroke(temp != nil ? phaseColor(phase) : Color.secondary.opacity(0.3),
-                        style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(.linear(duration: 0.5), value: progress)
             VStack(spacing: -1) {
                 Text("ÖL")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .font(.system(size: 7, weight: .black, design: .rounded))
                     .foregroundStyle(temp != nil ? phaseColor(phase) : .secondary)
                 if let temp {
                     Text("\(temp)°")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundStyle(phaseColor(phase))
                 } else {
                     Text("--")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
             }
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 36, height: 36)
     }
 }
 
@@ -343,49 +415,35 @@ struct TelemetryBar: View {
     let state: LyricsAttributes.ContentState
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
 
-            // 1. Rundinstrument: Öltemperatur
+            // 4 Rundinstrumente nebeneinander: ÖL, BOOST, IAT, MAF
             OilTempBadge(
                 temp     : state.oilTemp,
                 progress : state.oilTemp != nil ? state.warmupProgress : 0,
                 phase    : state.oilTemp != nil ? state.warmupPhase : .cold
             )
 
-            // 2. Rundinstrument: Ladedruck (relative bar)
             BoostGaugeBadge(boost: state.boostBar)
 
-            // 3. Rundinstrument: G-Ball Fadenkreuz
-            MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
+            IATGaugeBadge(iat: state.iatTemp)
+
+            MAFGaugeBadge(maf: state.mafVal)
 
             Spacer()
 
-            // 4. Echtzeit Telemetrie: Ansaugluft (IAT), Luftmasse (MAF), G-Force
-            VStack(alignment: .trailing, spacing: 1) {
-                if let iat = state.iatTemp {
-                    Text("IAT \(iat)°C")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.cyan)
-                } else if let water = state.coolantTemp {
-                    Text("H2O \(water)°")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-
-                if let maf = state.mafVal {
-                    Text(String(format: "MAF %.0fg/s", maf))
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.white)
-                }
-
-                HStack(spacing: 3) {
+            // G-Kräfte oben rechts: Live & Peak G + 2D G-Ball Fadenkreuz
+            HStack(spacing: 5) {
+                VStack(alignment: .trailing, spacing: 0) {
                     Text(String(format: "%.2fG", state.currentG))
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
                         .foregroundStyle(gColor(state.currentG))
                     Text("PK \(String(format: "%.1f", state.peakG))")
-                        .font(.system(size: 8, design: .monospaced))
+                        .font(.system(size: 8, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
+
+                MiniGBallWidgetView(x: state.gVectorX, y: state.gVectorY, currentG: state.currentG)
             }
         }
     }
