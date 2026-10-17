@@ -482,7 +482,7 @@ public final class MusicObserver: ObservableObject {
                     isEngineWarm = false
                 }
                 effectiveBoost = obd.liveBoostBar ?? 0.0
-                effectiveCoolant = obd.liveCoolantTemp ?? (wm?.oilTempInt.map { max(20, $0 + 10) } ?? 30)
+                effectiveCoolant = obd.liveCoolantTemp ?? max(20, (wm?.oilTempInt ?? 20) + 10)
                 effectiveIAT = obd.liveIAT ?? 20
                 effectiveMAF = obd.liveMAF ?? 3.5
             } else {
