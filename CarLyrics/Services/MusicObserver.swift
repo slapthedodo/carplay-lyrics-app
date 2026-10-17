@@ -54,6 +54,15 @@ public final class MusicObserver: ObservableObject {
     private let systemPlayer = MPMusicPlayerController.systemMusicPlayer
     private var lyrics       : ParsedLyrics?
     private var duration     : TimeInterval = 0
+    public private(set) var currentPlaybackTime: TimeInterval = 0
+
+    public static func formatTime(_ t: TimeInterval) -> String {
+        guard t > 0, !t.isNaN, !t.isInfinite else { return "0:00" }
+        let s = Int(t)
+        let m = s / 60
+        let remS = s % 60
+        return String(format: "%d:%02d", m, remS)
+    }
     private var lineTimer        : Timer?
     private var telemetryTimer   : Timer?
     private var cancellables     : Set<AnyCancellable> = []
@@ -216,12 +225,17 @@ public final class MusicObserver: ObservableObject {
 
     private func handleNoTrack() {
         stopLineTimer()
-        currentTrackTitle = ""
-        currentArtist     = ""
-        previousLine      = ""
-        currentLine       = ""
-        nextLine          = ""
-        isPlaying         = false
+        currentTrackTitle   = ""
+        currentArtist       = ""
+        previousLine3       = ""
+        previousLine2       = ""
+        previousLine        = ""
+        currentLine         = ""
+        nextLine            = ""
+        nextLine2           = ""
+        nextLine3           = ""
+        currentPlaybackTime = 0
+        isPlaying           = false
         pushActivityUpdate(force: false)
     }
 
@@ -287,6 +301,7 @@ public final class MusicObserver: ObservableObject {
             time = max(0, systemPlayer.currentPlaybackTime - spotify.carPlayDelayCompensation)
         }
 
+        currentPlaybackTime = time
         if duration > 0 { progress = min(time / duration, 1.0) }
 
         if let lyrics = lyrics {
@@ -553,14 +568,27 @@ public final class MusicObserver: ObservableObject {
         let cleanArtist = currentArtist.isEmpty ? "Motor-Monitor" : currentArtist
         let cleanLyric = currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine
 
+        let curStr = Self.formatTime(currentPlaybackTime)
+        let totStr = duration > 0 ? Self.formatTime(duration) : (currentPlaybackTime > 0 ? Self.formatTime(currentPlaybackTime + 180) : "3:45")
+
         def.set(cleanTitle, forKey: "widget_song_title")
         groupDefaults?.set(cleanTitle, forKey: "widget_song_title")
         def.set(cleanArtist, forKey: "widget_artist")
         groupDefaults?.set(cleanArtist, forKey: "widget_artist")
+        def.set(previousLine2, forKey: "widget_prev_line2")
+        groupDefaults?.set(previousLine2, forKey: "widget_prev_line2")
+        def.set(previousLine, forKey: "widget_prev_line")
+        groupDefaults?.set(previousLine, forKey: "widget_prev_line")
         def.set(cleanLyric, forKey: "widget_current_line")
         groupDefaults?.set(cleanLyric, forKey: "widget_current_line")
         def.set(nextLine, forKey: "widget_next_line")
         groupDefaults?.set(nextLine, forKey: "widget_next_line")
+        def.set(nextLine2, forKey: "widget_next_line2")
+        groupDefaults?.set(nextLine2, forKey: "widget_next_line2")
+        def.set(curStr, forKey: "widget_cur_time_str")
+        groupDefaults?.set(curStr, forKey: "widget_cur_time_str")
+        def.set(totStr, forKey: "widget_tot_time_str")
+        groupDefaults?.set(totStr, forKey: "widget_tot_time_str")
         def.set(progress, forKey: "widget_song_progress")
         groupDefaults?.set(progress, forKey: "widget_song_progress")
         def.set(phaseVal.rawValue, forKey: "widget_warmup_phase")

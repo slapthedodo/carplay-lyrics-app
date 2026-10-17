@@ -249,6 +249,45 @@ struct MAFGaugeBadge: View {
     }
 }
 
+// ── Runde Kühlwasser Anzeige (mit Wassertropfen Symbol & Himmelsblauem Ring) ──
+struct CoolantGaugeBadge: View {
+    let temp : Int?
+    var size : CGFloat = 36
+
+    var body: some View {
+        let val = Double(temp ?? 90)
+        let frac = min(max((val - 40.0) / 80.0, 0.0), 1.0)
+        let skyBlue = Color(red: 0.22, green: 0.74, blue: 0.97)
+        let strokeW: CGFloat = size > 50 ? 4.0 : 2.5
+
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.12), lineWidth: strokeW)
+            Circle()
+                .trim(from: 0, to: temp != nil ? frac : 0)
+                .stroke(temp != nil ? skyBlue : Color.secondary.opacity(0.3),
+                        style: StrokeStyle(lineWidth: strokeW, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.5), value: frac)
+            VStack(spacing: size > 50 ? 1 : -2) {
+                Image(systemName: "drop.fill")
+                    .font(.system(size: size > 50 ? 12 : 8, weight: .bold))
+                    .foregroundStyle(temp != nil ? skyBlue : .secondary)
+                if let temp {
+                    Text("\(temp)°")
+                        .font(.system(size: size > 50 ? 15 : 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(skyBlue)
+                } else {
+                    Text("--")
+                        .font(.system(size: size > 50 ? 15 : 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // ── Warmup Status Balken ──
 struct WarmupStatusBar: View {
     let state: LyricsAttributes.ContentState
@@ -573,8 +612,13 @@ struct TelemetryEntry: TimelineEntry {
     let warmupProgress : Double
     let songTitle      : String
     let artist         : String
+    let previousLine2  : String
+    let previousLine   : String
     let currentLine    : String
     let nextLine       : String
+    let nextLine2      : String
+    let currentTimeStr : String
+    let totalTimeStr   : String
     let progress       : Double
 }
 
@@ -584,17 +628,22 @@ struct TelemetryTimelineProvider: TimelineProvider {
             date           : Date(),
             oilTemp        : 85,
             coolantTemp    : 90,
-            boostBar       : 1.15,
-            currentG       : 0.35,
-            peakG          : 0.95,
+            boostBar       : 1.20,
+            currentG       : 0.90,
+            peakG          : 1.25,
             iat            : 24,
             maf            : 142.0,
             phase          : .ready,
             warmupProgress : 1.0,
             songTitle      : "Bohemian Rhapsody",
             artist         : "Queen",
+            previousLine2  : "Mama, life had just begun...",
+            previousLine   : "Too late, my time has come...",
             currentLine    : "Is this the real life? Is this just fantasy?",
-            nextLine       : "Caught in a landslide, no escape from reality",
+            nextLine       : "Caught in a landslide, no escape from reality...",
+            nextLine2      : "Open your eyes, look up to the skies and see...",
+            currentTimeStr : "1:12",
+            totalTimeStr   : "5:55",
             progress       : 0.35
         )
     }
@@ -611,16 +660,16 @@ struct TelemetryTimelineProvider: TimelineProvider {
         let displayTemp: Int = (tempObj as? Int) ?? 85
 
         let boostObj = appGroup?.object(forKey: "widget_boost_bar") ?? def.object(forKey: "widget_boost_bar")
-        let displayBoost: Double = (boostObj as? Double) ?? 0.0
+        let displayBoost: Double = (boostObj as? Double) ?? 1.20
 
         let waterObj = appGroup?.object(forKey: "widget_coolant_temp") ?? def.object(forKey: "widget_coolant_temp")
         let displayWater: Int = (waterObj as? Int) ?? (displayTemp >= 70 ? 90 : max(20, displayTemp + 10))
 
         let gObj = appGroup?.object(forKey: "widget_current_g") ?? def.object(forKey: "widget_current_g")
-        let displayG: Double = (gObj as? Double) ?? 0.28
+        let displayG: Double = (gObj as? Double) ?? 0.90
 
         let peakGObj = appGroup?.object(forKey: "widget_peak_g") ?? def.object(forKey: "widget_peak_g")
-        let displayPeakG: Double = (peakGObj as? Double) ?? 0.85
+        let displayPeakG: Double = (peakGObj as? Double) ?? 1.25
 
         let iatObj = appGroup?.object(forKey: "widget_iat") ?? def.object(forKey: "widget_iat")
         let displayIAT: Int = (iatObj as? Int) ?? 24
@@ -630,8 +679,13 @@ struct TelemetryTimelineProvider: TimelineProvider {
 
         let songTitle = (appGroup?.string(forKey: "widget_song_title") ?? def.string(forKey: "widget_song_title")) ?? "Bohemian Rhapsody"
         let artist = (appGroup?.string(forKey: "widget_artist") ?? def.string(forKey: "widget_artist")) ?? "Queen"
+        let prevLine2 = (appGroup?.string(forKey: "widget_prev_line2") ?? def.string(forKey: "widget_prev_line2")) ?? "Mama, life had just begun..."
+        let prevLine = (appGroup?.string(forKey: "widget_prev_line") ?? def.string(forKey: "widget_prev_line")) ?? "Too late, my time has come..."
         let currentLine = (appGroup?.string(forKey: "widget_current_line") ?? def.string(forKey: "widget_current_line")) ?? "Is this the real life? Is this just fantasy?"
-        let nextLine = (appGroup?.string(forKey: "widget_next_line") ?? def.string(forKey: "widget_next_line")) ?? "Caught in a landslide, no escape from reality"
+        let nextLine = (appGroup?.string(forKey: "widget_next_line") ?? def.string(forKey: "widget_next_line")) ?? "Caught in a landslide, no escape from reality..."
+        let nextLine2 = (appGroup?.string(forKey: "widget_next_line2") ?? def.string(forKey: "widget_next_line2")) ?? "Open your eyes, look up to the skies and see..."
+        let curTimeStr = (appGroup?.string(forKey: "widget_cur_time_str") ?? def.string(forKey: "widget_cur_time_str")) ?? "1:12"
+        let totTimeStr = (appGroup?.string(forKey: "widget_tot_time_str") ?? def.string(forKey: "widget_tot_time_str")) ?? "5:55"
         let progress = (appGroup?.double(forKey: "widget_song_progress") ?? def.double(forKey: "widget_song_progress"))
 
         let phase: WarmupPhase = displayTemp < 60 ? .cold : (displayTemp < 80 ? .warming : .ready)
@@ -650,8 +704,13 @@ struct TelemetryTimelineProvider: TimelineProvider {
             warmupProgress : warmupProgress,
             songTitle      : songTitle,
             artist         : artist,
+            previousLine2  : prevLine2,
+            previousLine   : prevLine,
             currentLine    : currentLine,
             nextLine       : nextLine,
+            nextLine2      : nextLine2,
+            currentTimeStr : curTimeStr,
+            totalTimeStr   : totTimeStr,
             progress       : progress > 0 ? progress : 0.35
         )
 
@@ -987,34 +1046,85 @@ struct BoostPerformanceWidgetEntryView: View {
         case .systemSmall:
             ZStack {
                 Color.black
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
+                    // Header
                     HStack {
-                        Label("TURBO", systemImage: "gauge.with.needle")
-                            .font(.system(size: 9.5, weight: .black))
+                        Text("KACHEL 2: TURBO & AIR")
+                            .font(.system(size: 8, weight: .bold))
                             .foregroundStyle(.cyan)
                         Spacer()
-                        Text("TFSI 2.0")
-                            .font(.system(size: 8.5, weight: .bold))
-                            .foregroundStyle(.secondary)
+                        Text("EA113 TFSI")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan.opacity(0.8))
                     }
 
-                    Spacer()
+                    Spacer(minLength: 1)
 
-                    BoostGaugeBadge(boost: entry.boostBar, maxBoost: 1.6, size: 62)
+                    // 1. Oben: Großer Ladedruck & der horizontale Balken
+                    VStack(spacing: 1.5) {
+                        HStack(alignment: .firstTextBaseline, spacing: 3) {
+                            Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "0.00")
+                                .font(.system(size: 22, weight: .black, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                            Text("BAR")
+                                .font(.system(size: 9.5, weight: .black, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                        }
 
-                    Spacer()
-
-                    HStack {
-                        Text("IAT: \(entry.iat ?? 24)°C")
-                            .font(.system(size: 9))
+                        Text("LADEDRUCK RELATIV")
+                            .font(.system(size: 6.5, weight: .bold))
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("MAF: \(String(format: "%.0f", entry.maf ?? 142))")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(.white)
+
+                        // Horizontaler Ladedruck-Balken bis 1.6 Bar
+                        GeometryReader { geo in
+                            let boostVal = entry.boostBar ?? 0.0
+                            let ratio = min(max(boostVal / 1.6, 0.0), 1.0)
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 5.5)
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [.cyan, Color(red: 0.22, green: 0.74, blue: 0.97), .blue],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(5.5, geo.size.width * ratio), height: 5.5)
+                            }
+                        }
+                        .frame(height: 5.5)
+
+                        HStack {
+                            Text("0.0").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                            Spacer()
+                            Text("0.8").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                            Spacer()
+                            Text("1.6 BAR").font(.system(size: 6.5, design: .monospaced)).foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer(minLength: 2)
+
+                    Divider().overlay(Color.white.opacity(0.15))
+
+                    // 2. Unten: Ansaugluft & Luftmasse ALS ECHTE RUNDE KUGELN!
+                    HStack(spacing: 18) {
+                        VStack(spacing: 1.5) {
+                            IATGaugeBadge(iat: entry.iat, size: 44)
+                            Text("ANSAUG")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                        }
+
+                        VStack(spacing: 1.5) {
+                            MAFGaugeBadge(maf: entry.maf, size: 44)
+                            Text("MASSE")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
                     }
                 }
-                .padding(12)
+                .padding(10)
             }
 
         default: // .systemMedium: 3 Rundanzeigen nebeneinander (Boost, IAT, MAF)
@@ -1053,8 +1163,8 @@ public struct BoostPerformanceWidget: Widget {
             BoostPerformanceWidgetEntryView(entry: entry)
                 .containerBackground(.black, for: .widget)
         }
-        .configurationDisplayName("Turbo Ladedruck")
-        .description("Zeigt Ladedruck (bar), Ansauglufttemperatur (IAT) und Luftmasse (MAF).")
+        .configurationDisplayName("Kachel 2: Turbo & Luft")
+        .description("Ladedruckbalken in Bar sowie Rundinstrumente für Ansaugluft (IAT) und Luftmasse (MAF).")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
@@ -1092,32 +1202,106 @@ struct LyricsWidgetEntryView: View {
         case .systemSmall:
             ZStack {
                 Color.black
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "music.note").foregroundStyle(.green)
-                        Text(entry.songTitle)
-                            .font(.system(size: 10, weight: .bold))
+                VStack(spacing: 4) {
+                    // 1. Header: NUR Songtitel & Artist (KEIN 'Mitsing-Modus' Text mehr!)
+                    HStack(spacing: 3.5) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 8.5, weight: .bold))
+                            .foregroundStyle(.green)
+                        Text("\(entry.songTitle) • \(entry.artist)")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                             .lineLimit(1)
+                        Spacer()
                     }
 
-                    Text(entry.artist)
-                        .font(.system(size: 8.5))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    Divider().overlay(Color.white.opacity(0.15))
 
-                    Spacer()
+                    Spacer(minLength: 1)
 
-                    Text(entry.currentLine)
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(3)
+                    // 2. Mitte: Maximal viel Text (5 Zeilen!)
+                    VStack(spacing: 2) {
+                        if !entry.previousLine2.isEmpty {
+                            Text(entry.previousLine2)
+                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .italic()
+                                .lineLimit(1)
+                        }
 
-                    Spacer()
+                        if !entry.previousLine.isEmpty {
+                            Text(entry.previousLine)
+                                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .italic()
+                                .lineLimit(1)
+                        }
 
-                    Capsule().fill(Color.green).frame(height: 3)
+                        Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
+                            .font(.system(size: 11.5, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.white.opacity(0.08))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                    )
+                            )
+
+                        if !entry.nextLine.isEmpty {
+                            Text(entry.nextLine)
+                                .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.65))
+                                .italic()
+                                .lineLimit(1)
+                        }
+
+                        if !entry.nextLine2.isEmpty {
+                            Text(entry.nextLine2)
+                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.35))
+                                .italic()
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer(minLength: 1)
+
+                    Divider().overlay(Color.white.opacity(0.15))
+
+                    // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe!
+                    HStack(spacing: 5) {
+                        Text(entry.currentTimeStr)
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.15)).frame(height: 3.5)
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [.green, .mint],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: max(3.5, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3.5)
+                            }
+                        }
+                        .frame(height: 3.5)
+
+                        Text(entry.totalTimeStr)
+                            .font(.system(size: 8, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .padding(12)
+                .padding(10)
             }
 
         default: // .systemMedium
@@ -1138,27 +1322,46 @@ struct LyricsWidgetEntryView: View {
 
                     Spacer()
 
-                    Text(entry.currentLine)
-                        .font(.system(size: 18, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 3) {
+                        if !entry.previousLine.isEmpty {
+                            Text(entry.previousLine)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .lineLimit(1)
+                        }
 
-                    if !entry.nextLine.isEmpty {
-                        Text(entry.nextLine)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.5))
-                            .lineLimit(1)
+                        Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
+                            .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+
+                        if !entry.nextLine.isEmpty {
+                            Text(entry.nextLine)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.65))
+                                .lineLimit(1)
+                        }
                     }
 
                     Spacer()
 
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
-                            Capsule().fill(Color.green).frame(width: geo.size.width * entry.progress, height: 3)
+                    HStack(spacing: 8) {
+                        Text(entry.currentTimeStr)
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
+                                Capsule().fill(Color.green).frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
+                            }
                         }
+                        .frame(height: 3)
+
+                        Text(entry.totalTimeStr)
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
                     }
-                    .frame(height: 3)
                 }
                 .padding(14)
             }
@@ -1176,8 +1379,8 @@ public struct LyricsWidget: Widget {
             LyricsWidgetEntryView(entry: entry)
                 .containerBackground(.black, for: .widget)
         }
-        .configurationDisplayName("Live Songtext")
-        .description("Zeigt den synchronisierten Live-Songtext von Spotify auf dem Sperr- und Homescreen.")
+        .configurationDisplayName("Kachel 3: Purer Songtext")
+        .description("5 Zeilen synchronisierter Live-Songtext zum Mitsingen mit Zeitanzeige am Fortschrittsbalken.")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,
@@ -1228,91 +1431,104 @@ struct TelemetryWidgetEntryView: View {
         case .systemSmall:
             ZStack {
                 Color.black
-                VStack(spacing: 8) {
+                VStack(spacing: 4) {
+                    // Header
                     HStack {
-                        Label("TFSI 2.0", systemImage: "gauge.with.needle")
-                            .font(.system(size: 10, weight: .black))
-                            .foregroundStyle(.cyan)
+                        Text("KACHEL 1: THERMIK & G")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
                         Spacer()
-                        Text(entry.phase.rawValue)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(phaseColor(entry.phase))
+                        Text("LIVE OBD")
+                            .font(.system(size: 7.5, weight: .bold))
+                            .foregroundStyle(.green)
                     }
 
-                    HStack(spacing: 12) {
-                        OilTempBadge(
-                            temp     : entry.oilTemp,
-                            progress : entry.warmupProgress,
-                            phase    : entry.phase,
-                            size     : 50
-                        )
+                    Spacer(minLength: 2)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "--")
-                                .font(.system(size: 17, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.cyan)
-                            Text("BAR BOOST")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.secondary)
+                    // 1. Oben: Öltemperatur & Kühlwasser nebeneinander (etwas tiefer gesetzt)
+                    HStack(spacing: 18) {
+                        VStack(spacing: 1.5) {
+                            OilTempBadge(
+                                temp     : entry.oilTemp,
+                                progress : entry.warmupProgress,
+                                phase    : entry.phase,
+                                size     : 44
+                            )
+                            Text("ÖL")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(phaseColor(entry.phase))
+                        }
+
+                        VStack(spacing: 1.5) {
+                            CoolantGaugeBadge(
+                                temp : entry.coolantTemp,
+                                size : 44
+                            )
+                            Text("WASSER")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
                         }
                     }
 
-                    HStack {
-                        Text("PEAK \(String(format: "%.1f", entry.peakG))G")
-                            .font(.system(size: 9, design: .monospaced))
+                    Spacer(minLength: 2)
+
+                    // 2. Mitte davon: 20% größeres G-Kraft Instrument mit Fadenkreuz & lila Bogen
+                    VStack(spacing: 1) {
+                        GForceGaugeBadge(
+                            currentG : entry.currentG,
+                            maxG     : 1.2,
+                            size     : 64
+                        )
+                        Text("MOMENTAN")
+                            .font(.system(size: 6.5, weight: .bold))
+                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
+                    }
+
+                    Spacer(minLength: 2)
+
+                    Divider().overlay(Color.white.opacity(0.15))
+
+                    // 3. Unten: Peak-Schrift ZUSAMMEN / ANEINANDER (zentriert)
+                    HStack(spacing: 4) {
+                        Text("PEAK:")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
                             .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("Wasser \(entry.coolantTemp ?? 90)°")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.2f G", entry.peakG))
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
                     }
                 }
-                .padding(12)
+                .padding(10)
             }
 
         default: // .systemMedium
             ZStack {
                 Color.black
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Image(systemName: "engine.combustion.fill").foregroundStyle(.cyan)
-                            Text("2.0 TFSI Cockpit").font(.headline).foregroundStyle(.white)
+                HStack(spacing: 14) {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 12) {
+                            VStack(spacing: 1.5) {
+                                OilTempBadge(temp: entry.oilTemp, progress: entry.warmupProgress, phase: entry.phase, size: 48)
+                                Text("ÖL").font(.system(size: 8, weight: .bold)).foregroundStyle(phaseColor(entry.phase))
+                            }
+                            VStack(spacing: 1.5) {
+                                CoolantGaugeBadge(temp: entry.coolantTemp, size: 48)
+                                Text("WASSER").font(.system(size: 8, weight: .bold)).foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            }
                         }
-                        Text(entry.phase.label)
-                            .font(.system(size: 9))
-                            .foregroundStyle(phaseColor(entry.phase))
-                            .lineLimit(1)
-
-                        HStack(spacing: 14) {
-                            VStack(alignment: .leading) {
-                                Text("ÖLTEMP").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text("\(entry.oilTemp ?? 85) °C")
-                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(phaseColor(entry.phase))
-                            }
-                            VStack(alignment: .leading) {
-                                Text("WASSER").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text("\(entry.coolantTemp ?? 90) °C")
-                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(.white)
-                            }
-                            VStack(alignment: .leading) {
-                                Text("LADEDRUCK").font(.system(size: 8, weight: .bold)).foregroundStyle(.secondary)
-                                Text(entry.boostBar.map { String(format: "%.2f b", $0) } ?? "-- b")
-                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(.cyan)
-                            }
+                        Divider().overlay(Color.white.opacity(0.15))
+                        HStack(spacing: 4) {
+                            Text("PEAK:").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundStyle(.secondary)
+                            Text(String(format: "%.2f G", entry.peakG)).font(.system(size: 11, weight: .black, design: .monospaced)).foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
                         }
                     }
 
                     Spacer()
 
-                    GForceGaugeBadge(
-                        currentG : entry.currentG,
-                        maxG     : 1.2,
-                        size     : 72
-                    )
+                    VStack(spacing: 3) {
+                        GForceGaugeBadge(currentG: entry.currentG, maxG: 1.2, size: 80)
+                        Text("MOMENTAN").font(.system(size: 7.5, weight: .bold)).foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
+                    }
                 }
                 .padding(14)
             }
@@ -1330,8 +1546,8 @@ public struct TelemetryCockpitWidget: Widget {
             TelemetryWidgetEntryView(entry: entry)
                 .containerBackground(.black, for: .widget)
         }
-        .configurationDisplayName("TFSI 2.0 Cockpit")
-        .description("Das Renncockpit mit Öltemperatur, Ladedruck und G-Kräften vereint.")
+        .configurationDisplayName("Kachel 1: Thermik & G-Kraft")
+        .description("Öltemperatur, Kühlwasser, vergrößertes G-Meter und Spitzenwert (Peak).")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,

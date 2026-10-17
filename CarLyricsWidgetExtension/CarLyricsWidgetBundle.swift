@@ -13,11 +13,13 @@ struct CarLyricsWidgetBundle: WidgetBundle {
         // Live Activity & Dynamic Island (für Sperrbildschirm mit allen 5 Kugeln)
         LyricsActivityWidget()
 
-        // Die 5 Kacheln für deine 3 Slots:
-        TelemetryCockpitWidget()    // 1. All-in-One Cockpit (TFSI 2.0 in Türkis + Scheibe + Boost + Peak)
-        OilTempWidget()             // 2. Reine Öltemperatur-Scheibe (Groß, mit Thermometer & Ring)
-        BoostPerformanceWidget()    // 3. Reiner Turbo Ladedruck (BAR BOOST, IAT, MAF)
-        GForceWidget()              // 4. Reines G-Kraft Fadenkreuz (Lila Scope, Live-G & Peak)
-        LyricsWidget()              // 5. Reiner Live-Songtext (Spotify synchronisiert)
+        // ── Die 3 Wunsch-Kacheln für CarPlay & Homescreen ──
+        TelemetryCockpitWidget()    // Kachel 1 (Links):  Thermik (Öl & Wasser) + G-Kraft Scope (20% größer) + Peak
+        BoostPerformanceWidget()    // Kachel 2 (Mitte):  Turbo Ladedruck (Bar-Balken) + Ansaug (IAT) & Masse (MAF) Kugeln
+        LyricsWidget()              // Kachel 3 (Rechts): Live-Songtext 5 Zeilen (Queen / Spotify) + Zeiten am Fortschrittsbalken
+
+        // Optionale Einzelfokus-Widgets:
+        OilTempWidget()             // Reine Öltemperatur-Scheibe
+        GForceWidget()              // Reines G-Kraft Rundinstrument
     }
 }
