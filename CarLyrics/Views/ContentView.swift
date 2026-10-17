@@ -14,30 +14,48 @@ public struct ContentView: View {
     @ObservedObject private var spotify = SpotifyManager.shared
     @ObservedObject private var obd     = OBDManager.shared
 
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var forceCockpitMode = false
     @State private var showMockSheet    = false
     @State private var showSpotifySheet = false
     @State private var showOBDSheet     = false
     @State private var selectedTab      = 0
 
+    private var isCockpitMode: Bool {
+        forceCockpitMode || verticalSizeClass == .compact
+    }
+
     public var body: some View {
         ZStack {
             CockpitBackground()
 
-            TabView(selection: $selectedTab) {
-                NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
-                    .tabItem { Label("Lyrics", systemImage: "music.note") }
-                    .tag(0)
+            if isCockpitMode {
+                SportCockpitView(
+                    observer : observer,
+                    warmup   : warmup,
+                    motion   : motion,
+                    obd      : obd,
+                    onClose  : { withAnimation { forceCockpitMode = false } }
+                )
+                .transition(.opacity)
+            } else {
+                TabView(selection: $selectedTab) {
+                    NowPlayingTab(observer: observer, warmup: warmup, motion: motion, obd: obd)
+                        .tabItem { Label("Lyrics", systemImage: "music.note") }
+                        .tag(0)
 
-                TelemetryTab(warmup: warmup, motion: motion, obd: obd)
-                    .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
-                    .tag(1)
+                    TelemetryTab(warmup: warmup, motion: motion, obd: obd)
+                        .tabItem { Label("Telemetrie", systemImage: "gauge.with.needle") }
+                        .tag(1)
 
-                SettingsTab(spotify: spotify, obd: obd)
-                    .tabItem { Label("Setup", systemImage: "gearshape.fill") }
-                    .tag(2)
+                    SettingsTab(spotify: spotify, obd: obd)
+                        .tabItem { Label("Setup", systemImage: "gearshape.fill") }
+                        .tag(2)
+                }
+                .tint(.cyan)
             }
-            .tint(.cyan)
         }
+        .animation(.easeInOut(duration: 0.25), value: isCockpitMode)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showMockSheet) {
             MockInjectorView(observer: observer)
@@ -87,6 +105,16 @@ public struct ContentView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
+                    // Cockpit Vollbild Button
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            forceCockpitMode.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "speedometer")
+                            .foregroundStyle(forceCockpitMode ? .green : .cyan)
+                    }
+
                     // Spotify Button
                     Button { showSpotifySheet = true } label: {
                         Image(systemName: spotify.isAuthenticated ? "waveform.circle.fill" : "waveform.circle")
@@ -855,3 +883,190 @@ struct MockInjectorView: View {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Sport Cockpit View (Audi RS / Golf R Track Display)
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct SportCockpitView: View {
+    @ObservedObject var observer : MusicObserver
+    @ObservedObject var warmup   : WarmupManager
+    @ObservedObject var motion   : MotionManager
+    @ObservedObject var obd      : OBDManager
+    var onClose: () -> Void
+
+    var currentTemp: Int {
+        if obd.isEnabled && obd.connectionState == .connected {
+            return obd.liveOilTemp ?? (obd.liveCoolantTemp.map { max(20, $0 - 8) } ?? warmup.oilTempInt)
+        }
+        return warmup.oilTempInt
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            VStack(spacing: 8) {
+                // Top Telemetry Header Bar
+                HStack {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(obd.isEnabled && obd.connectionState == .connected ? Color.green : Color.cyan)
+                            .frame(width: 8, height: 8)
+                        Text(obd.isEnabled ? "OBD II LIVE" : "TFSI SIMULATION")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+
+                        if obd.liveRPM > 0 {
+                            Text("• \(obd.liveRPM) RPM")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Calibrate G-Zero button
+                    Button {
+                        motion.calibrateZero()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "scope")
+                            Text("G-Nullpunkt")
+                        }
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.12), in: Capsule())
+                    }
+
+                    // Exit Cockpit button
+                    Button {
+                        onClose()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+
+                // Main 3-Column Racing Layout
+                HStack(spacing: 16) {
+                    // LEFT: 2.0 TFSI Oil Gauge
+                    VStack(spacing: 6) {
+                        Text("2.0 TFSI ÖLTEMPERATUR")
+                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(.secondary)
+
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.08), lineWidth: 10)
+                            Circle()
+                                .trim(from: 0, to: warmup.warmupProgress)
+                                .stroke(tempColor(currentTemp), style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+
+                            VStack(spacing: 2) {
+                                Text("\(currentTemp)°")
+                                    .font(.system(size: 36, weight: .black, design: .monospaced))
+                                    .foregroundStyle(tempColor(currentTemp))
+                                Text("ZIEL 90°C")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(width: 130, height: 130)
+
+                        Text(rpmAdvice(currentTemp))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(tempColor(currentTemp))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .frame(maxWidth: 160)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // CENTER: Large Live Synchronized Lyrics
+                    VStack(spacing: 8) {
+                        VStack(spacing: 2) {
+                            Text(observer.currentTrackTitle.isEmpty ? "Kein Song aktiv" : observer.currentTrackTitle)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Text(observer.currentArtist)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.white.opacity(0.5))
+                                .lineLimit(1)
+                        }
+
+                        // Big readable current lyric
+                        Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
+                            .font(.system(size: 24, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .shadow(color: .cyan.opacity(0.4), radius: 8)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(3)
+                            .frame(maxHeight: .infinity)
+
+                        if !observer.nextLine.isEmpty {
+                            Text(observer.nextLine)
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.45))
+                                .lineLimit(1)
+                        }
+
+                        if observer.progress > 0 {
+                            ProgressView(value: observer.progress)
+                                .tint(.cyan)
+                                .padding(.horizontal, 20)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // RIGHT: G-Force Friction Circle (Kammscher Kreis)
+                    VStack(spacing: 6) {
+                        Text("KAMMSCHER KREIS")
+                            .font(.system(size: 10, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(.secondary)
+
+                        GBallView(x: motion.normalizedX, y: motion.normalizedY, currentG: motion.currentG)
+                            .frame(width: 130, height: 130)
+
+                        HStack(spacing: 16) {
+                            VStack {
+                                Text("LIVE").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                                Text(motion.currentGFormatted)
+                                    .font(.system(size: 18, weight: .black, design: .monospaced))
+                                    .foregroundStyle(gColor(motion.currentG))
+                            }
+                            VStack {
+                                Text("PEAK").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary)
+                                Text(motion.peakGFormatted)
+                                    .font(.system(size: 18, weight: .black, design: .monospaced))
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+            }
+        }
+    }
+
+    private func tempColor(_ t: Int) -> Color {
+        if t < 60 { return .blue }
+        if t < 80 { return .orange }
+        return .green
+    }
+
+    private func rpmAdvice(_ t: Int) -> String {
+        if t < 60 { return "❄️ Max 2.500 U/min\nKein Ladedruck" }
+        if t < 80 { return "⚡ Max 3.500 U/min\nÖl wärmt auf" }
+        return "🔥 80°C+ Erreicht\nFeuer frei!"
+    }
+}
+

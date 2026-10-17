@@ -325,6 +325,17 @@ public final class MusicObserver: ObservableObject {
         let progressVal = wm?.warmupProgress ?? 0
         let phaseVal    = wm?.phase ?? .cold
 
+        // In UserDefaults für Home Screen / Lock Screen Widgets ablegen
+        UserDefaults.standard.set(oilTemp, forKey: "last_oil_temp")
+        UserDefaults.standard.set(phaseVal.rawValue, forKey: "last_warmup_phase")
+        if let peak = mm?.peakG, peak > 0 {
+            UserDefaults.standard.set(peak, forKey: "last_peak_g")
+        }
+        if !currentTrackTitle.isEmpty {
+            UserDefaults.standard.set(currentTrackTitle, forKey: "last_song_title")
+            UserDefaults.standard.set(currentArtist, forKey: "last_song_artist")
+        }
+
         return LyricsAttributes.ContentState(
             currentLine    : currentLine,
             nextLine       : nextLine,
