@@ -50,22 +50,48 @@ extension OBDManager {
             pendingSequenceHandler = nil
             let finalAccumulated = sequenceAccumulated
             Task { @MainActor in
-                comp?(finalAccumulated, true)
+                comp?(finalAccumulated, !finalAccumulated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             return
         }
 
         let nextCmd = sequenceQueue.removeFirst()
+
+        // Leere Befehle oder reines "\r" (Wakeup-Flush) sofort senden ohne auf Prompt zu warten
+        if nextCmd.isEmpty || nextCmd == "\r" {
+            sendCommandRaw("\r")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.sendNextInSequence(timeout: timeout)
+            }
+            return
+        }
+
         sendCommandRaw(nextCmd)
 
-        sequenceTimer = Timer.scheduledTimer(withTimeInterval: timeout, repeats: false) { [weak self] _ in
+        // Befehlsspezifischer Timeout
+        let cmdTimeout: TimeInterval
+        if nextCmd == "ATZ" || nextCmd == "0100" || nextCmd == "ATSP0" {
+            cmdTimeout = max(timeout, 2.5)
+        } else {
+            cmdTimeout = min(timeout, 2.0)
+        }
+
+        sequenceTimer = Timer.scheduledTimer(withTimeInterval: cmdTimeout, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 self.isWaitingForResponse = false
-                let comp = self.sequenceCompletion
-                self.sequenceCompletion = nil
-                self.pendingSequenceHandler = nil
-                comp?(self.sequenceAccumulated, false)
+                self.logSystem("⏱ Timeout auf '\(nextCmd)' in Sequenz")
+
+                // Falls noch weitere Befehle in der Queue sind, nicht abbrechen sondern nächsten Befehl testen!
+                if !self.sequenceQueue.isEmpty {
+                    self.sendNextInSequence(timeout: timeout)
+                } else {
+                    let comp = self.sequenceCompletion
+                    self.sequenceCompletion = nil
+                    self.pendingSequenceHandler = nil
+                    let finalAccumulated = self.sequenceAccumulated
+                    comp?(finalAccumulated, !finalAccumulated.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
         }
 
@@ -73,7 +99,9 @@ extension OBDManager {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 self.sequenceAccumulated += " " + response
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+                // Nach ATZ braucht der Chip 450ms Erholungszeit für den internen Reboot
+                let delay = (nextCmd == "ATZ") ? 0.45 : 0.08
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                     self?.sendNextInSequence(timeout: timeout)
                 }
             }

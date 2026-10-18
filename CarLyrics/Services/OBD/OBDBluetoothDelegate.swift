@@ -212,19 +212,23 @@ extension OBDManager: CBPeripheralDelegate {
         }
 
         if let rx = discoveredRx, let tx = discoveredTx {
-            rxChar = rx
-            txChar = tx
+            let alreadyHasKnownUART = (txChar?.service?.uuid.uuidString.contains("FFF0") == true ||
+                                       txChar?.service?.uuid.uuidString.contains("FFE0") == true)
+            if !alreadyHasKnownUART || isKnownUART {
+                rxChar = rx
+                txChar = tx
 
-            if connectionState == .initializing && !isInitializingUART {
-                isInitializingUART = true
-                connectionWatchdogTimer?.invalidate()
-                logSystem("✔ UART bereit: TX=\(tx.uuid.uuidString) | RX=\(rx.uuid.uuidString)")
+                if connectionState == .initializing && !isInitializingUART {
+                    isInitializingUART = true
+                    connectionWatchdogTimer?.invalidate()
+                    logSystem("✔ UART bereit: TX=\(tx.uuid.uuidString) | RX=\(rx.uuid.uuidString)")
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-                    guard let self = self else { return }
-                    if self.connectionState == .initializing && self.initQueue.isEmpty && !self.isProbingProtocols && !self.isAutoDiagnosing {
-                        self.logSystem("Starte Handshake per Timer-Fallback…")
-                        self.startRobustInitSequence()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                        guard let self = self else { return }
+                        if self.connectionState == .initializing && self.initQueue.isEmpty && !self.isProbingProtocols && !self.isAutoDiagnosing {
+                            self.logSystem("Starte Handshake per Timer-Fallback…")
+                            self.startRobustInitSequence()
+                        }
                     }
                 }
             }

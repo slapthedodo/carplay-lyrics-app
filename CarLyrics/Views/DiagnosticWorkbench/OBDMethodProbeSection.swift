@@ -91,17 +91,69 @@ public struct OBDMethodProbeSection: View {
 
                     // Diagnose-Zusammenfassung & Hilfestellung
                     if let summary = obd.diagnosisSummary {
-                        HStack(alignment: .top, spacing: 10) {
-                            Image(systemName: summary.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                .font(.title3)
-                                .foregroundStyle(summary.contains("✅") ? .green : .orange)
-                            Text(summary)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(summary.contains("✅") ? .green : .orange)
+                        let isSuccess = summary.contains("✅")
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(isSuccess ? .green : .orange)
+                                Text(summary)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(isSuccess ? .green : .orange)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            if !isSuccess {
+                                // Erneut versuchen Button
+                                Button {
+                                    obd.runFullAutoDiagnosis()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.clockwise")
+                                        Text("Erneut versuchen")
+                                            .fontWeight(.bold)
+                                    }
+                                    .font(.subheadline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color.cyan, in: RoundedRectangle(cornerRadius: 10))
+                                    .foregroundStyle(.black)
+                                }
+
+                                // BLE Debug-Info wenn vorhanden
+                                if let debug = obd.diagnosisBLEDebug {
+                                    DisclosureGroup("🔍 Technische Details (fürs Debugging)") {
+                                        Text(debug)
+                                            .font(.system(size: 10, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.top, 4)
+                                    }
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.secondary)
+                                    .accentColor(.secondary)
+                                }
+
+                                // 7-Methoden Test als Fallback CTA
+                                Button {
+                                    showAdvancedProtocols = true
+                                    obd.runProtocolAutoProbe()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "bolt.horizontal.circle")
+                                        Text("Fallback: 7-Methoden Test starten")
+                                            .fontWeight(.semibold)
+                                    }
+                                    .font(.caption)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 9)
+                                    .background(Color.orange.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                                    .foregroundStyle(.orange)
+                                }
+                            }
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background((summary.contains("✅") ? Color.green : Color.orange).opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                        .background((isSuccess ? Color.green : Color.orange).opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                     }
                 }
                 .padding(16)
@@ -128,6 +180,60 @@ public struct OBDMethodProbeSection: View {
                             .padding(.vertical, 8)
                             .background(Color.cyan.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
                             .foregroundStyle(.cyan)
+                        }
+
+                        if !obd.probeResults.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Testergebnisse (\(obd.probeResults.count) Methoden):")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                    Spacer()
+                                    if obd.isProbingProtocols {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .tint(.cyan)
+                                    }
+                                }
+
+                                ForEach(obd.probeResults) { res in
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack {
+                                            Circle()
+                                                .fill(statusColor(for: res.status))
+                                                .frame(width: 8, height: 8)
+                                            Text(res.proto.rawValue)
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            if res.responseTimeMs > 0 {
+                                                Text("\(res.responseTimeMs) ms")
+                                                    .font(.system(size: 10, design: .monospaced))
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            if res.status == .success && obd.selectedProtocol != res.proto {
+                                                Button("Aktivieren") {
+                                                    obd.selectProtocol(res.proto)
+                                                }
+                                                .font(.caption2.bold())
+                                                .foregroundStyle(.green)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.green.opacity(0.18), in: Capsule())
+                                            }
+                                        }
+
+                                        Text(res.note.isEmpty ? (res.rawResponse.isEmpty ? "Warte auf Test…" : res.rawResponse) : res.note)
+                                            .font(.system(size: 10.5, design: .monospaced))
+                                            .foregroundStyle(statusColor(for: res.status))
+                                            .padding(.leading, 12)
+                                    }
+                                    .padding(.vertical, 3)
+                                    Divider()
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
                         }
 
                         Divider()

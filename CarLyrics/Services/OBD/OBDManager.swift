@@ -85,6 +85,8 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var diagnosisSteps        : [OBDDiagnosisStep]    = []
     @Published public var isAutoDiagnosing      : Bool                  = false
     @Published public var diagnosisSummary      : String?               = nil
+    @Published public var diagnosisBLEDebug     : String?               = nil   // Technische Infos bei Fehler
+    @Published public var diagnosisRetryCount   : Int                   = 0
 
     // Protokoll Schnell-Tester
     @Published public var probeResults         : [ProtocolProbeResult] = []

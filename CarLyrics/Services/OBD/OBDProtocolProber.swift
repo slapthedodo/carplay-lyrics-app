@@ -95,13 +95,19 @@ extension OBDManager {
                 self.logSystem("✔ Treffer bei \(target.rawValue) in \(duration)ms!")
             } else if fullResponse.contains("UNABLE TO CONNECT") || compactResp.contains("UNABLETOCONNECT") {
                 self.probeResults[index].status = .failed
-                self.probeResults[index].note = "UNABLE TO CONNECT (Falsches Protokoll oder Zündung aus)"
+                self.probeResults[index].note = "UNABLE TO CONNECT → Falsches Protokoll oder Zündung noch nicht bereit"
             } else if fullResponse.contains("BUS INIT") || compactResp.contains("BUSINIT") {
                 self.probeResults[index].status = .failed
-                self.probeResults[index].note = "BUS INIT ERROR"
+                self.probeResults[index].note = "BUS INIT ERROR → K-Line Hardware-Problem"
+            } else if fullResponse.contains("NO DATA") || compactResp.contains("NODATA") {
+                self.probeResults[index].status = .noData
+                self.probeResults[index].note = "NO DATA → CAN-Bus läuft, Steuergerät antwortet nicht auf 0100 (Zündung an?)"
+            } else if fullResponse.isEmpty {
+                self.probeResults[index].status = .failed
+                self.probeResults[index].note = "Timeout → Adapter sendet nichts zurück (falsche TX/RX Kanäle?)"
             } else {
                 self.probeResults[index].status = .failed
-                self.probeResults[index].note = fullResponse.isEmpty ? "Timeout" : fullResponse
+                self.probeResults[index].note = "Unbekannte Antwort: \(fullResponse.prefix(60))"
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -187,67 +193,133 @@ extension OBDManager {
         diagnosisSteps[1].detail = "Sende Reset & messe Bordspannung…"
         logSystem("-> Diag Schritt 2: Hardware-Handshake…")
 
-        sendSequence(cmds: ["\r", "ATZ", "ATE0", "ATL0", "ATS0", "ATRV"], timeout: 3.5) { [weak self] response, success in
-            guard let self = self, self.isAutoDiagnosing else { return }
+        // BLE-Debug-Info zusammenstellen
+        let pName = peripheral?.name ?? "?"
+        let txUUID = txChar?.uuid.uuidString ?? "?"
+        let rxUUID = rxChar?.uuid.uuidString ?? "?"
+        let txProps = txChar != nil ? "WriteWR:\(txChar!.properties.contains(.writeWithoutResponse)) Write:\(txChar!.properties.contains(.write)) Notify:\(txChar!.properties.contains(.notify))" : "?"
+        diagnosisBLEDebug = "Gerät: \(pName)\nTX-Char: \(txUUID) [\(txProps)]\nRX-Char: \(rxUUID)\nModus: \(forceWriteWithResponse ? "ACK (WithResponse)" : "no-ACK (WithoutResponse)")"
+        logSystem("BLE-Info: TX=\(txUUID) RX=\(rxUUID)")
 
-            let hasContent = !response.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            if !hasContent || !success {
-                if !self.forceWriteWithResponse {
-                    self.logSystem("ℹ Keine Antwort im No-ACK Modus -> Schalte um auf ACK (WithResponse)…")
-                    self.forceWriteWithResponse = true
-                    self.sendSequence(cmds: ["\r", "ATZ", "ATE0", "ATRV"], timeout: 3.5) { [weak self] rResp, rSucc in
+        // Versuch 1: Standard no-ACK (WriteWithoutResponse)
+        diagnosisSteps[1].detail = "Versuch 1/6: Sende ohne ACK…"
+        tryHardwareSequence(attemptLabel: "1/6 (no-ACK)", useACK: false, cmds: ["\r", "ATZ", "ATE0", "ATRV"]) { [weak self] got1 in
+            guard let self = self, self.isAutoDiagnosing else { return }
+            if got1 { self.onHardwareSuccess(); return }
+
+            // Versuch 2: Mit ACK (WriteWithResponse)
+            self.diagnosisSteps[1].detail = "Versuch 2/6: Sende mit Bestätigung (ACK)…"
+            self.tryHardwareSequence(attemptLabel: "2/6 (ACK)", useACK: true, cmds: ["\r", "ATZ", "ATE0", "ATRV"]) { [weak self] got2 in
+                guard let self = self, self.isAutoDiagnosing else { return }
+                if got2 { self.onHardwareSuccess(); return }
+
+                // Versuch 3: TX/RX Kanäle vertauschen (kein ACK)
+                if let rx = self.rxChar, let tx = self.txChar, rx.uuid != tx.uuid {
+                    self.diagnosisSteps[1].detail = "Versuch 3/6: Vertausche TX↔RX Kanäle…"
+                    self.rxChar = tx
+                    self.txChar = rx
+                    self.peripheral?.setNotifyValue(true, for: self.rxChar!)
+                    self.logSystem("  → Swap: TX=\(self.txChar!.uuid) RX=\(self.rxChar!.uuid)")
+                    self.tryHardwareSequence(attemptLabel: "3/6 (swap+no-ACK)", useACK: false, cmds: ["\r", "ATZ", "ATRV"]) { [weak self] got3 in
                         guard let self = self, self.isAutoDiagnosing else { return }
-                        self.evaluateHardwareDiagResponse(rResp)
+                        if got3 { self.onHardwareSuccess(); return }
+
+                        // Versuch 4: TX/RX vertauscht + ACK
+                        self.diagnosisSteps[1].detail = "Versuch 4/6: Vertauscht + ACK…"
+                        self.tryHardwareSequence(attemptLabel: "4/6 (swap+ACK)", useACK: true, cmds: ["\r", "ATZ", "ATRV"]) { [weak self] got4 in
+                            guard let self = self, self.isAutoDiagnosing else { return }
+                            if got4 { self.onHardwareSuccess(); return }
+
+                            // Swap zurücksetzen und Versuch 5/6
+                            self.rxChar = rx
+                            self.txChar = tx
+                            self.peripheral?.setNotifyValue(true, for: self.rxChar!)
+                            self.trySlowWakeup()
+                        }
                     }
-                    return
+                } else {
+                    // Keine 2 separaten Kanäle — direkt zu Slow Wakeup
+                    self.trySlowWakeup()
                 }
             }
-            self.evaluateHardwareDiagResponse(response)
         }
     }
 
-    private func evaluateHardwareDiagResponse(_ response: String) {
-        let compact = response.replacingOccurrences(of: " ", with: "")
-                              .replacingOccurrences(of: "\r", with: "")
-                              .replacingOccurrences(of: "\n", with: "")
+    private func tryHardwareSequence(attemptLabel: String, useACK: Bool, cmds: [String], completion: @escaping (Bool) -> Void) {
+        forceWriteWithResponse = useACK
+        logSystem("  → Teste [\(attemptLabel)]…")
+        sendSequence(cmds: cmds, timeout: 3.0) { [weak self] response, _ in
+            guard let self = self else { return }
+            let compact = response.replacingOccurrences(of: " ", with: "")
+                                  .replacingOccurrences(of: "\r", with: "")
+                                  .replacingOccurrences(of: "\n", with: "")
+            let hasContent = compact.contains("ELM") || compact.contains("OK") ||
+                             compact.contains("ATZ") || compact.contains("V") ||
+                             compact.contains(">") || self.batteryVoltage != nil
+            self.logSystem("    Antwort: '\(compact.prefix(40))' hasContent=\(hasContent)")
+            completion(hasContent)
+        }
+    }
 
-        let hasELM = compact.contains("ELM327") || compact.contains("OK") || compact.contains("V") || batteryVoltage != nil
+    private func trySlowWakeup() {
+        guard isAutoDiagnosing else { return }
+        diagnosisSteps[1].detail = "Versuch 5/6: Langsamer Wakeup-Reset (BK3231)…"
+        logSystem("  → Slow-Wakeup: sende \\r + 1s Pause + ATZ")
 
-        if hasELM {
-            let voltStr = batteryVoltage != nil ? String(format: "%.1f V", batteryVoltage!) : "12V"
-            let ignText = (batteryVoltage ?? 12.0) >= 11.5 ? "Zündung Stufe 2 aktiv" : "Zündung evtl. schwach"
-            diagnosisSteps[1].status = .success
-            diagnosisSteps[1].detail = "ELM327 aktiv • Bordspannung: \(voltStr) (\(ignText))"
-            logSystem("✔ Diag Schritt 2 erfolgreich: \(voltStr)")
-            executeDiagStep3_ECU()
-        } else {
-            if let rx = rxChar, let tx = txChar, rx != tx {
-                logSystem("ℹ Teste alternativen Kanal (Invertiere TX/RX)…")
-                rxChar = tx
-                txChar = rx
-                peripheral?.setNotifyValue(true, for: rxChar!)
-                sendSequence(cmds: ["\r", "ATZ", "ATRV"], timeout: 2.5) { [weak self] invResp, invSucc in
+        // Sehr langsame Init-Sequenz für schläfrige BK3231-Chips
+        sendCommandRaw("\r")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let self = self, self.isAutoDiagnosing else { return }
+            self.sendCommandRaw("ATZ")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let self = self, self.isAutoDiagnosing else { return }
+                self.diagnosisSteps[1].detail = "Versuch 6/6: Bordspannung nach Wakeup…"
+                self.tryHardwareSequence(attemptLabel: "6/6 (slow wakeup)", useACK: self.forceWriteWithResponse, cmds: ["ATE0", "ATRV"]) { [weak self] got6 in
                     guard let self = self, self.isAutoDiagnosing else { return }
-                    if !invResp.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        self.diagnosisSteps[1].status = .success
-                        self.diagnosisSteps[1].detail = "ELM327 aktiv (Kanal B bestätigt)"
-                        self.executeDiagStep3_ECU()
-                        return
-                    }
-                    self.rxChar = rx
-                    self.txChar = tx
+                    if got6 { self.onHardwareSuccess(); return }
                     self.failDiagHardware()
                 }
-                return
             }
-            failDiagHardware()
         }
+    }
+
+    private func onHardwareSuccess() {
+        let voltStr = batteryVoltage != nil ? String(format: "%.1f V", batteryVoltage!) : "OK (kein Volt-Wert)"
+        let ignText: String
+        if let v = batteryVoltage {
+            ignText = v >= 13.0 ? "Motor läuft!" : (v >= 11.5 ? "Zündung Stufe 2 ✓" : "⚠ Spannung niedrig (\(String(format: "%.1f", v))V)")
+        } else {
+            ignText = "Adapter antwortet"
+        }
+        diagnosisSteps[1].status = .success
+        diagnosisSteps[1].detail = "ELM327 aktiv • \(voltStr) • \(ignText) [\(forceWriteWithResponse ? "ACK" : "no-ACK")]"
+        diagnosisBLEDebug = nil
+        logSystem("✔ Diag Schritt 2 OK (\(voltStr), ACK=\(forceWriteWithResponse))")
+        executeDiagStep3_ECU()
     }
 
     private func failDiagHardware() {
+        let pName = peripheral?.name ?? "Unbekannt"
+        let txUUID = txChar?.uuid.uuidString.suffix(4) ?? "?"
+        let rxUUID = rxChar?.uuid.uuidString.suffix(4) ?? "?"
+
         diagnosisSteps[1].status = .failed
-        diagnosisSteps[1].detail = "Adapter antwortet nicht"
-        diagnosisSummary = "⚠️ Der Bluetooth-Adapter antwortet nicht auf Kommandos. Bitte ziehe den Dongle kurz ab und stecke ihn nach 5 Sekunden wieder fest in den OBD2-Port."
+        diagnosisSteps[1].detail = "Alle 6 Versuche gescheitert (TX:\(txUUID) RX:\(rxUUID))"
+
+        diagnosisSummary = """
+        ❌ Adapter '\(pName)' verbunden, antwortet aber nicht auf AT-Kommandos.
+
+        Was getestet wurde:
+        • Write ohne ACK & mit ACK
+        • TX/RX Kanäle getauscht (beide Richtungen)
+        • Langsamer Wakeup-Reset (BK3231)
+
+        Bitte versuche folgendes:
+        1️⃣ Zündung kurz AUS, Dongle 10 Sek. abstecken, wieder einstecken, Zündung AN → Test erneut
+        2️⃣ Stelle sicher, dass kein anderes Gerät (anderes Handy, Laptop, OBD-App) mit dem Adapter verbunden ist
+        3️⃣ Öffne „Erweiterte Protokolle" unten → 7-Methoden Test ausführen
+        """
+        diagnosisRetryCount += 1
         isAutoDiagnosing = false
     }
 
@@ -257,12 +329,16 @@ extension OBDManager {
         diagnosisSteps[2].detail = "Verbinde mit Bosch MED9.1 (Golf 5 CAN 11/500)…"
         logSystem("-> Diag Schritt 3: ECU-Anbindung…")
 
+        // Merke alle Raw-Antworten für Diagnose
+        var collectedResponses: [(String, String)] = [] // (beschriftung, raw-antwort)
+
         // 1. Standard CAN 11-Bit 500k
         sendSequence(cmds: ["ATSP6", "0100"], timeout: 4.5) { [weak self] resp1, succ1 in
             guard let self = self, self.isAutoDiagnosing else { return }
-            let compact1 = resp1.replacingOccurrences(of: " ", with: "")
+            let c1 = resp1.replacingOccurrences(of: " ", with: "")
+            collectedResponses.append(("CAN11/500", resp1.trimmingCharacters(in: .whitespacesAndNewlines)))
 
-            if compact1.contains("4100") || compact1.contains("410C") || compact1.contains("4105") {
+            if c1.contains("4100") || c1.contains("410C") || c1.contains("4105") {
                 self.selectedProtocol = .can11_500
                 self.diagnosisSteps[2].status = .success
                 self.diagnosisSteps[2].detail = "Bosch MED9.1 antwortet (CAN 11-Bit 500k)"
@@ -272,16 +348,17 @@ extension OBDManager {
             }
 
             // 2. Direkt-Header 7E0
-            self.diagnosisSteps[2].detail = "Teste Direkt-Adresse ATSH7E0…"
-            self.sendSequence(cmds: ["ATSH7E0", "0100"], timeout: 4.0) { [weak self] resp2, succ2 in
+            self.diagnosisSteps[2].detail = "Teste Direkt-Adresse 7E0 (MED9.1 ECU)…"
+            self.sendSequence(cmds: ["ATSP6", "ATSH7E0", "0100"], timeout: 4.5) { [weak self] resp2, succ2 in
                 guard let self = self, self.isAutoDiagnosing else { return }
-                let compact2 = resp2.replacingOccurrences(of: " ", with: "")
+                let c2 = resp2.replacingOccurrences(of: " ", with: "")
+                collectedResponses.append(("CAN11/500+7E0", resp2.trimmingCharacters(in: .whitespacesAndNewlines)))
 
-                if compact2.contains("4100") || compact2.contains("410C") || compact2.contains("4105") {
+                if c2.contains("4100") || c2.contains("410C") || c2.contains("4105") {
                     self.selectedProtocol = .can11_500_7e0
                     self.diagnosisSteps[2].status = .success
-                    self.diagnosisSteps[2].detail = "Bosch MED9.1 antwortet (Header 7E0)"
-                    self.logSystem("✔ Diag Schritt 3: Bosch MED9.1 über Header 7E0 verbunden!")
+                    self.diagnosisSteps[2].detail = "Bosch MED9.1 antwortet (CAN 11-Bit 500k + Header 7E0)"
+                    self.logSystem("✔ Diag Schritt 3: Bosch MED9.1 über CAN 11/500 + 7E0 verbunden!")
                     self.executeDiagStep4_Sensors()
                     return
                 }
@@ -290,19 +367,71 @@ extension OBDManager {
                 self.diagnosisSteps[2].detail = "Teste K-Line (KWP2000 Fast)…"
                 self.sendSequence(cmds: ["ATSH", "ATSP5", "0100"], timeout: 4.5) { [weak self] resp3, succ3 in
                     guard let self = self, self.isAutoDiagnosing else { return }
-                    let compact3 = resp3.replacingOccurrences(of: " ", with: "")
+                    let c3 = resp3.replacingOccurrences(of: " ", with: "")
+                    collectedResponses.append(("KWP2000", resp3.trimmingCharacters(in: .whitespacesAndNewlines)))
 
-                    if compact3.contains("4100") || compact3.contains("410C") || compact3.contains("4105") {
+                    if c3.contains("4100") || c3.contains("410C") || c3.contains("4105") {
                         self.selectedProtocol = .kwpFast
                         self.diagnosisSteps[2].status = .success
-                        self.diagnosisSteps[2].detail = "Bosch MED9.1 antwortet über K-Line"
+                        self.diagnosisSteps[2].detail = "Bosch MED9.1 antwortet über K-Line (KWP2000)"
                         self.executeDiagStep4_Sensors()
                         return
                     }
 
+                    // Analyse: Was hat der Adapter zurückgegeben?
+                    let allRaw = collectedResponses.map { $0.1 }.joined()
+                    let allCompact = allRaw.replacingOccurrences(of: " ", with: "")
+                    let hadNODATA = allCompact.contains("NODATA")
+                    let hadUNABLE = allCompact.contains("UNABLETOCONNECT")
+                    let allTimeout = collectedResponses.allSatisfy { $0.1.isEmpty }
+
                     self.diagnosisSteps[2].status = .failed
-                    self.diagnosisSteps[2].detail = "Keine Antwort vom Steuergerät"
-                    self.diagnosisSummary = "⚠️ Das Motorsteuergerät antwortet nicht. Bitte schalte die Zündung auf Stufe 2 ein (alle Kontrollleuchten im Tacho müssen leuchten, Motor muss nicht laufen) und starte den Test erneut."
+
+                    if allTimeout {
+                        // Adapter antwortet gar nicht → ist eigentlich ein Hardware-Problem
+                        self.diagnosisSteps[2].detail = "Timeout bei allen 3 Protokollen (kein Echo)"
+                        self.diagnosisSummary = """
+                        ⚠️ Der OBD-Adapter sendet keine Antwort auf Protokollabfragen.
+
+                        Mögliche Ursachen:
+                        • Zündung ist nicht auf Stufe 2 (alle Kontrollleuchten müssen leuchten)
+                        • OBD-Stecker sitzt nicht fest im Port (Golf 5: unter dem Lenkrad links)
+                        • Ein anderes Gerät blockiert den CAN-Bus
+                        
+                        👉 Tipp: Versuche den „Erweiterte Protokolle → 7-Methoden Test" unten — dort siehst du ob irgendein Protokoll wenigstens NODATA zurückgibt.
+                        """
+                    } else if hadNODATA {
+                        // ECU-Bus wird gefunden, aber 0100 kommt nicht durch
+                        self.diagnosisSteps[2].detail = "CAN-Bus aktiv, aber 0100 → NO DATA"
+                        self.diagnosisSummary = """
+                        ⚠️ CAN-Bus Verbindung hergestellt, aber Steuergerät antwortet nicht auf OBD-Anfragen.
+
+                        Bei deinem Golf 5 GTI (Bosch MED9.1) ist das oft ein Timing-Problem.
+
+                        Bitte versuche:
+                        1️⃣ Zündung auf Stufe 2 (NICHT starten!), 5 Sek. warten, dann Test erneut
+                        2️⃣ Falls Fehlercode P0000 im Kombi: Wegfahrsperre aktiv → erst Motor kurz starten & wieder aus
+                        3️⃣ Klicke auf „Erweiterte Protokolle" unten → „VAG CAN 11-Bit 500k" manuell aktivieren
+                        """
+                    } else if hadUNABLE {
+                        self.diagnosisSteps[2].detail = "Falsches Protokoll oder Zündung zu früh"
+                        self.diagnosisSummary = """
+                        ⚠️ Der Adapter meldet „UNABLE TO CONNECT" — das Protokoll passt nicht oder die Zündung war beim Start noch nicht bereit.
+
+                        Bitte:
+                        1️⃣ Zündung auf Stufe 2 warten, bis alle Kontrollleuchten erloschen sind
+                        2️⃣ Dann erst „Auto-Test" starten
+                        3️⃣ Bei wiederholtem Fehler: „Erweiterte Protokolle" → „VAG CAN 11-Bit 500k (Direkt Header 7E0)" manuell testen
+                        """
+                    } else {
+                        self.diagnosisSteps[2].detail = "Keine ECU-Antwort (Antwort war: \(allRaw.prefix(60)))"
+                        self.diagnosisSummary = """
+                        ⚠️ Das Motorsteuergerät antwortet nicht auf OBD-Abfragen.
+
+                        Bitte Zündung auf Stufe 2 einschalten und Test erneut starten.
+                        Rohantw.: \(allRaw.prefix(100))
+                        """
+                    }
                     self.isAutoDiagnosing = false
                 }
             }
