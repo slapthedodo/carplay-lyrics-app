@@ -25,7 +25,10 @@ extension OBDManager {
         logRx(clean.isEmpty ? raw : clean)
 
         // 1. Bordspannung (ATRV: z.B. "12.4V" oder "14.1V")
-        if clean.contains("V") || clean.contains("v") {
+        // Nur auswerten wenn: wir gerade ATRV gesendet haben ODER es aussieht wie "12.4V"
+        let isVoltageResponse = lastCommandSent == "ATRV" ||
+            (clean.count < 12 && (clean.contains("V") || clean.contains("v")))
+        if isVoltageResponse {
             let numStr = clean.replacingOccurrences(of: "V", with: "")
                               .replacingOccurrences(of: "v", with: "")
                               .replacingOccurrences(of: " ", with: "")
@@ -113,7 +116,8 @@ extension OBDManager {
                     hasCheckedOilTempPID = true
                 }
             }
-        } else if compact.contains("NODATA") && lastCommandSent == "015C" {
+        } else if (compact.contains("NODATA") || clean.contains("NO DATA")) &&
+                  (lastCommandSent == "015C" || lastCommandSent.hasSuffix("5C")) {
             hasOilTempPID = false
             hasCheckedOilTempPID = true
         }

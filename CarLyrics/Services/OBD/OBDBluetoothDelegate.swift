@@ -81,11 +81,12 @@ extension OBDManager: CBCentralManagerDelegate {
                     lower.contains("icar") ||
                     lower.contains("viecar") ||
                     lower.contains("konnwei") ||
-                    lower.contains("ble") ||
-                    lower.hasPrefix("bt-") ||
-                    lower.contains("bt-g") ||
-                    lower.contains("link") ||
-                    lower.contains("car")
+                    lower.contains("obdii") ||
+                    lower.contains("odb") ||
+                    lower.hasPrefix("bt-g") ||
+                    lower.hasPrefix("bt-obd") ||
+                    lower.hasPrefix("elm327") ||
+                    lower.hasPrefix("carlyric")
 
         if isOBD && connectionState == .scanning {
             logSystem("Gefunden: '\(name)' [RSSI: \(RSSI) dBm] – Verbinde automatisch…")
@@ -170,20 +171,38 @@ extension OBDManager: CBPeripheralDelegate {
         }
 
         // Spezifische Zuordnung nach bekannten BLE-UART Standards
+        // FFF0: Allstric ELM327 Mini BLE (Primär-Service laut HARDWARE_VEHICLE_SPECS.md)
+        //   FFF1 = TX (Write/WriteWithoutResponse) – iPhone → Adapter
+        //   FFF2 = RX (Notify/Indicate)            – Adapter → iPhone
         if serviceStr.contains("FFF0") {
             for c in chars {
-                if c.properties.contains(.notify) || c.properties.contains(.indicate) { rxChar = c }
-                if c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse) { txChar = c }
+                let u = c.uuid.uuidString.uppercased()
+                // UUID-basiert zuerst (zuverlässigster Weg)
+                if u.contains("FFF1") { txChar = c }
+                if u.contains("FFF2") { rxChar = c }
+            }
+            // Fallback: Falls UUIDs nicht FFF1/FFF2 sind, nach Properties zuweisen
+            if txChar == nil || rxChar == nil {
+                for c in chars {
+                    if rxChar == nil && (c.properties.contains(.notify) || c.properties.contains(.indicate)) { rxChar = c }
+                    if txChar == nil && (c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse)) { txChar = c }
+                }
             }
         } else if serviceStr.contains("FFE0") {
+            // HM-10 Fallback: FFE1 ist TX+RX kombiniert
             for c in chars {
                 let u = c.uuid.uuidString.uppercased()
-                if u.contains("FFE1") || c.properties.contains(.notify) || c.properties.contains(.write) {
-                    if c.properties.contains(.notify) || c.properties.contains(.indicate) { rxChar = c }
-                    if c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse) { txChar = c }
+                if u.contains("FFE1") {
+                    txChar = c
+                    rxChar = c
+                } else if rxChar == nil && (c.properties.contains(.notify) || c.properties.contains(.indicate)) {
+                    rxChar = c
+                } else if txChar == nil && (c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse)) {
+                    txChar = c
                 }
             }
         } else if serviceStr.contains("6E400001") {
+            // Nordic UART Service (NUS)
             for c in chars {
                 let u = c.uuid.uuidString.uppercased()
                 if u.contains("6E400002") { txChar = c }
@@ -202,7 +221,7 @@ extension OBDManager: CBPeripheralDelegate {
                 if u.contains("2AF1") { rxChar = c }
             }
         } else {
-            // Generischer Fallback
+            // Generischer Fallback für unbekannte Services
             if rxChar == nil {
                 rxChar = chars.first(where: { $0.properties.contains(.notify) })
                       ?? chars.first(where: { $0.properties.contains(.indicate) })
