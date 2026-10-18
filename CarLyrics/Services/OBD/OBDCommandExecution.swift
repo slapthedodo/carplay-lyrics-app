@@ -73,7 +73,9 @@ extension OBDManager {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 self.sequenceAccumulated += " " + response
-                self.sendNextInSequence(timeout: timeout)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+                    self?.sendNextInSequence(timeout: timeout)
+                }
             }
         }
     }
@@ -140,7 +142,16 @@ extension OBDManager {
             detailedStatus = "Initialisiere ELM327 (\(nextCmd.isEmpty || nextCmd == "\r" ? "Wakeup" : nextCmd))…"
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+        let delay: Double
+        if lastCommandSent == "ATZ" {
+            delay = 0.45 // 450ms Erholungspause nach Reset für Allstric / BK3231 Clone
+        } else if nextCmd == "\r" {
+            delay = 0.15
+        } else {
+            delay = 0.08
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self = self else { return }
             self.sendCommandRaw(nextCmd)
 
@@ -148,7 +159,7 @@ extension OBDManager {
             if nextCmd == "0100" {
                 waitTime = (self.selectedProtocol == .auto) ? 7.0 : 2.5
             } else if nextCmd == "ATZ" {
-                waitTime = 2.2
+                waitTime = 2.4
             } else {
                 waitTime = 1.5
             }
@@ -159,6 +170,10 @@ extension OBDManager {
                     if self.connectionState == .initializing || self.connectionState == .searchingECU {
                         let bufInfo = self.receiveBuffer.isEmpty ? "leer" : "'\(self.receiveBuffer)'"
                         self.logSystem("ℹ Timeout bei Befehl \(nextCmd) [Puffer: \(bufInfo)] – fahre fort.")
+                        if !self.forceWriteWithResponse && (nextCmd == "ATZ" || nextCmd == "ATE0") {
+                            self.forceWriteWithResponse = true
+                            self.logSystem("ℹ Wechsle automatisch zu Write-with-Response (ACK-Modus)…")
+                        }
                         self.isWaitingForResponse = false
                         self.sendNextInitCommand()
                     }

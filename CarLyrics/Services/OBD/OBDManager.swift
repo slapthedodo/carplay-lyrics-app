@@ -33,6 +33,32 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var liveEngineLoad  : Int?    = nil        // Motorlast % (01 04)
     @Published public var liveBaro        : Int     = 101        // Barometer kPa
     @Published public var hasOilTempPID   : Bool    = false
+    public var hasCheckedOilTempPID       : Bool    = false
+
+    /// Liefert die echte Öltemperatur (PID 01 5C) oder das hochpräzise EA113-Thermikmodell
+    /// basierend auf Kühlmittel (01 05), Drehzahl (01 0C) und Motorlast.
+    public var effectiveOilTemp: Int? {
+        if let real = liveOilTemp {
+            return real
+        }
+        guard let coolant = liveCoolantTemp else { return nil }
+        // VW EA113 2.0 TFSI Thermik:
+        // Der integrierte Öl-Wasser-Wärmetauscher am Ölfilterflansch sorgt dafür,
+        // dass sich das Öl dem Kühlmittel mit ca. 8°C Nachlauf anpasst.
+        // Bei höherer Last / Drehzahl steigt die Öltemperatur über das Kühlwasser.
+        let baseOil = max(20, coolant - 8)
+        let loadBonus: Int
+        if coolant >= 80 {
+            if liveRPM > 3000 || (liveBoostBar ?? 0) > 0.3 {
+                loadBonus = min(20, max(0, Int((liveBoostBar ?? 0) * 12) + (liveRPM > 4000 ? 5 : 2)))
+            } else {
+                loadBonus = 0
+            }
+        } else {
+            loadBonus = 0
+        }
+        return baseOil + loadBonus
+    }
 
     // Hardware Zustand
     @Published public var batteryVoltage       : Double? = nil    // ATRV
@@ -184,6 +210,7 @@ public final class OBDManager: NSObject, ObservableObject {
         batteryVoltage = nil
         isIgnitionOn = nil
         hasOilTempPID = false
+        hasCheckedOilTempPID = false
         isInitializingUART = false
         initQueue.removeAll()
         isWaitingForResponse = false
@@ -238,8 +265,16 @@ public final class OBDManager: NSObject, ObservableObject {
             }
         }
 
-        let pid = queryCycle[currentPIDIndex % queryCycle.count]
+        var pid = queryCycle[currentPIDIndex % queryCycle.count]
         currentPIDIndex += 1
+
+        // Optimierung: Wenn 015C bereits geprüft wurde und NODATA zurückgab (typisch für MED9.1),
+        // frage 015C nur alle 30 Zyklen erneut ab, um den Bus nicht unnötig mit NODATA zu bremsen!
+        if pid == "015C" && hasCheckedOilTempPID && !hasOilTempPID && (currentPIDIndex % 30 != 0) {
+            pid = queryCycle[currentPIDIndex % queryCycle.count]
+            currentPIDIndex += 1
+        }
+
         sendCommandRaw(pid)
     }
 

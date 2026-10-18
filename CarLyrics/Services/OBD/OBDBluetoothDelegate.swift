@@ -33,6 +33,7 @@ extension OBDManager: CBCentralManagerDelegate {
 
     public func connectToDevice(id: String) {
         guard let dev = discoveredDevices.first(where: { $0.id == id }) else { return }
+        UserDefaults.standard.set(id, forKey: "CarLyrics_Last_Connected_OBD_UUID")
         stopScan()
         self.peripheral = dev.peripheral
         connectionState = .connecting
@@ -66,7 +67,11 @@ extension OBDManager: CBCentralManagerDelegate {
             discoveredDevices.append(dev)
         }
 
-        let isOBD = lower.contains("obd") ||
+        let savedUUID = UserDefaults.standard.string(forKey: "CarLyrics_Last_Connected_OBD_UUID")
+        let isSavedDevice = (savedUUID != nil && peripheral.identifier.uuidString == savedUUID)
+
+        let isOBD = isSavedDevice ||
+                    lower.contains("obd") ||
                     lower.contains("elm") ||
                     lower.contains("v-link") ||
                     lower.contains("vlink") ||
@@ -76,7 +81,11 @@ extension OBDManager: CBCentralManagerDelegate {
                     lower.contains("icar") ||
                     lower.contains("viecar") ||
                     lower.contains("konnwei") ||
-                    lower.contains("ble")
+                    lower.contains("ble") ||
+                    lower.hasPrefix("bt-") ||
+                    lower.contains("bt-g") ||
+                    lower.contains("link") ||
+                    lower.contains("car")
 
         if isOBD && connectionState == .scanning {
             logSystem("Gefunden: '\(name)' [RSSI: \(RSSI) dBm] – Verbinde automatisch…")
@@ -90,6 +99,7 @@ extension OBDManager: CBCentralManagerDelegate {
     }
 
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: "CarLyrics_Last_Connected_OBD_UUID")
         logSystem("✔ BLE-Verbindung hergestellt (\(peripheral.name ?? "Adapter")). Entdecke UART-Services…")
         connectionState = .initializing
         detailedStatus = "Entdecke UART-Dienste…"
@@ -162,16 +172,15 @@ extension OBDManager: CBPeripheralDelegate {
         // Spezifische Zuordnung nach bekannten BLE-UART Standards
         if serviceStr.contains("FFF0") {
             for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                if u.contains("FFF1") { txChar = c }
-                if u.contains("FFF2") { rxChar = c }
+                if c.properties.contains(.notify) || c.properties.contains(.indicate) { rxChar = c }
+                if c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse) { txChar = c }
             }
         } else if serviceStr.contains("FFE0") {
             for c in chars {
                 let u = c.uuid.uuidString.uppercased()
-                if u.contains("FFE1") {
-                    txChar = c
-                    rxChar = c
+                if u.contains("FFE1") || c.properties.contains(.notify) || c.properties.contains(.write) {
+                    if c.properties.contains(.notify) || c.properties.contains(.indicate) { rxChar = c }
+                    if c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse) { txChar = c }
                 }
             }
         } else if serviceStr.contains("6E400001") {
@@ -216,7 +225,7 @@ extension OBDManager: CBPeripheralDelegate {
             // Falls didUpdateNotificationStateFor verzögert kommt oder ausbleibt:
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
                 guard let self = self else { return }
-                if self.connectionState == .initializing && self.initQueue.isEmpty {
+                if self.connectionState == .initializing && self.initQueue.isEmpty && !self.isProbingProtocols {
                     self.logSystem("Starte Handshake per Timer-Fallback…")
                     self.startRobustInitSequence()
                 }
@@ -233,7 +242,7 @@ extension OBDManager: CBPeripheralDelegate {
         }
         if characteristic.isNotifying {
             logSystem("✔ BLE Notify bestätigt für \(characteristic.uuid.uuidString)")
-            if connectionState == .initializing && initQueue.isEmpty {
+            if connectionState == .initializing && initQueue.isEmpty && !isProbingProtocols {
                 startRobustInitSequence()
             }
         }
@@ -264,7 +273,7 @@ extension OBDManager: CBPeripheralDelegate {
             receiveBuffer = ""
             isWaitingForResponse = false
 
-            if connectionState == .initializing || connectionState == .searchingECU {
+            if (connectionState == .initializing || connectionState == .searchingECU) && !isProbingProtocols {
                 initStepTimer?.invalidate()
                 handleRawMessageReceived(fullMsg)
                 sendNextInitCommand()

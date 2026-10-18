@@ -44,9 +44,9 @@ public struct OBDSensorMatrixSection: View {
                               status: obd.liveCoolantTemp != nil ? .green : .secondary)
 
                     SensorBox(title: "Öltemperatur (01 5C)",
-                              value: obd.liveOilTemp != nil ? "\(obd.liveOilTemp!) °C" : "Modell",
-                              status: obd.liveOilTemp != nil ? .green : .cyan,
-                              badge: obd.liveOilTemp != nil ? "PID 015C" : "EA113 Sim")
+                              value: obd.liveOilTemp != nil ? "\(obd.liveOilTemp!) °C" : (obd.effectiveOilTemp != nil ? "\(obd.effectiveOilTemp!) °C" : "—"),
+                              status: (obd.liveOilTemp != nil || obd.effectiveOilTemp != nil) ? .green : .secondary,
+                              badge: obd.liveOilTemp != nil ? "PID 015C" : (obd.effectiveOilTemp != nil ? "EA113 Thermik" : "Warte auf ECU"))
 
                     SensorBox(title: "Ladedruck Relativ",
                               value: obd.liveBoostBar != nil ? String(format: "%.2f bar", obd.liveBoostBar!) : "—",

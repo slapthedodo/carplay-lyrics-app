@@ -110,10 +110,12 @@ extension OBDManager {
                 if oil >= -20 && oil <= 160 {
                     liveOilTemp = oil
                     hasOilTempPID = true
+                    hasCheckedOilTempPID = true
                 }
             }
         } else if compact.contains("NODATA") && lastCommandSent == "015C" {
             hasOilTempPID = false
+            hasCheckedOilTempPID = true
         }
 
         // 9. Ansauglufttemperatur (PID 01 0F)

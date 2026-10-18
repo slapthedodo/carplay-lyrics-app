@@ -17,6 +17,14 @@ extension OBDManager {
         }
         isProbingProtocols = true
         stopPolling()
+        initStepTimer?.invalidate()
+        initStepTimer = nil
+        initQueue.removeAll()
+        sequenceTimer?.invalidate()
+        sequenceTimer = nil
+        sequenceQueue.removeAll()
+        isWaitingForResponse = false
+        receiveBuffer = ""
 
         let candidates: [OBDProtocol] = [
             .can11_500,         // Standard Golf 5 GTI EA113
@@ -56,7 +64,7 @@ extension OBDManager {
                 connectionState = .connected
                 startPolling()
             } else {
-                detailedStatus = "Kein Protokoll hat geantwortet. Zündung eingeschaltet?"
+                detailedStatus = "Kein Protokoll hat geantwortet. Zündung Stufe 2 aktiv?"
             }
             return
         }
@@ -71,23 +79,27 @@ extension OBDManager {
         cmds.append("0100") // Lese unterstützte PIDs
 
         let startTime = Date()
-        sendSequence(cmds: cmds, timeout: target == .auto ? 6.5 : 3.5) { [weak self] fullResponse, success in
+        sendSequence(cmds: cmds, timeout: target == .auto ? 6.5 : 4.0) { [weak self] fullResponse, success in
             guard let self = self else { return }
             let duration = Int(Date().timeIntervalSince(startTime) * 1000)
             self.probeResults[index].responseTimeMs = duration
             self.probeResults[index].rawResponse = fullResponse
 
-            if success && fullResponse.contains("4100") {
+            let compactResp = fullResponse.replacingOccurrences(of: " ", with: "")
+                                          .replacingOccurrences(of: "\r", with: "")
+                                          .replacingOccurrences(of: "\n", with: "")
+
+            if (success || !fullResponse.isEmpty) && (compactResp.contains("4100") || compactResp.contains("410C") || compactResp.contains("4105")) {
                 self.probeResults[index].status = .success
                 self.probeResults[index].note = "ECU antwortet! Bosch MED9.1 erkannt."
                 self.logSystem("✔ Treffer bei \(target.rawValue) in \(duration)ms!")
-            } else if fullResponse.contains("UNABLE TO CONNECT") {
+            } else if fullResponse.contains("UNABLE TO CONNECT") || compactResp.contains("UNABLETOCONNECT") {
                 self.probeResults[index].status = .failed
                 self.probeResults[index].note = "UNABLE TO CONNECT (Falsches Protokoll oder Zündung aus)"
-            } else if fullResponse.contains("BUS INIT") || fullResponse.contains("BUSINIT") {
+            } else if fullResponse.contains("BUS INIT") || compactResp.contains("BUSINIT") {
                 self.probeResults[index].status = .failed
                 self.probeResults[index].note = "BUS INIT ERROR"
-            } else if fullResponse.contains("NO DATA") {
+            } else if fullResponse.contains("NO DATA") || compactResp.contains("NODATA") {
                 self.probeResults[index].status = .noData
                 self.probeResults[index].note = "NO DATA (Bus erkannt, aber keine Antwort auf 0100)"
             } else {

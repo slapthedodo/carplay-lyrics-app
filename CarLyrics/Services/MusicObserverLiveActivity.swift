@@ -193,20 +193,9 @@ extension MusicObserver {
 
         if obd.isEnabled {
             if obd.connectionState == .connected {
-                if let realOil = obd.liveOilTemp {
-                    oilTemp = realOil
-                    isEngineWarm = realOil >= 80
-                } else if let coolant = obd.liveCoolantTemp {
-                    // VW EA113 2.0 TFSI: Kühlmittel erwärmt sich über den Öl-Wasser-Wärmetauscher zuerst
-                    let baseOil = max(20, coolant - 8)
-                    let loadBonus = (coolant >= 85 && (obd.liveRPM > 2600 || (obd.liveBoostBar ?? 0) > 0.2)) ? min(15, max(0, Int((obd.liveBoostBar ?? 0) * 10))) : 0
-                    let estimatedOil = baseOil + loadBonus
-                    oilTemp = estimatedOil
-                    isEngineWarm = estimatedOil >= 80
-                } else {
-                    oilTemp = wm?.oilTempInt ?? 20
-                    isEngineWarm = false
-                }
+                let temp = obd.effectiveOilTemp ?? wm?.oilTempInt ?? 20
+                oilTemp = temp
+                isEngineWarm = temp >= 80
                 effectiveBoost = obd.liveBoostBar ?? 0.0
                 effectiveCoolant = obd.liveCoolantTemp ?? max(20, (wm?.oilTempInt ?? 20) + 10)
                 effectiveIAT = obd.liveIAT ?? 20

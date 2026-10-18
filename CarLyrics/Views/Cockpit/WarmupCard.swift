@@ -16,9 +16,9 @@ public struct WarmupCard: View {
     public var displayTemp: Int? {
         if obd.isEnabled {
             if obd.connectionState == .connected {
-                return obd.liveOilTemp ?? obd.liveCoolantTemp.map { max(20, $0 - 8) }
+                return obd.effectiveOilTemp ?? warmup.oilTempInt
             }
-            return nil
+            return warmup.oilTempInt
         }
         return warmup.oilTempInt
     }
@@ -32,21 +32,27 @@ public struct WarmupCard: View {
                     Spacer()
                     if obd.isEnabled {
                         if obd.connectionState == .connected {
-                            Text("LIVE OBD")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.green)
+                            if obd.liveOilTemp != nil {
+                                Text("LIVE ÖL (OBD)")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.green)
+                            } else {
+                                Text("LIVE ECU (EA113)")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
                         } else if obd.connectionState == .scanning {
                             Text("SUCHE ADAPTER…")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.orange)
-                        } else if obd.connectionState == .connecting || obd.connectionState == .initializing {
-                            Text("VERBINDE…")
+                        } else if obd.connectionState == .connecting || obd.connectionState == .initializing || obd.connectionState == .searchingECU {
+                            Text("VERBINDE ECU…")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.orange)
                         } else {
-                            Text("OBD GETRENNT")
+                            Text("EA113 SIMULATION")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.cyan)
                         }
                     } else {
                         Text("2.0 TFSI SIMULATION")
@@ -101,11 +107,16 @@ public struct WarmupCard: View {
         guard let t else {
             if obd.connectionState == .scanning {
                 return "OBD aktiviert – Suche nach Bluetooth-Adapter…"
-            } else if obd.connectionState == .connecting || obd.connectionState == .initializing {
+            } else if obd.connectionState == .connecting || obd.connectionState == .initializing || obd.connectionState == .searchingECU {
                 return "OBD verbindet – Lese Steuergerät aus…"
             } else {
                 return "OBD aktiviert – Warte auf Adapter & Daten…"
             }
+        }
+        if obd.isEnabled && obd.connectionState == .connected {
+            if t < 60 { return "Kaltstart (ECU) – Max. 2.500 U/min, kein Ladedruck!" }
+            if t < 80 { return "Öl wärmt auf (ECU) – Gemäßigt fahren" }
+            return "Betriebstemperatur erreicht – Voller Ladedruck frei! 🏁"
         }
         if t < 60 { return "Kaltstart – Max. 2.500 U/min, kein Ladedruck!" }
         if t < 80 { return "Öl wärmt auf – Gemäßigt fahren" }
