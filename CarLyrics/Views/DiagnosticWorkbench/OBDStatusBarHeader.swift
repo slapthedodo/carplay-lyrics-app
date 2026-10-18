@@ -43,6 +43,22 @@ public struct OBDStatusBarHeader: View {
                     .foregroundStyle(.white)
                 }
 
+                if !obd.isAutoDiagnosing {
+                    Button {
+                        obd.runFullAutoDiagnosis()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "sparkles")
+                            Text("Auto-Test")
+                        }
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.cyan)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.cyan.opacity(0.15), in: Capsule())
+                    }
+                }
+
                 Toggle("", isOn: $obd.isEnabled)
                     .labelsHidden()
                     .tint(.green)

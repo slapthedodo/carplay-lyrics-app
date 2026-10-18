@@ -36,10 +36,14 @@ public struct WarmupCard: View {
                                 Text("LIVE ÖL (OBD)")
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.green)
-                            } else {
+                            } else if obd.effectiveOilTemp != nil {
                                 Text("LIVE ECU (EA113)")
                                     .font(.system(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.cyan)
+                            } else {
+                                Text("WARTE AUF ECU-DATEN…")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.orange)
                             }
                         } else if obd.connectionState == .scanning {
                             Text("SUCHE ADAPTER…")
@@ -52,12 +56,12 @@ public struct WarmupCard: View {
                         } else {
                             Text("EA113 SIMULATION")
                                 .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(.secondary)
                         }
                     } else {
                         Text("2.0 TFSI SIMULATION")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.cyan)
+                            .foregroundStyle(.secondary)
                     }
                 }
 

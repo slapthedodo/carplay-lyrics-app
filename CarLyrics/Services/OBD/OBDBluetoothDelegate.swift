@@ -170,83 +170,62 @@ extension OBDManager: CBPeripheralDelegate {
             logSystem("  -> Char: \(c.uuid) (Prop: \(c.properties.rawValue))")
         }
 
-        // Spezifische Zuordnung nach bekannten BLE-UART Standards
-        // FFF0: Allstric ELM327 Mini BLE (Primär-Service laut HARDWARE_VEHICLE_SPECS.md)
-        //   FFF1 = TX (Write/WriteWithoutResponse) – iPhone → Adapter
-        //   FFF2 = RX (Notify/Indicate)            – Adapter → iPhone
-        if serviceStr.contains("FFF0") {
-            for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                // UUID-basiert zuerst (zuverlässigster Weg)
-                if u.contains("FFF1") { txChar = c }
-                if u.contains("FFF2") { rxChar = c }
-            }
-            // Fallback: Falls UUIDs nicht FFF1/FFF2 sind, nach Properties zuweisen
-            if txChar == nil || rxChar == nil {
-                for c in chars {
-                    if rxChar == nil && (c.properties.contains(.notify) || c.properties.contains(.indicate)) { rxChar = c }
-                    if txChar == nil && (c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse)) { txChar = c }
+        // Spezifische Zuordnung nach BLE-GATT UART Standards:
+        // RX (iPhone empfängt Daten): MUSS .notify oder .indicate haben.
+        // TX (iPhone sendet Daten):   MUSS .write oder .writeWithoutResponse haben.
+        var discoveredRx: CBCharacteristic? = nil
+        var discoveredTx: CBCharacteristic? = nil
+
+        // Spezifische Erkennung bekannter UART-Services
+        let isKnownUART = serviceStr.contains("FFF0") ||
+                          serviceStr.contains("FFE0") ||
+                          serviceStr.contains("6E400001") ||
+                          serviceStr.contains("49535343") ||
+                          serviceStr.contains("18F0")
+
+        for c in chars {
+            let hasNotify = c.properties.contains(.notify) || c.properties.contains(.indicate)
+            let hasWrite = c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse)
+
+            // Benachrichtigungen auf allen empfangsbereiten Charakteristiken scharf schalten
+            if hasNotify {
+                peripheral.setNotifyValue(true, for: c)
+                logSystem("  ✔ Benachrichtigungen aktiviert auf \(c.uuid)")
+                if discoveredRx == nil {
+                    discoveredRx = c
                 }
             }
-        } else if serviceStr.contains("FFE0") {
-            // HM-10 Fallback: FFE1 ist TX+RX kombiniert
-            for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                if u.contains("FFE1") {
-                    txChar = c
-                    rxChar = c
-                } else if rxChar == nil && (c.properties.contains(.notify) || c.properties.contains(.indicate)) {
-                    rxChar = c
-                } else if txChar == nil && (c.properties.contains(.write) || c.properties.contains(.writeWithoutResponse)) {
-                    txChar = c
+
+            if hasWrite {
+                // Bevorzuge reine Schreib-Charakteristik als TX falls vorhanden
+                if discoveredTx == nil || (discoveredTx == discoveredRx && !hasNotify) {
+                    discoveredTx = c
                 }
-            }
-        } else if serviceStr.contains("6E400001") {
-            // Nordic UART Service (NUS)
-            for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                if u.contains("6E400002") { txChar = c }
-                if u.contains("6E400003") { rxChar = c }
-            }
-        } else if serviceStr.contains("49535343") {
-            for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                if u.contains("8841") { txChar = c }
-                if u.contains("1E4D") { rxChar = c }
-            }
-        } else if serviceStr.contains("18F0") {
-            for c in chars {
-                let u = c.uuid.uuidString.uppercased()
-                if u.contains("2AF0") { txChar = c }
-                if u.contains("2AF1") { rxChar = c }
-            }
-        } else {
-            // Generischer Fallback für unbekannte Services
-            if rxChar == nil {
-                rxChar = chars.first(where: { $0.properties.contains(.notify) })
-                      ?? chars.first(where: { $0.properties.contains(.indicate) })
-            }
-            if txChar == nil {
-                txChar = chars.first(where: { $0 != rxChar && ($0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse)) })
-                      ?? chars.first(where: { $0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse) })
             }
         }
 
-        // Sobald TX und RX bereitstehen:
-        if let tx = txChar, let rx = rxChar, connectionState == .initializing && !isInitializingUART {
-            isInitializingUART = true
-            connectionWatchdogTimer?.invalidate()
-            logSystem("✔ UART Kanäle gefunden: TX=\(tx.uuid.uuidString) | RX=\(rx.uuid.uuidString)")
+        // Falls getrennter Write-Kanal existiert, bevorzuge ihn gegenüber kombiniertem RX/TX
+        if let separateWrite = chars.first(where: { ($0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse)) && $0 != discoveredRx }) {
+            discoveredTx = separateWrite
+        } else if discoveredTx == nil {
+            discoveredTx = chars.first(where: { $0.properties.contains(.write) || $0.properties.contains(.writeWithoutResponse) })
+        }
 
-            logSystem("Aktiviere Benachrichtigungen auf RX…")
-            peripheral.setNotifyValue(true, for: rx)
+        if let rx = discoveredRx, let tx = discoveredTx {
+            rxChar = rx
+            txChar = tx
 
-            // Falls didUpdateNotificationStateFor verzögert kommt oder ausbleibt:
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                guard let self = self else { return }
-                if self.connectionState == .initializing && self.initQueue.isEmpty && !self.isProbingProtocols {
-                    self.logSystem("Starte Handshake per Timer-Fallback…")
-                    self.startRobustInitSequence()
+            if connectionState == .initializing && !isInitializingUART {
+                isInitializingUART = true
+                connectionWatchdogTimer?.invalidate()
+                logSystem("✔ UART bereit: TX=\(tx.uuid.uuidString) | RX=\(rx.uuid.uuidString)")
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                    guard let self = self else { return }
+                    if self.connectionState == .initializing && self.initQueue.isEmpty && !self.isProbingProtocols && !self.isAutoDiagnosing {
+                        self.logSystem("Starte Handshake per Timer-Fallback…")
+                        self.startRobustInitSequence()
+                    }
                 }
             }
         }
@@ -261,7 +240,7 @@ extension OBDManager: CBPeripheralDelegate {
         }
         if characteristic.isNotifying {
             logSystem("✔ BLE Notify bestätigt für \(characteristic.uuid.uuidString)")
-            if connectionState == .initializing && initQueue.isEmpty && !isProbingProtocols {
+            if connectionState == .initializing && initQueue.isEmpty && !isProbingProtocols && !isAutoDiagnosing {
                 startRobustInitSequence()
             }
         }
@@ -272,6 +251,9 @@ extension OBDManager: CBPeripheralDelegate {
                            error: Error?) {
         if let error = error {
             logSystem("🔴 BLE Write Fehler auf \(characteristic.uuid): \(error.localizedDescription)")
+            if !forceWriteWithResponse {
+                forceWriteWithResponse = true
+            }
         }
     }
 
@@ -292,7 +274,7 @@ extension OBDManager: CBPeripheralDelegate {
             receiveBuffer = ""
             isWaitingForResponse = false
 
-            if (connectionState == .initializing || connectionState == .searchingECU) && !isProbingProtocols {
+            if (connectionState == .initializing || connectionState == .searchingECU) && !isProbingProtocols && !isAutoDiagnosing {
                 initStepTimer?.invalidate()
                 handleRawMessageReceived(fullMsg)
                 sendNextInitCommand()

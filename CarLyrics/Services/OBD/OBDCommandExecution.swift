@@ -123,17 +123,21 @@ extension OBDManager {
 
         // Guard: falls initQueue leer ist, sind wir fertig mit der Init-Sequenz
         guard !initQueue.isEmpty else {
-            // Sicherstellen dass wir wirklich in der Init-Phase oder gerade connected sind
-            guard connectionState == .initializing || connectionState == .searchingECU
-                  || connectionState == .connected else { return }
             isInitializingUART = false
             connectionWatchdogTimer?.invalidate()
-            connectionState = .connected
-            detailedStatus = "Verbunden (\(selectedProtocol.rawValue))"
-            // startPolling und startVoltageMonitor sind idempotent (invalidieren vorher)
-            logSystem("✔ ELM327 initialisiert. Starte kontinuierliche Sensorabfrage.")
-            startPolling()
-            startVoltageMonitor()
+
+            let hasAnyResponse = batteryVoltage != nil || !elmFirmware.isEmpty || !supportedPIDs.isEmpty || liveCoolantTemp != nil
+            if hasAnyResponse {
+                connectionState = .connected
+                detailedStatus = "Verbunden (\(selectedProtocol.rawValue))"
+                logSystem("✔ ELM327 initialisiert. Starte kontinuierliche Sensorabfrage.")
+                startPolling()
+                startVoltageMonitor()
+            } else {
+                connectionState = .error
+                detailedStatus = "Keine Antwort vom Adapter (Zündung an?)"
+                logSystem("⚠️ ELM327 Hardware antwortet nicht auf Befehle.")
+            }
             return
         }
 

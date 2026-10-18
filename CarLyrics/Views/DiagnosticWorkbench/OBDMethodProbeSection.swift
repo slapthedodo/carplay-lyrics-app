@@ -6,6 +6,7 @@ import SwiftUI
 
 public struct OBDMethodProbeSection: View {
     @ObservedObject var obd: OBDManager
+    @State private var showAdvancedProtocols: Bool = false
 
     public init(obd: OBDManager) {
         self.obd = obd
@@ -14,149 +15,190 @@ public struct OBDMethodProbeSection: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "bolt.horizontal.circle.fill")
-                            .font(.title2)
+                // ─────────────────────────────────────────────────────────────
+                // 1-Klick Auto-Diagnose Hero Card (Testknopf für alles)
+                // ─────────────────────────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top) {
+                        Image(systemName: "bolt.shield.fill")
+                            .font(.system(size: 28))
                             .foregroundStyle(.cyan)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Protokoll-Bruteforce & Schnelltest")
-                                .font(.headline)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("1-Klick Auto-Diagnose")
+                                .font(.headline.bold())
                                 .foregroundStyle(.white)
-                            Text("Testet nacheinander alle 7 VAG- und OBD-Protokolle mit Abfrage 0100.")
+                            Text("Prüft Bluetooth, Adapter-Hardware, Bosch MED9.1 & Live-Sensoren vollautomatisch.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
 
-                    if obd.isProbingProtocols {
-                        HStack(spacing: 10) {
-                            ProgressView()
-                                .tint(.cyan)
-                            Text(obd.detailedStatus)
-                                .font(.caption.bold())
-                                .foregroundStyle(.cyan)
-                            Spacer()
-                            Button("Stoppen") {
-                                obd.stopProtocolAutoProbe()
+                    if obd.isAutoDiagnosing {
+                        Button {
+                            obd.stopAutoDiagnosis()
+                        } label: {
+                            HStack {
+                                ProgressView()
+                                    .tint(.black)
+                                Text("Diagnose läuft… (Tippen zum Stoppen)")
+                                    .fontWeight(.bold)
                             }
-                            .font(.caption.bold())
-                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.orange, in: RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(.black)
                         }
-                        .padding(.top, 4)
                     } else {
+                        Button {
+                            obd.runFullAutoDiagnosis()
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.title3)
+                                Text("🚀 Jetzt alles automatisch testen & verbinden")
+                                    .font(.headline.bold())
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.cyan, in: RoundedRectangle(cornerRadius: 12))
+                            .foregroundStyle(.black)
+                            .shadow(color: .cyan.opacity(0.35), radius: 8, y: 3)
+                        }
+                    }
+
+                    // Live Schritt-für-Schritt Diagnoseanzeige
+                    if !obd.diagnosisSteps.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            ForEach(obd.diagnosisSteps) { step in
+                                HStack(alignment: .top, spacing: 10) {
+                                    stepIcon(for: step.status)
+                                        .frame(width: 20, height: 20)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(step.title)
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundStyle(.white)
+                                        Text(step.detail)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(stepDetailColor(for: step.status))
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    // Diagnose-Zusammenfassung & Hilfestellung
+                    if let summary = obd.diagnosisSummary {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: summary.contains("✅") ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .font(.title3)
+                                .foregroundStyle(summary.contains("✅") ? .green : .orange)
+                            Text(summary)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(summary.contains("✅") ? .green : .orange)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background((summary.contains("✅") ? Color.green : Color.orange).opacity(0.15), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+                .padding(16)
+                .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+
+                // ─────────────────────────────────────────────────────────────
+                // Erweiterte Experten-Optionen (Standardmäßig eingeklappt)
+                // ─────────────────────────────────────────────────────────────
+                DisclosureGroup("Erweiterte Protokolle & 7-Methoden Test", isExpanded: $showAdvancedProtocols) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Nur nötig, wenn die 1-Klick Auto-Diagnose fehlschlägt.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
                         Button {
                             obd.runProtocolAutoProbe()
                         } label: {
                             HStack {
-                                Image(systemName: "play.fill")
-                                Text("Protokoll-Schnelltest starten")
+                                Image(systemName: "bolt.horizontal.circle")
+                                Text(obd.isProbingProtocols ? "Testet (\(obd.detailedStatus))…" : "7-Methoden Schnelltest ausführen")
                             }
-                            .font(.subheadline.bold())
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(Color.cyan, in: RoundedRectangle(cornerRadius: 10))
-                            .foregroundStyle(.black)
-                        }
-                        .padding(.top, 4)
-                    }
-                }
-                .padding(14)
-                .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Protokoll manuell erzwingen:")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-
-                    ForEach(OBDProtocol.allCases) { proto in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(proto.rawValue)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(obd.selectedProtocol == proto ? .cyan : .white)
-                                Text("Befehl: \(proto.elmCommand)\(proto.headerCommand != nil ? " + \(proto.headerCommand!)" : "")")
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if obd.selectedProtocol == proto {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.cyan)
-                            } else {
-                                Button("Aktivieren") {
-                                    obd.selectProtocol(proto)
-                                }
-                                .font(.caption.bold())
-                                .foregroundStyle(.cyan)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Color.cyan.opacity(0.12), in: Capsule())
-                            }
-                        }
-                        .padding(.vertical, 4)
-                        Divider()
-                    }
-                }
-                .padding(14)
-                .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
-
-                if !obd.probeResults.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Testergebnisse (\(obd.probeResults.count) Methoden):")
                             .font(.caption.bold())
-                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.cyan.opacity(0.2), in: RoundedRectangle(cornerRadius: 8))
+                            .foregroundStyle(.cyan)
+                        }
 
-                        ForEach(obd.probeResults) { res in
-                            HStack(alignment: .top, spacing: 10) {
-                                Circle()
-                                    .fill(statusColor(for: res.status))
-                                    .frame(width: 8, height: 8)
-                                    .padding(.top, 5)
+                        Divider()
 
+                        ForEach(OBDProtocol.allCases) { proto in
+                            HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    HStack {
-                                        Text(res.proto.rawValue)
-                                            .font(.system(size: 13, weight: .bold))
-                                        Spacer()
-                                        if res.responseTimeMs > 0 {
-                                            Text("\(res.responseTimeMs) ms")
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-
-                                    Text(res.note.isEmpty ? res.rawResponse : res.note)
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundStyle(statusColor(for: res.status))
-
-                                    if !res.rawResponse.isEmpty && res.status == .success {
-                                        Text("Antwort: \(res.rawResponse)")
-                                            .font(.system(size: 10, design: .monospaced))
-                                            .foregroundStyle(.green)
-                                    }
+                                    Text(proto.rawValue)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(obd.selectedProtocol == proto ? .cyan : .white)
+                                    Text("Befehl: \(proto.elmCommand)\(proto.headerCommand != nil ? " + \(proto.headerCommand!)" : "")")
+                                        .font(.system(size: 9.5, design: .monospaced))
+                                        .foregroundStyle(.secondary)
                                 }
-
-                                if res.status == .success && obd.selectedProtocol != res.proto {
-                                    Button("Nutzen") {
-                                        obd.selectProtocol(res.proto)
+                                Spacer()
+                                if obd.selectedProtocol == proto {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.cyan)
+                                } else {
+                                    Button("Wählen") {
+                                        obd.selectProtocol(proto)
                                     }
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.green)
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.cyan)
                                     .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.green.opacity(0.15), in: Capsule())
+                                    .padding(.vertical, 3)
+                                    .background(Color.cyan.opacity(0.12), in: Capsule())
                                 }
                             }
-                            .padding(.vertical, 4)
-                            Divider()
+                            .padding(.vertical, 2)
                         }
                     }
-                    .padding(14)
-                    .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.top, 8)
                 }
+                .padding(14)
+                .background(Color(UIColor.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
+                .accentColor(.cyan)
             }
             .padding()
+        }
+    }
+
+    @ViewBuilder
+    private func stepIcon(for status: OBDDiagnosisStep.StepStatus) -> some View {
+        switch status {
+        case .waiting:
+            Image(systemName: "circle")
+                .foregroundStyle(.secondary)
+        case .inProgress:
+            ProgressView()
+                .scaleEffect(0.8)
+                .tint(.cyan)
+        case .success:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .failed:
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(.red)
+        case .warning:
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.orange)
+        }
+    }
+
+    private func stepDetailColor(for status: OBDDiagnosisStep.StepStatus) -> Color {
+        switch status {
+        case .waiting: return .secondary
+        case .inProgress: return .cyan
+        case .success: return .green.opacity(0.85)
+        case .failed: return .red.opacity(0.9)
+        case .warning: return .orange
         }
     }
 

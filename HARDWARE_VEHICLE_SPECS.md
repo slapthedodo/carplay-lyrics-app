@@ -92,8 +92,9 @@ Basierend auf der Amazon-Hardware (Asin / Allstric Store, 9,99 €):
 | **Chipsatz** | BK3231 / PIC18F25K80 Clone (ELM327 v1.5 / v2.1 Firmware Emulation) |
 | **Bluetooth-Modus** | **Bluetooth 4.0 BLE (Bluetooth Low Energy)** für iOS / Android / Windows |
 | **BLE GATT Primär-Service**| **`FFF0`** (Custom BLE UART) |
-| **Charakteristik TX (Senden)**| **`FFF1`** (WriteWithoutResponse / Write) — *vom iPhone zum Adapter* |
-| **Charakteristik RX (Empfang)**| **`FFF2`** (Notify / Indicate) — *vom Adapter zum iPhone* |
+| **Charakteristik RX (Empfang)**| **`FFF1`** (Notify / Indicate) — *vom Adapter zum iPhone* (auf manchen Clones `FFF2`) |
+| **Charakteristik TX (Senden)**| **`FFF2`** (Write / WriteWithoutResponse) — *vom iPhone zum Adapter* (auf manchen Clones `FFF1`) |
+| **Automatisches GATT-Routing**| Die App liest direkt die **BLE-Properties** (`.notify` = RX, `.write` = TX) aus, wodurch jede Clone-Revision immer automatisch 100% korrekt erkannt wird! |
 | **Fallback-Service (HM-10)** | Service **`FFE0`**, Characteristic **`FFE1`** (TX + RX) |
 | **Zeilenumbruch-Regel** | **Strikte Carriage Returns `\r` (ASCII 0x0D)**. Niemals doppelte `\r\r` oder `\r\n` senden, da Clone-Chips sonst einfrieren! |
 

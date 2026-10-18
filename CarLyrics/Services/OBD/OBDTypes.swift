@@ -53,6 +53,27 @@ public enum OBDProtocol: String, CaseIterable, Identifiable {
 // MARK: Diagnostics & Terminal Models
 // ─────────────────────────────────────────────────────────────────────────────
 
+public struct OBDDiagnosisStep: Identifiable {
+    public let id = UUID()
+    public let title: String
+    public var detail: String
+    public var status: StepStatus
+
+    public init(title: String, detail: String, status: StepStatus = .waiting) {
+        self.title = title
+        self.detail = detail
+        self.status = status
+    }
+
+    public enum StepStatus {
+        case waiting
+        case inProgress
+        case success
+        case failed
+        case warning
+    }
+}
+
 public struct ProtocolProbeResult: Identifiable {
     public let id = UUID()
     public let proto: OBDProtocol

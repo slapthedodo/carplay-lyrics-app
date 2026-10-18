@@ -81,6 +81,11 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var isManualTerminalMode : Bool               = false
     @Published public var forceWriteWithResponse: Bool              = false
 
+    // 1-Klick Auto-Diagnose & Schnell-Tester
+    @Published public var diagnosisSteps        : [OBDDiagnosisStep]    = []
+    @Published public var isAutoDiagnosing      : Bool                  = false
+    @Published public var diagnosisSummary      : String?               = nil
+
     // Protokoll Schnell-Tester
     @Published public var probeResults         : [ProtocolProbeResult] = []
     @Published public var isProbingProtocols   : Bool = false
