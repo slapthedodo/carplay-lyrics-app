@@ -42,10 +42,10 @@ public enum LyricsServiceError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .noSyncedLyrics:           return "No synced lyrics available."
-        case .networkError(let e):      return "Network error: \(e.localizedDescription)"
-        case .decodingError(let e):     return "Decoding error: \(e.localizedDescription)"
-        case .invalidURL:               return "Invalid URL."
+        case .noSyncedLyrics:           return "Keine synchronisierten Lyrics gefunden."
+        case .networkError:             return "Keine Verbindung zum Lyrics-Server."
+        case .decodingError:            return "Songtext-Format wird nicht unterstützt."
+        case .invalidURL:               return "Ungültige Song-Anfrage."
         }
     }
 }
@@ -126,19 +126,34 @@ public actor LyricsService {
 
         guard let url = components.url else { throw LyricsServiceError.invalidURL }
 
+        var request = URLRequest(url: url)
+        request.setValue("CarLyrics/1.0 (iOS; slapthedodo@github)", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
         let data: Data
+        let response: URLResponse
         do {
-            let (d, _) = try await session.data(from: url)
+            let (d, r) = try await session.data(for: request)
             data = d
+            response = r
         } catch {
             throw LyricsServiceError.networkError(error)
+        }
+
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 404 {
+                throw LyricsServiceError.noSyncedLyrics
+            }
+            guard http.statusCode == 200 else {
+                throw LyricsServiceError.networkError(URLError(.badServerResponse))
+            }
         }
 
         let resp: LRCLibResponse
         do {
             resp = try JSONDecoder().decode(LRCLibResponse.self, from: data)
         } catch {
-            throw LyricsServiceError.decodingError(error)
+            throw LyricsServiceError.noSyncedLyrics
         }
 
         guard let lrc = resp.syncedLyrics, !lrc.isEmpty else {
@@ -154,19 +169,34 @@ public actor LyricsService {
             throw LyricsServiceError.invalidURL
         }
 
+        var request = URLRequest(url: url)
+        request.setValue("CarLyrics/1.0 (iOS; slapthedodo@github)", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
         let data: Data
+        let response: URLResponse
         do {
-            let (d, _) = try await session.data(from: url)
+            let (d, r) = try await session.data(for: request)
             data = d
+            response = r
         } catch {
             throw LyricsServiceError.networkError(error)
+        }
+
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 404 {
+                throw LyricsServiceError.noSyncedLyrics
+            }
+            guard http.statusCode == 200 else {
+                throw LyricsServiceError.networkError(URLError(.badServerResponse))
+            }
         }
 
         let results: [LRCLibResponse]
         do {
             results = try JSONDecoder().decode([LRCLibResponse].self, from: data)
         } catch {
-            throw LyricsServiceError.decodingError(error)
+            throw LyricsServiceError.noSyncedLyrics
         }
 
         guard let first = results.first(where: { $0.syncedLyrics != nil }),

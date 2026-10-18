@@ -45,18 +45,13 @@ public struct HandyModusView: View {
                 let isLandscape = geo.size.width > geo.size.height
 
                 if isLandscape {
-                    VStack(spacing: 4) {
-                        statusStrip
-                            .padding(.top, 4)
-                            .padding(.horizontal, 12)
-
-                        HandyModusLandscapeView(
-                            observer: observer,
-                            obd: obd,
-                            motion: motion,
-                            warmup: warmup
-                        )
-                    }
+                    HandyModusLandscapeView(
+                        observer: observer,
+                        obd: obd,
+                        motion: motion,
+                        warmup: warmup
+                    )
+                    .toolbar(.hidden, for: .tabBar)
                 } else {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 14) {

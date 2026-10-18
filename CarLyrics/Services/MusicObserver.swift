@@ -37,6 +37,9 @@ public final class MusicObserver: ObservableObject {
     @Published public var disconnectedSeconds     : Int    = 0
     public var autoDismissEnabled                : Bool   = true
 
+    /// Zeitstempel der letzten Vordergrund-Aktivität (verhindert vorzeitiges Beenden beim Sperren/Testen)
+    public var lastForegroundTime : Date = Date()
+
     /// Prüft ob ein echtes CarPlay-Display oder CarPlay-Audioausgang aktiv ist
     public var isCarPlayConnected: Bool {
         let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
@@ -44,11 +47,22 @@ public final class MusicObserver: ObservableObject {
         return hasCarPlayScreen || hasCarAudio
     }
 
-    /// Aktiv wenn App im Vordergrund ist ODER wenn CarPlay im Hintergrund verbunden ist.
-    /// Schließt normale Bluetooth-Kopfhörer (AirPods etc.) strikt aus!
+    /// Aktiv wenn:
+    /// - App im Vordergrund aktiv ist
+    /// - ODER CarPlay verbunden ist
+    /// - ODER Musik läuft (Spotify oder Apple Music)
+    /// - ODER OBD verbunden ist
+    /// - ODER die App vor weniger als 180s im Vordergrund war (z.B. Sperrbildschirm-Test auf der Couch!)
     public var isCarOrActive: Bool {
-        if UIApplication.shared.applicationState == .active { return true }
-        return isCarPlayConnected
+        if UIApplication.shared.applicationState == .active {
+            lastForegroundTime = Date()
+            return true
+        }
+        if isCarPlayConnected { return true }
+        if obd.connectionState == .connected { return true }
+        if isPlaying { return true }
+        if Date().timeIntervalSince(lastForegroundTime) < 180.0 { return true }
+        return false
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -224,10 +238,7 @@ public final class MusicObserver: ObservableObject {
     @objc private func carPlayRouteChanged() {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if !self.isCarOrActive {
-                await self.endAllLiveActivities()
-                BackgroundKeepAliveManager.shared.stop()
-            } else if self.activeActivity == nil {
+            if self.isCarOrActive && self.activeActivity == nil {
                 await self.reattachOrCreateLiveActivity()
             }
         }
@@ -348,9 +359,8 @@ public final class MusicObserver: ObservableObject {
                 } else {
                     self.disconnectedSeconds += 1
 
-                    // Wenn nicht mit CarPlay verbunden im Hintergrund:
-                    // Sofort Dynamic Island beenden und Audio-Keepalive stoppen!
-                    if self.autoDismissEnabled {
+                    // Erst nach 20 Sekunden ohne Verbindung/Musik im Hintergrund beenden:
+                    if self.autoDismissEnabled && self.disconnectedSeconds >= 20 {
                         await self.endAllLiveActivities()
                         BackgroundKeepAliveManager.shared.stop()
                     }

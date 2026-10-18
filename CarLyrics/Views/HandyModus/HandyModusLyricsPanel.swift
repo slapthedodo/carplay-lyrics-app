@@ -6,31 +6,33 @@ import SwiftUI
 
 public struct HandyModusLyricsPanel: View {
     @ObservedObject public var observer: MusicObserver
+    public var isCompact: Bool
 
-    public init(observer: MusicObserver) {
+    public init(observer: MusicObserver, isCompact: Bool = false) {
         self.observer = observer
+        self.isCompact = isCompact
     }
 
     public var body: some View {
         VStack(spacing: 0) {
             // Track header
             trackHeader
-                .padding(.bottom, 10)
+                .padding(.bottom, isCompact ? 6 : 10)
 
             // Progress bar
             progressBar
-                .padding(.bottom, 12)
+                .padding(.bottom, isCompact ? 8 : 12)
 
             // Lyrics context
             lyricsContext
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, isCompact ? 14 : 20)
+        .padding(.vertical, isCompact ? 10 : 16)
         .background(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: isCompact ? 18 : 24)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: isCompact ? 18 : 24)
                         .stroke(Color.cyan.opacity(0.18), lineWidth: 1)
                 )
         )
@@ -85,20 +87,22 @@ public struct HandyModusLyricsPanel: View {
     }
 
     private var lyricsContext: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: isCompact ? 3 : 6) {
             if observer.currentLine.isEmpty && observer.lyricsStatus != .loaded {
                 statusPlaceholder
             } else {
-                contextLine(observer.previousLine2, scale: 0.78, opacity: 0.22)
+                if !isCompact {
+                    contextLine(observer.previousLine2, scale: 0.78, opacity: 0.22)
+                }
                 contextLine(observer.previousLine,  scale: 0.85, opacity: 0.38)
 
                 // Active line — bright + glow
                 Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .font(.system(size: isCompact ? 15 : 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .shadow(color: .cyan.opacity(0.55), radius: 10)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, isCompact ? 2 : 4)
                     .id(observer.currentLine)
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -107,7 +111,9 @@ public struct HandyModusLyricsPanel: View {
                     .animation(.easeInOut(duration: 0.22), value: observer.currentLine)
 
                 contextLine(observer.nextLine,  scale: 0.85, opacity: 0.38)
-                contextLine(observer.nextLine2, scale: 0.78, opacity: 0.22)
+                if !isCompact {
+                    contextLine(observer.nextLine2, scale: 0.78, opacity: 0.22)
+                }
             }
         }
         .frame(maxWidth: .infinity)
