@@ -41,32 +41,51 @@ public struct HandyModusView: View {
         ZStack {
             HandyModusBackground()
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 14) {
-                    // ── 1. Status-Streifen ──────────────────────────────────
-                    statusStrip
-                        .padding(.top, 8)
+            GeometryReader { geo in
+                let isLandscape = geo.size.width > geo.size.height
 
-                    // ── 2. Lyrics Panel ─────────────────────────────────────
-                    HandyModusLyricsPanel(observer: observer)
+                if isLandscape {
+                    VStack(spacing: 4) {
+                        statusStrip
+                            .padding(.top, 4)
+                            .padding(.horizontal, 12)
 
-                    // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
-                    mainGaugesRow
+                        HandyModusLandscapeView(
+                            observer: observer,
+                            obd: obd,
+                            motion: motion,
+                            warmup: warmup
+                        )
+                    }
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 14) {
+                            // ── 1. Status-Streifen ──────────────────────────────────
+                            statusStrip
+                                .padding(.top, 8)
 
-                    // ── 4. G-Kräfte Panel ────────────────────────────────
-                    HandyModusGForcePanel(motion: motion)
+                            // ── 2. Lyrics Panel ─────────────────────────────────────
+                            HandyModusLyricsPanel(observer: observer)
 
-                    // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
-                    HandyModusStatsBar(obd: obd, motion: motion)
+                            // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
+                            mainGaugesRow
 
-                    // ── 6. Widget-Erklärung (einmalig) ──────────────────────
-                    widgetExplanationBanner
+                            // ── 4. G-Kräfte Panel ────────────────────────────────
+                            HandyModusGForcePanel(motion: motion)
 
-                    // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
-                    footerControls
-                        .padding(.bottom, 30)
+                            // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
+                            HandyModusStatsBar(obd: obd, motion: motion)
+
+                            // ── 6. Widget-Erklärung (einmalig) ──────────────────────
+                            widgetExplanationBanner
+
+                            // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
+                            footerControls
+                                .padding(.bottom, 30)
+                        }
+                        .padding(.horizontal, 14)
+                    }
                 }
-                .padding(.horizontal, 14)
             }
         }
         .navigationBarHidden(true)

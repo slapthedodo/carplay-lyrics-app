@@ -42,14 +42,9 @@ extension MusicObserver {
     }
 
     public func handleFastGForceChange(currentG: Double, peakG: Double) {
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastActivityUpdate)
-        // 120ms Mindestabstand (ermöglicht blitzschnelle, flüssige Dynamic Island G-Kraft Reaktion)
-        if elapsed >= 0.12 {
-            pushActivityUpdate(force: true)
-        } else if !pendingActivityUpdate {
-            pendingActivityUpdate = true
-        }
+        // G-Kräfte aktualisieren die in-app Instrumente in Echtzeit.
+        // Die Dynamic Island wird nicht mit G-Kraft Spikes überflutet,
+        // um Apple ActivityKit Throttling zu verhindern.
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -60,10 +55,10 @@ extension MusicObserver {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
-        // Apple Rate-Limit Schutz:
-        // Bei Songtext-Zeilenwechsel & G-Kraft Peaks: min 0.12s Abstand (flüssige 8 Hz Updates)
-        // Bei reinem Telemetrie-Heartbeat: min 0.8s Abstand
-        let minAllowed = force ? 0.12 : 0.8
+        // Apple Rate-Limit Schutz für Öltemperatur-Updates:
+        // Bei Temperaturwechsel: min 0.6s Abstand
+        // Bei Telemetrie-Heartbeat: min 1.5s Abstand
+        let minAllowed = force ? 0.6 : 1.5
         if !force && elapsed < minAllowed {
             return
         }

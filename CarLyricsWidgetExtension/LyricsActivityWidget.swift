@@ -160,79 +160,84 @@ public struct LyricsActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
 
-                // ── Expanded Leading ──────────────────────────────────────────
+                // ── Expanded Leading: Öltemperatur Badge mit Ring ─────────────
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
                         OilTempBadge(
                             temp     : context.state.oilTemp,
                             progress : context.state.oilTemp != nil ? context.state.warmupProgress : 0,
                             phase    : context.state.oilTemp != nil ? context.state.warmupPhase : .cold,
-                            size     : 44
+                            size     : 48
                         )
-
-                        if let water = context.state.coolantTemp {
-                            Text("Wasser: \(water)°")
-                                .font(.system(size: 8.5, weight: .bold))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Wasser: --")
-                                .font(.system(size: 8.5, weight: .bold))
-                                .foregroundStyle(.secondary)
-                        }
                     }
-                    .padding(.leading, 4)
+                    .padding(.leading, 6)
                 }
 
-                // ── Expanded Trailing ─────────────────────────────────────────
+                // ── Expanded Trailing: Kühlwasser & Motorzustand ──────────────
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        GForceGaugeBadge(
-                            currentG : context.state.currentG,
-                            maxG     : 1.2,
-                            size     : 44
-                        )
+                    VStack(alignment: .trailing, spacing: 3) {
+                        if let water = context.state.coolantTemp {
+                            Text("Wasser: \(water)°C")
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.cyan)
+                        } else {
+                            Text("Wasser: --")
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
 
                         if let boost = context.state.boostBar, boost > 0.05 {
                             Text(String(format: "%.2f bar", boost))
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.cyan)
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.orange)
                         } else {
-                            Text(String(format: "Peak: %.1fG", context.state.peakG))
-                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                            Text(context.state.isEngineWarm ? "BETRIEBSWARM" : "KALTLAUF")
+                                .font(.system(size: 8.5, weight: .heavy, design: .rounded))
+                                .foregroundStyle(phaseColor(context.state.warmupPhase))
                         }
                     }
-                    .padding(.trailing, 4)
+                    .padding(.trailing, 6)
                 }
 
-                // ── Expanded Center ───────────────────────────────────────────
+                // ── Expanded Center: Große Öltemperatur-Anzeige ───────────────
                 DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 3) {
-                        Text(context.state.songTitle)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-
-                        Text(context.state.currentLine.isEmpty ? "♪" : context.state.currentLine)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
+                    VStack(spacing: 2) {
+                        HStack(spacing: 4) {
+                            if let temp = context.state.oilTemp {
+                                Text("\(temp)°C")
+                                    .font(.system(size: 24, weight: .black, design: .monospaced))
+                                    .foregroundStyle(phaseColor(context.state.warmupPhase))
+                            } else {
+                                Text("--°C")
+                                    .font(.system(size: 24, weight: .black, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("ÖL")
+                                .font(.system(size: 9, weight: .black, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
+                        Text(context.state.warmupPhase.rawValue)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(phaseColor(context.state.warmupPhase))
                     }
                 }
 
-                // ── Expanded Bottom ───────────────────────────────────────────
+                // ── Expanded Bottom: Warmup-Balken & Empfehlung ───────────────
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 4) {
-                        if !context.state.nextLine.isEmpty {
-                            Text(context.state.nextLine)
-                                .font(.caption2)
-                                .foregroundStyle(.white.opacity(0.6))
-                                .lineLimit(1)
-                        }
-
                         WarmupStatusBar(state: context.state)
-                            .frame(height: 3)
+                            .frame(height: 3.5)
+
+                        HStack {
+                            Text("VW Golf 5 GTI • EA113 2.0 TFSI")
+                                .font(.system(size: 8, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.35))
+                            Spacer()
+                            Text(context.state.isEngineWarm ? "✓ Feuer frei (Warm)" : "⚠ Warmfahren (< 3000 RPM)")
+                                .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(context.state.isEngineWarm ? .green : .yellow)
+                        }
+                        .padding(.horizontal, 4)
                     }
                     .padding(.bottom, 6)
                 }
@@ -241,75 +246,44 @@ public struct LyricsActivityWidget: Widget {
                 // ── Dynamic Island Kompakt Links: Öltemperatur mit Thermometer ──
                 HStack(spacing: 3) {
                     Image(systemName: "thermometer.medium")
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
-                            .font(.system(size: 13.5, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
                             .foregroundStyle(phaseColor(context.state.warmupPhase))
                     } else {
                         Text("--°")
-                            .font(.system(size: 13.5, weight: .heavy, design: .rounded))
+                            .font(.system(size: 14, weight: .heavy, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                 }
 
             } compactTrailing: {
-                // ── Dynamic Island Kompakt Rechts: G-Kraft oder Songtext ──
+                // ── Dynamic Island Kompakt Rechts: Phase & Kühlwasser ──
                 HStack(spacing: 3) {
-                    if context.state.currentG > 0.35 {
-                        // Bei Kurven/G-Kräften: Violette G-Kraft mit Fadenkreuz
-                        HStack(spacing: 2) {
-                            Image(systemName: "scope")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                            Text(String(format: "%.1fG", context.state.currentG))
-                                .font(.system(size: 12.5, weight: .heavy, design: .rounded))
-                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                        }
-                    } else if !context.state.currentLine.isEmpty && context.state.currentLine != "♪" && context.state.currentLine != "Öl- & Telemetrie-Monitor" {
-                        // Live synchronisierter Songtext
-                        HStack(spacing: 2) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.green)
-                            Text(context.state.currentLine)
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    } else if !context.state.songTitle.isEmpty && context.state.songTitle != "TFSI 2.0 Telemetrie" {
-                        HStack(spacing: 2) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 8))
-                                .foregroundStyle(.secondary)
-                            Text(context.state.songTitle)
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                    } else {
-                        Text(context.state.warmupPhase.rawValue)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    Text(context.state.warmupPhase.rawValue)
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .foregroundStyle(phaseColor(context.state.warmupPhase))
+                    if let water = context.state.coolantTemp {
+                        Text("(\(water)°)")
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.65))
                     }
                 }
-                .frame(maxWidth: 160, alignment: .trailing)
 
             } minimal: {
                 HStack(spacing: 1.5) {
                     Image(systemName: "thermometer.medium")
-                        .font(.system(size: 7.5, weight: .bold))
+                        .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(context.state.oilTemp != nil ? phaseColor(context.state.warmupPhase) : .secondary)
                     if let temp = context.state.oilTemp {
                         Text("\(temp)°")
-                            .font(.system(size: 10.5, weight: .black, design: .rounded))
+                            .font(.system(size: 11, weight: .black, design: .rounded))
                             .foregroundStyle(phaseColor(context.state.warmupPhase))
                     } else {
                         Text("--")
-                            .font(.system(size: 10.5, weight: .black, design: .rounded))
+                            .font(.system(size: 11, weight: .black, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                 }

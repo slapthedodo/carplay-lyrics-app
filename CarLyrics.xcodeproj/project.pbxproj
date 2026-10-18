@@ -315,6 +315,8 @@
 					97C1E0832A000001, /* HandyModusStatsBar.swift */
 					97C1E0842A000001, /* HandyModusGForcePanel.swift */
 					97C1E0852A000001, /* HandyModusView.swift */
+					97C1E0862A000001, /* HandyModusLandscapeView.swift */
+				97C1B0662A000001, /* HandyModusLandscapeView.swift */
 				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
 				97C1E0612A000001, /* OBDStatusBarHeader.swift */
 				97C1E0622A000001, /* OBDMethodProbeSection.swift */
@@ -425,6 +427,7 @@
 
 
 		/* HandyModus Views */
+		97C1B0662A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLandscapeView.swift; path = HandyModus/HandyModusLandscapeView.swift; sourceTree = "<group>"; };
 		97C1B0602A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusBackground.swift; path = HandyModus/HandyModusBackground.swift; sourceTree = "<group>"; };
 		97C1B0612A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGaugesView.swift; path = HandyModus/HandyModusGaugesView.swift; sourceTree = "<group>"; };
 		97C1B0622A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLyricsPanel.swift; path = HandyModus/HandyModusLyricsPanel.swift; sourceTree = "<group>"; };
@@ -453,6 +456,7 @@
 
 
 		/* HandyModus Build Files */
+		97C1E0862A000001  = { isa = PBXBuildFile; fileRef = 97C1B0662A000001;  };
 		97C1E0802A000001  = { isa = PBXBuildFile; fileRef = 97C1B0602A000001;  };
 		97C1E0812A000001  = { isa = PBXBuildFile; fileRef = 97C1B0612A000001;  };
 		97C1E0822A000001  = { isa = PBXBuildFile; fileRef = 97C1B0622A000001;  };

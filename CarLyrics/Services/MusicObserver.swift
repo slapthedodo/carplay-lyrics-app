@@ -37,17 +37,18 @@ public final class MusicObserver: ObservableObject {
     @Published public var disconnectedSeconds     : Int    = 0
     public var autoDismissEnabled                : Bool   = true
 
+    /// Prüft ob ein echtes CarPlay-Display oder CarPlay-Audioausgang aktiv ist
+    public var isCarPlayConnected: Bool {
+        let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+        let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .carAudio }
+        return hasCarPlayScreen || hasCarAudio
+    }
+
+    /// Aktiv wenn App im Vordergrund ist ODER wenn CarPlay im Hintergrund verbunden ist.
+    /// Schließt normale Bluetooth-Kopfhörer (AirPods etc.) strikt aus!
     public var isCarOrActive: Bool {
         if UIApplication.shared.applicationState == .active { return true }
-        let hasCarPlay = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
-        if hasCarPlay { return true }
-        let route = AVAudioSession.sharedInstance().currentRoute
-        let isCarAudio = route.outputs.contains {
-            $0.portType == .carAudio || $0.portType == .bluetoothA2DP || $0.portType == .bluetoothHFP
-        }
-        if isCarAudio { return true }
-        if obd.connectionState == .connected { return true }
-        return false
+        return isCarPlayConnected
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -84,6 +85,9 @@ public final class MusicObserver: ObservableObject {
     var liveActivity           : Activity<LyricsAttributes>?
     var lastActivityUpdate     : Date   = .distantPast
     var lastSentG              : Double = 0
+    var lastSentOilTemp        : Int?   = nil
+    var lastSentCoolant        : Int?   = nil
+    var lastSentPhase          : WarmupPhase? = nil
     var isUpdatingActivity     : Bool   = false
     var pendingActivityUpdate  : Bool   = false
     var lastWidgetReloadTime   : Date   = .distantPast
@@ -206,6 +210,27 @@ public final class MusicObserver: ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(appWillTerminate),
             name: UIApplication.willTerminateNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(carPlayRouteChanged),
+            name: UIScreen.didDisconnectNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(carPlayRouteChanged),
+            name: UIScreen.didConnectNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(carPlayRouteChanged),
+            name: AVAudioSession.routeChangeNotification, object: nil)
+    }
+
+    @objc private func carPlayRouteChanged() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if !self.isCarOrActive {
+                await self.endAllLiveActivities()
+                BackgroundKeepAliveManager.shared.stop()
+            } else if self.activeActivity == nil {
+                await self.reattachOrCreateLiveActivity()
+            }
+        }
     }
 
     @objc private func appWillTerminate() {
@@ -302,20 +327,34 @@ public final class MusicObserver: ObservableObject {
                     if self.activeActivity == nil {
                         await self.reattachOrCreateLiveActivity()
                     } else {
-                        self.pushActivityUpdate(force: false)
+                        // Dynamic Island Öltemperatur-Update:
+                        // Nur pushen wenn Öltemperatur, Kühlwasser oder Phase sich ändern,
+                        // oder mindestens alle 4 Sekunden zur Absicherung.
+                        let currentOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
+                        let currentCoolant = self.obd.liveCoolantTemp
+                        let currentPhase = self.warmupManager?.phase
+
+                        if currentOil != self.lastSentOilTemp || currentCoolant != self.lastSentCoolant || currentPhase != self.lastSentPhase {
+                            self.lastSentOilTemp = currentOil
+                            self.lastSentCoolant = currentCoolant
+                            self.lastSentPhase = currentPhase
+                            self.pushActivityUpdate(force: true)
+                        } else {
+                            self.pushActivityUpdate(force: false)
+                        }
                     }
-                    // Widgets im Hintergrund schonend aktualisieren (max alle 15 Sekunden)
+                    // Widgets im Hintergrund schonend aktualisieren
                     self.scheduleWidgetReload(force: false)
                 } else {
                     self.disconnectedSeconds += 1
 
-                    // Exakt nach 10 Sekunden ohne Verbindung (CarPlay/Bluetooth/OBD) im Hintergrund:
-                    if self.autoDismissEnabled && self.disconnectedSeconds == 10 {
+                    // Wenn nicht mit CarPlay verbunden im Hintergrund:
+                    // Sofort Dynamic Island beenden und Audio-Keepalive stoppen!
+                    if self.autoDismissEnabled {
                         await self.endAllLiveActivities()
                         BackgroundKeepAliveManager.shared.stop()
                     }
 
-                    // Während getrennt: KEINE neue Live Activity anlegen!
                     _ = self.makeState()
                 }
             }
@@ -355,22 +394,10 @@ public final class MusicObserver: ObservableObject {
                     nextLine      = newNext
                     nextLine2     = newNext2
                     nextLine3     = newNext3
-                    // Bei Zeilenwechsel sofort die Dynamic Island aktualisieren!
-                    pushActivityUpdate(force: true)
+                    // Hinweis: Lyrics laufen flüssig in der App & im Handy-Modus.
+                    // Die Dynamic Island wird nicht mit Lyrics belastet, damit Öltemp nicht hinterherhängt.
                 }
             }
-        }
-
-        // Telemetrie Check (G-Kraft Spitze erfassen – blitzschnell & reaktiv)
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastActivityUpdate)
-        let currentGVal = motionManager?.currentG ?? 0
-        let gDelta = abs(currentGVal - lastSentG)
-
-        // Wenn G-Kraft sich spürbar ändert (>0.03G) und min 0.12s vergangen sind:
-        if gDelta >= 0.03 && elapsed >= 0.12 {
-            lastSentG = currentGVal
-            pushActivityUpdate(force: true)
         }
     }
 

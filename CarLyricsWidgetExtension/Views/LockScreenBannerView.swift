@@ -61,51 +61,47 @@ struct LockScreenBannerView: View {
             Divider()
                 .overlay(Color.white.opacity(0.15))
 
-            // ── MITTLERER BEREICH: Track-Info & Live-Songtext ──
-            VStack(alignment: .leading, spacing: 2.5) {
-                // Track & Artist Badge
-                HStack(spacing: 4) {
-                    Image(systemName: "music.note")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(.green)
-                    Text("\(state.songTitle) • \(state.artist)")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.75))
-                        .lineLimit(1)
+            // ── MITTLERER BEREICH: Öltemperatur & Aufwärmstatus ──
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        if let temp = state.oilTemp {
+                            Text("\(temp)°C")
+                                .font(.system(size: 26, weight: .black, design: .monospaced))
+                                .foregroundStyle(phaseColor(state.warmupPhase))
+                        } else {
+                            Text("--°C")
+                                .font(.system(size: 26, weight: .black, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("ÖLTEMPERATUR")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+
+                    Text(state.warmupPhase.rawValue)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(phaseColor(state.warmupPhase))
                 }
 
-                // Großer, klarer Live-Songtext (18pt bold)
-                Text(state.currentLine.isEmpty ? "♪" : state.currentLine)
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
+                Spacer()
 
-                // Nächste Zeile dezent
-                if !state.nextLine.isEmpty {
-                    Text(state.nextLine)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .lineLimit(1)
-                }
-            }
-
-            // ── UNTERE LEISTE: Fortschrittsbalken ──
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.12)).frame(height: 3.5)
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [.green, .cyan],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: geo.size.width * max(0.02, min(1.0, state.progress)), height: 3.5)
+                VStack(alignment: .trailing, spacing: 3) {
+                    if let water = state.coolantTemp {
+                        Text("Kühlwasser: \(water)°C")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.cyan)
+                    }
+                    Text(state.isEngineWarm ? "✓ Betriebsbereit" : "⚠ Schonend fahren")
+                        .font(.system(size: 11, weight: .heavy, design: .rounded))
+                        .foregroundStyle(state.isEngineWarm ? .green : .yellow)
                 }
             }
-            .frame(height: 3.5)
+            .padding(.vertical, 4)
+
+            // ── UNTERE LEISTE: Aufwärm-Fortschrittsbalken ──
+            WarmupStatusBar(state: state)
+                .frame(height: 4)
         }
         .padding(14)
         .background(
