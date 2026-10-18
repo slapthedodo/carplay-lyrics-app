@@ -1,5 +1,5 @@
 // MARK: - PedalVisualizerView.swift
-// 'Pedale' Tab – Live-Pedalanzeige + Drehzahlmesser + Ganganzeige
+// 'Pedale' Tab – Live-Pedalanzeige (Kupplung, Bremse, Gas) + Drehzahl + Gang
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -11,7 +11,9 @@ public struct PedalVisualizerView: View {
     @ObservedObject var obd: OBDManager
     @ObservedObject var motion: MotionManager
 
-    @Environment(\.horizontalSizeClass) private var hSizeClass
+    // Interaktive Demo-Werte für Kupplung und Bremse (zum Erklären)
+    @State private var manualClutch: Double = 0
+    @State private var manualBrake: Double  = 0
 
     public init(obd: OBDManager, motion: MotionManager) {
         self.obd = obd
@@ -20,15 +22,23 @@ public struct PedalVisualizerView: View {
 
     // ── Derived values ────────────────────────────────────────────────────────
 
-    // Exklusiv nur echte Pedal- & Drehzahldaten abfragen
-    private var gasValue: Int {
-        obd.throttlePosition ?? obd.liveEngineLoad ?? 0
+    // 1. KUPPLUNG (Links): Manuell interaktiv per Touch (Golf 5 hat keinen analogen Kupplungssensor in OBD2)
+    private var clutchValue: Int {
+        Int(manualClutch)
     }
 
+    // 2. BREMSE (Mitte): Echte Längsverzögerung NUR bei Fahrt (speed > 3 km/h), sonst interaktiv per Touch
     private var brakeValue: Int {
-        let g = motion.gY   // negative = braking (Längsbeschleunigung)
-        guard g < -0.15 else { return 0 }
+        if manualBrake > 0 { return Int(manualBrake) }
+        guard obd.liveSpeed > 3 else { return 0 } // Im Stand kein Schüttel-Fehlauslöser!
+        let g = motion.gY   // negative = Bremsverzögerung im Fahrzeug
+        guard g < -0.12 else { return 0 }
         return min(100, Int(abs(g) * 200))
+    }
+
+    // 3. GAS (Rechts): 100% Live aus der Motorsteuerung (PID 01 11 / Drosselklappe & Last)
+    private var gasValue: Int {
+        obd.throttlePosition ?? obd.liveEngineLoad ?? 0
     }
 
     private var rpmValue: Int { obd.liveRPM }
@@ -55,7 +65,6 @@ public struct PedalVisualizerView: View {
         .navigationTitle("Pedale")
         .preferredColorScheme(.dark)
         .onAppear {
-            // Im Pedal-Tab NUR Pedal-, RPM- und Gang-relevante PIDs abfragen für maximale 30Hz Flüssigkeit
             obd.focusMode = .pedalOnly
         }
         .onDisappear {
@@ -67,59 +76,74 @@ public struct PedalVisualizerView: View {
 
     @ViewBuilder
     private func portraitLayout(geo: GeometryProxy) -> some View {
-        VStack(spacing: 16) {
-            pedalsRow(height: geo.size.height * 0.38)
-            rpmGauge(size: min(geo.size.width * 0.72, 240))
-            gearIndicator()
-            Spacer()
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 14) {
+                pedalsRow(height: min(geo.size.height * 0.38, 260))
+
+                rpmGauge(size: min(geo.size.width * 0.65, 210))
+
+                gearIndicator()
+
+                pedalInfoNotice()
+                    .padding(.bottom, 20)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 12)
     }
 
     // MARK: Landscape
 
     @ViewBuilder
     private func landscapeLayout(geo: GeometryProxy) -> some View {
-        HStack(spacing: 20) {
-            pedalsRow(height: geo.size.height * 0.72)
-                .frame(width: geo.size.width * 0.50)
-            VStack(spacing: 20) {
-                rpmGauge(size: min(geo.size.width * 0.35, 220))
+        HStack(spacing: 16) {
+            pedalsRow(height: geo.size.height * 0.76)
+                .frame(width: geo.size.width * 0.52)
+
+            VStack(spacing: 10) {
+                rpmGauge(size: min(geo.size.width * 0.32, 190))
                 gearIndicator()
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(14)
+        .padding(12)
     }
 
-    // MARK: Pedals
+    // MARK: Pedale (Kupplung - Bremse - Gas)
 
     private func pedalsRow(height: CGFloat) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            // 1. KUPPLUNG (Links)
             PedalView(
-                label: "GAS",
-                emoji: "🚀",
-                value: gasValue,
-                color: .cyan,
-                available: true,
-                height: height
+                label: "KUPPLUNG",
+                emoji: "⚙️",
+                value: clutchValue,
+                color: .orange,
+                badge: "TOUCH / DEMO",
+                height: height,
+                interactiveValue: $manualClutch
             )
+
+            // 2. BREMSE (Mitte)
             PedalView(
                 label: "BREMSE",
                 emoji: "🛑",
                 value: brakeValue,
                 color: .red,
-                available: true,
-                height: height
+                badge: obd.liveSpeed > 3 ? "G-VERZÖGERUNG" : "TOUCH / DEMO",
+                height: height,
+                interactiveValue: $manualBrake
             )
+
+            // 3. GAS (Rechts)
             PedalView(
-                label: "KUPPLUNG",
-                emoji: "⚙️",
-                value: 0,
-                color: .orange,
-                available: false,
-                height: height
+                label: "GAS",
+                emoji: "🚀",
+                value: gasValue,
+                color: .cyan,
+                badge: "OBD LIVE (01 11)",
+                height: height,
+                interactiveValue: nil
             )
         }
     }
@@ -135,18 +159,36 @@ public struct PedalVisualizerView: View {
     private func gearIndicator() -> some View {
         VStack(spacing: 2) {
             Text(estimatedGear)
-                .font(.system(size: 80, weight: .black, design: .rounded))
+                .font(.system(size: 64, weight: .black, design: .rounded))
                 .foregroundStyle(estimatedGear == "N" ? Color.yellow : Color.white)
-                .shadow(color: .cyan.opacity(0.5), radius: 12)
+                .shadow(color: .cyan.opacity(0.4), radius: 10)
+
             Text("GANG")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.white.opacity(0.5))
-                .tracking(4)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.4))
+                .tracking(2.5)
         }
+    }
+
+    // MARK: Info Notice
+
+    private func pedalInfoNotice() -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(.cyan)
+
+            Text("Reihenfolge: Kupplung (L) – Bremse (M) – Gas (R). Gas kommt 1:1 live aus dem Golf 5 GTI. Bremse & Kupplung kannst du auf dem Bildschirm direkt mit dem Finger drücken, um Fahranfängern das Anfahren zu zeigen.")
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+                .lineSpacing(2)
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
-// MARK: - Gear Estimation
+// MARK: - Gear Estimator
 
 private func estimateGear(speed: Int, rpm: Int) -> String {
     guard speed >= 5 else { return "N" }
@@ -170,36 +212,38 @@ private struct PedalView: View {
     let emoji: String
     let value: Int          // 0–100
     let color: Color
-    let available: Bool
+    let badge: String
     let height: CGFloat
+    var interactiveValue: Binding<Double>? = nil
 
     private var fraction: CGFloat {
-        available ? CGFloat(value) / 100.0 : 0
+        CGFloat(min(100, max(0, value))) / 100.0
     }
 
     var body: some View {
         VStack(spacing: 6) {
-            // Label
+            // Header
             VStack(spacing: 2) {
-                Text(emoji).font(.system(size: 18))
+                Text(emoji).font(.system(size: 16))
                 Text(label)
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(1.5)
-                    .foregroundStyle(available ? color : .gray)
+                    .font(.system(size: 9.5, weight: .black))
+                    .tracking(1.2)
+                    .foregroundStyle(color)
             }
 
-            // Bar
+            // Pedal Bar (Interaktiv per Drag / Tap falls Binding vorhanden)
             pedalBar
 
-            // Value text
-            if available {
+            // Value text + Badge
+            VStack(spacing: 2) {
                 Text("\(value)%")
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundStyle(value > 0 ? color : .white.opacity(0.4))
-            } else {
-                Text("N/A")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.gray.opacity(0.5))
+                    .font(.system(size: 13, weight: .black, design: .monospaced))
+                    .foregroundStyle(value > 0 ? color : .white.opacity(0.35))
+
+                Text(badge)
+                    .font(.system(size: 6.5, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity)
@@ -209,44 +253,56 @@ private struct PedalView: View {
         GeometryReader { geo in
             let barH = geo.size.height
             ZStack(alignment: .bottom) {
-                // Background track
+                // Background Track
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color.white.opacity(0.06))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(available ? color.opacity(0.25) : Color.gray.opacity(0.2), lineWidth: 1)
+                            .stroke(color.opacity(0.25), lineWidth: 1)
                     )
 
-                // Fill
-                if available && fraction > 0 {
+                // Fill Bar
+                if fraction > 0 {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(
                             LinearGradient(
-                                colors: [color.opacity(0.4), color],
+                                colors: [color.opacity(0.45), color],
                                 startPoint: .bottom,
                                 endPoint: .top
                             )
                         )
                         .frame(height: barH * fraction)
-                        .shadow(color: color.opacity(0.8), radius: fraction > 0.1 ? 10 : 0)
-                        .animation(.spring(response: 0.15, dampingFraction: 0.7), value: fraction)
+                        .shadow(color: color.opacity(0.7), radius: fraction > 0.1 ? 8 : 0)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.75), value: fraction)
                 }
 
-                // Tick marks
+                // Rillen / Ticks wie bei echten Sportpedalen
                 ForEach([25, 50, 75], id: \.self) { tick in
                     let yPos = barH * (1.0 - CGFloat(tick) / 100.0)
-                    HStack {
-                        Spacer()
-                        Rectangle()
-                            .fill(Color.white.opacity(0.2))
-                            .frame(width: 8, height: 1)
-                            .padding(.trailing, 4)
-                    }
-                    .offset(y: yPos - barH / 2)
+                    Rectangle()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(height: 1)
+                        .padding(.horizontal, 6)
+                        .offset(y: yPos - barH / 2)
                 }
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in
+                        guard let binding = interactiveValue else { return }
+                        let percent = 1.0 - (g.location.y / barH)
+                        binding.wrappedValue = min(100.0, max(0.0, Double(percent * 100.0)))
+                    }
+                    .onEnded { _ in
+                        guard let binding = interactiveValue else { return }
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            binding.wrappedValue = 0
+                        }
+                    }
+            )
         }
-        .frame(height: max(height - 70, 60))
+        .frame(height: max(height - 75, 70))
     }
 }
 
@@ -269,20 +325,12 @@ private struct RPMArcGauge: View {
         (endAngle - startAngle) * fraction
     }
 
-    private var needleColor: Color {
-        switch fraction {
-        case ..<0.6: return .green
-        case ..<0.85: return .orange
-        default: return .red
-        }
-    }
-
     var body: some View {
         ZStack {
             // Track
             Circle()
                 .trim(from: 0, to: CGFloat((endAngle - startAngle) / 360.0))
-                .stroke(Color.white.opacity(0.1), style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                .stroke(Color.white.opacity(0.1), style: StrokeStyle(lineWidth: 12, lineCap: .round))
                 .rotationEffect(.degrees(startAngle))
 
             // Fill arc
@@ -295,7 +343,7 @@ private struct RPMArcGauge: View {
                         startAngle: .degrees(startAngle),
                         endAngle: .degrees(endAngle)
                     ),
-                    style: StrokeStyle(lineWidth: 14, lineCap: .round)
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
                 )
                 .rotationEffect(.degrees(startAngle))
                 .animation(.spring(response: 0.2, dampingFraction: 0.7), value: fraction)
@@ -310,33 +358,7 @@ private struct RPMArcGauge: View {
                     .foregroundStyle(.white.opacity(0.5))
                     .tracking(3)
             }
-
-            // Tick marks (every 1000 RPM)
-            ForEach(0...7, id: \.self) { i in
-                rpmTick(index: i, total: 7, outerR: size / 2 - 4, innerR: size / 2 - 14)
-            }
         }
         .frame(width: size, height: size)
     }
-
-    private func rpmTick(index: Int, total: Int, outerR: CGFloat, innerR: CGFloat) -> some View {
-        let angleDeg = startAngle + (endAngle - startAngle) * Double(index) / Double(total)
-        let rad = angleDeg * .pi / 180.0
-        let ox = cos(rad) * outerR + size / 2
-        let oy = sin(rad) * outerR + size / 2
-        let ix = cos(rad) * innerR + size / 2
-        let iy = sin(rad) * innerR + size / 2
-        return Path { p in
-            p.move(to: CGPoint(x: ox, y: oy))
-            p.addLine(to: CGPoint(x: ix, y: iy))
-        }
-        .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
-        .frame(width: size, height: size)
-    }
-}
-
-// MARK: - Preview
-
-#Preview {
-    PedalVisualizerView(obd: OBDManager.shared, motion: MotionManager.shared)
 }
