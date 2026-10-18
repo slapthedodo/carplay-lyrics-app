@@ -108,6 +108,7 @@ public final class MusicObserver: ObservableObject {
     var isUpdatingActivity     : Bool   = false
     var pendingActivityUpdate  : Bool   = false
     var lastWidgetReloadTime   : Date   = .distantPast
+    var lastTelemetryPush      : Date   = .distantPast
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -351,18 +352,24 @@ public final class MusicObserver: ObservableObject {
                         await self.reattachOrCreateLiveActivity()
                     } else {
                         // Dynamic Island Öltemperatur-Update:
-                        // Nur pushen wenn Öltemperatur, Kühlwasser oder Phase sich ändern,
-                        // oder mindestens alle 4 Sekunden zur Absicherung.
-                        let currentOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
-                        let currentCoolant = self.obd.liveCoolantTemp
-                        let currentPhase = self.warmupManager?.phase
+                        // Nur pushen wenn mindestens 3 Sekunden seit dem letzten
+                        // Telemetrie-Push vergangen sind, um ActivityKit nicht zu
+                        // überlasten. Lyric-Updates in tick() nutzen force:true und
+                        // behalten so immer Vorrang.
+                        let now = Date()
+                        if now.timeIntervalSince(self.lastTelemetryPush) >= 3.0 {
+                            let currentOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
+                            let currentCoolant = self.obd.liveCoolantTemp
+                            let currentPhase = self.warmupManager?.phase
 
-                        if currentOil != self.lastSentOilTemp || currentCoolant != self.lastSentCoolant || currentPhase != self.lastSentPhase {
-                            self.lastSentOilTemp = currentOil
-                            self.lastSentCoolant = currentCoolant
-                            self.lastSentPhase = currentPhase
-                            self.pushActivityUpdate(force: true)
-                        } else {
+                            if currentOil != self.lastSentOilTemp || currentCoolant != self.lastSentCoolant || currentPhase != self.lastSentPhase {
+                                self.lastSentOilTemp = currentOil
+                                self.lastSentCoolant = currentCoolant
+                                self.lastSentPhase = currentPhase
+                            }
+                            // Telemetrie nutzt NIE force:true — Lyric-Updates sollen
+                            // stets höhere Priorität in der ActivityKit-Queue haben.
+                            self.lastTelemetryPush = now
                             self.pushActivityUpdate(force: false)
                         }
                     }

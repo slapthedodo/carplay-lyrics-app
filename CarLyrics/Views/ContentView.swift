@@ -44,9 +44,17 @@ public struct ContentView: View {
                     .tabItem { Label("Handy", systemImage: "iphone.gen3") }
                     .tag(2)
 
+                PedalVisualizerView(obd: obd, motion: motion)
+                    .tabItem { Label("Pedale", systemImage: "pedal.accelerator") }
+                    .tag(3)
+
+                KupplungTutorialView()
+                    .tabItem { Label("Fahren", systemImage: "car.fill") }
+                    .tag(4)
+
                 SettingsTabView(spotify: spotify, obd: obd, observer: observer)
                     .tabItem { Label("Setup", systemImage: "gearshape.fill") }
-                    .tag(3)
+                    .tag(5)
             }
             .tint(.cyan)
         }

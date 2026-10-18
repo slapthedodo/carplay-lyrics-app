@@ -62,9 +62,9 @@ extension MusicObserver {
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
         // Apple Rate-Limit Schutz für Live Activity Updates:
-        // Bei Lyrics-Wechsel oder Temperatur-Event (force): min 0.3s Abstand
-        // Bei regulärem Telemetrie-Heartbeat: min 2.0s Abstand
-        let minAllowed = force ? 0.3 : 2.0
+        // Bei Lyrics-Wechsel (force): min 0.5s Abstand
+        // Bei regulärem Telemetrie-Heartbeat: min 3.0s Abstand
+        let minAllowed = force ? 0.5 : 3.0
         if !force && elapsed < minAllowed {
             return
         }
