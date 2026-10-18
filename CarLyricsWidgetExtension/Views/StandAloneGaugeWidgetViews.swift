@@ -82,6 +82,7 @@ struct OilTempWidgetEntryView: View {
                 }
                 .padding(12)
             }
+            .widgetURL(URL(string: "carlyrics://cockpit"))
 
         default: // .systemMedium
             ZStack {
@@ -123,8 +124,8 @@ struct OilTempWidgetEntryView: View {
                 }
                 .padding(14)
             }
+            .widgetURL(URL(string: "carlyrics://cockpit"))
         }
-        .widgetURL(URL(string: "carlyrics://cockpit"))
     }
 }
 
@@ -203,6 +204,7 @@ struct GForceWidgetEntryView: View {
                 }
                 .padding(12)
             }
+            .widgetURL(URL(string: "carlyrics://cockpit"))
 
         default: // .systemMedium
             ZStack {
@@ -243,7 +245,7 @@ struct GForceWidgetEntryView: View {
                 }
                 .padding(14)
             }
+            .widgetURL(URL(string: "carlyrics://cockpit"))
         }
-        .widgetURL(URL(string: "carlyrics://cockpit"))
     }
 }
