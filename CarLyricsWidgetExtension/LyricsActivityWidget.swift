@@ -5,6 +5,7 @@
 import ActivityKit
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: - Gemeinsamer Timeline Entry & Provider für alle Widgets
@@ -419,3 +420,21 @@ public struct TelemetryCockpitWidget: Widget {
         ])
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Interactive Widget Intent (Tap-to-Refresh auf CarPlay & iPhone)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct RefreshWidgetIntent: AppIntent {
+    public static var title: LocalizedStringResource = "Widget aktualisieren"
+    public static var description = IntentDescription("Aktualisiert sofort alle Widgets und Telemetriedaten.")
+    public static var openAppWhenRun: Bool = false
+
+    public init() {}
+
+    public func perform() async throws -> some IntentResult {
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+

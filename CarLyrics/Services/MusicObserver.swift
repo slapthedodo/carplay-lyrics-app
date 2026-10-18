@@ -406,6 +406,8 @@ public final class MusicObserver: ObservableObject {
                     nextLine3     = newNext3
                     // Live Activity sofort mit neuer Textzeile aktualisieren (min 0.3s Abstand schützt vor Throttling)
                     pushActivityUpdate(force: true)
+                    // CarPlay- & Homescreen-LyricsWidget synchron im Hintergrund nachziehen
+                    scheduleWidgetReload(force: true)
                 }
             }
         }

@@ -4,6 +4,7 @@
 
 import SwiftUI
 import WidgetKit
+import AppIntents
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: - KACHEL 1: All-in-One Cockpit (Öl + Kühlwasser + 20% größeres G-Meter + Peak)
@@ -307,171 +308,177 @@ struct LyricsWidgetEntryView: View {
             Text("🎵 \(entry.songTitle): \(entry.currentLine)")
 
         case .systemSmall:
-            ZStack {
-                Color.black
-                VStack(spacing: 4) {
-                    // 1. Header: NUR Songtitel & Artist (KEIN 'Mitsing-Modus' Text mehr!)
-                    HStack(spacing: 3.5) {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 8.5, weight: .bold))
-                            .foregroundStyle(.green)
-                        Text("\(entry.songTitle) • \(entry.artist)")
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                        Spacer()
-                    }
-
-                    Divider().overlay(Color.white.opacity(0.15))
-
-                    Spacer(minLength: 1)
-
-                    // 2. Mitte: Maximal viel Text (5 Zeilen!)
-                    VStack(spacing: 2) {
-                        if !entry.previousLine2.isEmpty {
-                            Text(entry.previousLine2)
-                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.35))
-                                .italic()
+            Button(intent: RefreshWidgetIntent()) {
+                ZStack {
+                    Color.black
+                    VStack(spacing: 4) {
+                        // 1. Header: NUR Songtitel & Artist (KEIN 'Mitsing-Modus' Text mehr!)
+                        HStack(spacing: 3.5) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 8.5, weight: .bold))
+                                .foregroundStyle(.green)
+                            Text("\(entry.songTitle) • \(entry.artist)")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
                                 .lineLimit(1)
+                            Spacer()
                         }
 
-                        if !entry.previousLine.isEmpty {
-                            Text(entry.previousLine)
-                                .font(.system(size: 8.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.6))
-                                .italic()
-                                .lineLimit(1)
-                        }
+                        Divider().overlay(Color.white.opacity(0.15))
 
-                        Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
-                            .font(.system(size: 11.5, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .padding(.vertical, 2)
-                            .padding(.horizontal, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.white.opacity(0.08))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                    )
-                            )
+                        Spacer(minLength: 1)
 
-                        if !entry.nextLine.isEmpty {
-                            Text(entry.nextLine)
-                                .font(.system(size: 8.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.65))
-                                .italic()
-                                .lineLimit(1)
-                        }
+                        // 2. Mitte: Maximal viel Text (5 Zeilen!)
+                        VStack(spacing: 2) {
+                            if !entry.previousLine2.isEmpty {
+                                Text(entry.previousLine2)
+                                    .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.35))
+                                    .italic()
+                                    .lineLimit(1)
+                            }
 
-                        if !entry.nextLine2.isEmpty {
-                            Text(entry.nextLine2)
-                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.35))
-                                .italic()
-                                .lineLimit(1)
-                        }
-                    }
+                            if !entry.previousLine.isEmpty {
+                                Text(entry.previousLine)
+                                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .italic()
+                                    .lineLimit(1)
+                            }
 
-                    Spacer(minLength: 1)
-
-                    Divider().overlay(Color.white.opacity(0.15))
-
-                    // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe!
-                    HStack(spacing: 5) {
-                        Text(entry.currentTimeStr)
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.green)
-
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.15)).frame(height: 3.5)
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.green, .mint],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
+                            Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
+                                .font(.system(size: 11.5, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                                .padding(.vertical, 2)
+                                .padding(.horizontal, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.white.opacity(0.08))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
                                         )
-                                    )
-                                    .frame(width: max(3.5, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3.5)
+                                )
+
+                            if !entry.nextLine.isEmpty {
+                                Text(entry.nextLine)
+                                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .italic()
+                                    .lineLimit(1)
+                            }
+
+                            if !entry.nextLine2.isEmpty {
+                                Text(entry.nextLine2)
+                                    .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.35))
+                                    .italic()
+                                    .lineLimit(1)
                             }
                         }
-                        .frame(height: 3.5)
 
-                        Text(entry.totalTimeStr)
-                            .font(.system(size: 8, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                        Spacer(minLength: 1)
+
+                        Divider().overlay(Color.white.opacity(0.15))
+
+                        // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe!
+                        HStack(spacing: 5) {
+                            Text(entry.currentTimeStr)
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.green)
+
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.15)).frame(height: 3.5)
+                                    Capsule()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.green, .mint],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .frame(width: max(3.5, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3.5)
+                                }
+                            }
+                            .frame(height: 3.5)
+
+                            Text(entry.totalTimeStr)
+                                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(10)
                 }
-                .padding(10)
             }
+            .buttonStyle(.plain)
 
         default: // .systemMedium
-            ZStack {
-                Color.black
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Image(systemName: "music.note").foregroundStyle(.green)
-                        Text("\(entry.songTitle) • \(entry.artist)")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
+            Button(intent: RefreshWidgetIntent()) {
+                ZStack {
+                    Color.black
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Image(systemName: "music.note").foregroundStyle(.green)
+                            Text("\(entry.songTitle) • \(entry.artist)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("LIVE LYRICS")
+                                .font(.system(size: 8, weight: .black))
+                                .foregroundStyle(.green)
+                        }
+
                         Spacer()
-                        Text("LIVE LYRICS")
-                            .font(.system(size: 8, weight: .black))
-                            .foregroundStyle(.green)
-                    }
 
-                    Spacer()
+                        VStack(alignment: .leading, spacing: 3) {
+                            if !entry.previousLine.isEmpty {
+                                Text(entry.previousLine)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.55))
+                                    .lineLimit(1)
+                            }
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        if !entry.previousLine.isEmpty {
-                            Text(entry.previousLine)
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.55))
-                                .lineLimit(1)
-                        }
+                            Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
+                                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
 
-                        Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
-                            .font(.system(size: 16, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-
-                        if !entry.nextLine.isEmpty {
-                            Text(entry.nextLine)
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.65))
-                                .lineLimit(1)
-                        }
-                    }
-
-                    Spacer()
-
-                    HStack(spacing: 8) {
-                        Text(entry.currentTimeStr)
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.green)
-
-                        GeometryReader { geo in
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
-                                Capsule().fill(Color.green).frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
+                            if !entry.nextLine.isEmpty {
+                                Text(entry.nextLine)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .lineLimit(1)
                             }
                         }
-                        .frame(height: 3)
 
-                        Text(entry.totalTimeStr)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                        Spacer()
+
+                        HStack(spacing: 8) {
+                            Text(entry.currentTimeStr)
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.green)
+
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
+                                    Capsule().fill(Color.green).frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
+                                }
+                            }
+                            .frame(height: 3)
+
+                            Text(entry.totalTimeStr)
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(14)
                 }
-                .padding(14)
             }
+            .buttonStyle(.plain)
         }
     }
 }
