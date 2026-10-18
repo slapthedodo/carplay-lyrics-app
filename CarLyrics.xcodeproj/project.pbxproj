@@ -264,13 +264,13 @@
 		97C1B0462A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDVAGGuideSection.swift; path = OBDVAGGuideSection.swift; sourceTree = "<group>"; };
 
 		/* HandyModus Views */
-		97C1B0602A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusBackground.swift; path = HandyModus/HandyModusBackground.swift; sourceTree = "<group>"; };
-		97C1B0612A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGaugesView.swift; path = HandyModus/HandyModusGaugesView.swift; sourceTree = "<group>"; };
-		97C1B0622A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLyricsPanel.swift; path = HandyModus/HandyModusLyricsPanel.swift; sourceTree = "<group>"; };
-		97C1B0632A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusStatsBar.swift; path = HandyModus/HandyModusStatsBar.swift; sourceTree = "<group>"; };
-		97C1B0642A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGForcePanel.swift; path = HandyModus/HandyModusGForcePanel.swift; sourceTree = "<group>"; };
-		97C1B0652A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusView.swift; path = HandyModus/HandyModusView.swift; sourceTree = "<group>"; };
-		97C1B0662A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLandscapeView.swift; path = HandyModus/HandyModusLandscapeView.swift; sourceTree = "<group>"; };
+		97C1B0602A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusBackground.swift; path = HandyModusBackground.swift; sourceTree = "<group>"; };
+		97C1B0612A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGaugesView.swift; path = HandyModusGaugesView.swift; sourceTree = "<group>"; };
+		97C1B0622A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLyricsPanel.swift; path = HandyModusLyricsPanel.swift; sourceTree = "<group>"; };
+		97C1B0632A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusStatsBar.swift; path = HandyModusStatsBar.swift; sourceTree = "<group>"; };
+		97C1B0642A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGForcePanel.swift; path = HandyModusGForcePanel.swift; sourceTree = "<group>"; };
+		97C1B0652A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusView.swift; path = HandyModusView.swift; sourceTree = "<group>"; };
+		97C1B0662A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLandscapeView.swift; path = HandyModusLandscapeView.swift; sourceTree = "<group>"; };
 
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift; path = CarLyricsWidgetBundle.swift; sourceTree = "<group>"; };
