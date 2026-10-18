@@ -15,11 +15,12 @@ public struct KupplungTutorialView: View {
     @State private var gasPercent: Double      = 25     // 0–100 % (Start im Standgas)
     @State private var kupplungPercent: Double = 0      // 0 = Getreten (getrennt), 100 = Losgelassen (Kraftschluss)
 
-    // ── Dynamik-Überwachung (Kupplung fallen lassen) ─────────────────────────
+    // ── Dynamik-Überwachung (Kupplung fallen lassen & Trägheit) ──────────────
     @State private var lastKupplungPercent: Double = 0
     @State private var lastKupplungTime: Date      = Date()
     @State private var isStalled: Bool            = false
     @State private var stallReason: String         = ""
+    @State private var autoSpeedRatio: Double      = 0.0 // 0.0 (steht) bis 1.0 (synchron mit Motor)
 
     // ── 3D Rotationswinkel ───────────────────────────────────────────────────
     @State private var motorAngle: Double = 0           // Radiant
@@ -53,23 +54,31 @@ public struct KupplungTutorialView: View {
     }
 
     private var autoDPS: Double {
-        isStalled ? 0 : (motorDPS * clutchEngagement)
+        isStalled ? 0 : (motorDPS * autoSpeedRatio)
     }
 
     private var statusText: String {
         if isStalled { return "ABGEWÜRGT! 😬 – \(stallReason) Kupplung ganz treten!" }
-        if kupplungPercent < 15 { return "1. Kupplung getreten – Scheiben sind getrennt (Freilauf)" }
-        if kupplungPercent >= 85 && effectiveGas >= 20 { return "5. Angefahren! 🎉 Beide Scheiben drehen synchron." }
-        if kupplungPercent >= 65 { return "4. Kraftschluss fast da – Auto beschleunigt zügig!" }
-        if kupplungPercent >= 35 { return "3. Schleifpunkt! Rechte Scheibe dreht langsam an ⚙️" }
-        if effectiveGas < 20 { return "2. Etwas Gas geben (~1.500 U/min Standgas erhöhen)..." }
-        return "Kupplung langsam kommen lassen..."
+        if kupplungPercent < 15 { return "1. Kupplung getreten – Freilauf, Auto steht noch" }
+        if effectiveGas < 18 { return "2. Etwas Gas geben (~1.500 U/min Standgas anheben)..." }
+        if autoSpeedRatio >= 0.95 && kupplungPercent >= 80 {
+            return "5. Perfekt angefahren! 🎉 Kraftschluss vollständig synchron."
+        }
+        if autoSpeedRatio >= 0.90 {
+            return "4. Scheiben synchron! Jetzt Kupplung ganz loslassen."
+        }
+        if kupplungPercent >= 28 {
+            let pct = Int(autoSpeedRatio * 100)
+            return "3. Schleifpunkt halten! Auto dreht hoch (\(pct) %)..."
+        }
+        return "Kupplung langsam kommen lassen bis zum Schleifpunkt..."
     }
 
     private var statusColor: Color {
         if isStalled { return .red }
-        if kupplungPercent >= 85 && effectiveGas >= 20 { return .green }
-        if kupplungPercent >= 35 { return Color(red: 0.95, green: 0.86, blue: 0.48) }
+        if autoSpeedRatio >= 0.95 && kupplungPercent >= 80 { return .green }
+        if autoSpeedRatio >= 0.90 { return Color.cyan }
+        if kupplungPercent >= 28 { return Color(red: 0.95, green: 0.86, blue: 0.48) }
         return Color(red: 0.64, green: 0.94, blue: 0.97)
     }
 
@@ -174,10 +183,10 @@ public struct KupplungTutorialView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("2. AUTO / RÄDER (STEHT)")
+                Text(autoSpeedRatio > 0.05 ? "2. AUTO / RÄDER (DREHT)" : "2. AUTO / RÄDER (STEHT)")
                     .font(.system(size: 13, weight: .black, design: .rounded))
                     .foregroundStyle(Color(red: 0.95, green: 0.86, blue: 0.48))
-                Text("(Steht still = 1.500 kg Trägheit)")
+                Text(autoSpeedRatio >= 0.95 ? "(Synchron mit Motor)" : "(1.500 kg Trägheit)")
                     .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.white.opacity(0.65))
             }
@@ -389,6 +398,9 @@ public struct KupplungTutorialView: View {
         if releaseRate > 90.0 && newVal > 30.0 && effectiveGas < 45.0 {
             isStalled = true
             stallReason = "Kupplung zu schnell schnalzen lassen!"
+        } else if newVal > 55.0 && autoSpeedRatio < 0.35 && effectiveGas < 20.0 {
+            isStalled = true
+            stallReason = "Zu früh ganz losgelassen, Auto stand noch!"
         } else if newVal > 45.0 && effectiveGas < 15.0 {
             isStalled = true
             stallReason = "Zu wenig Gas für 1.500 kg Trägheit!"
@@ -398,6 +410,7 @@ public struct KupplungTutorialView: View {
             withAnimation(.easeOut(duration: 0.25)) {
                 isStalled = false
                 stallReason = ""
+                autoSpeedRatio = 0.0
             }
         }
     }
@@ -413,6 +426,18 @@ public struct KupplungTutorialView: View {
             self.lastTick = now
 
             if !self.isStalled {
+                let engagement = self.clutchEngagement
+                if engagement > 0.05 {
+                    // Am Schleifpunkt überträgt die Kupplung Reibmoment auf die Trägheit des Autos:
+                    // Je mehr Gas und je tiefer im Schleifbereich, desto schneller dreht die Scheibe an.
+                    let gasBonus = max(0.6, min(1.8, self.effectiveGas / 30.0))
+                    let accelRate = engagement * 0.45 * gasBonus
+                    self.autoSpeedRatio = min(1.0, self.autoSpeedRatio + accelRate * dt)
+                } else {
+                    // Freilauf / Rollwiderstand: Auto rollt langsam aus wenn Kupplung getrennt
+                    self.autoSpeedRatio = max(0.0, self.autoSpeedRatio - 0.08 * dt)
+                }
+
                 self.motorAngle = (self.motorAngle + self.motorDPS * dt).truncatingRemainder(dividingBy: 2.0 * .pi)
                 self.autoAngle  = (self.autoAngle + self.autoDPS * dt).truncatingRemainder(dividingBy: 2.0 * .pi)
             }
