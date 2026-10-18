@@ -246,16 +246,10 @@ public struct KupplungTutorialView: View {
         let xL = centerX - thickness / 2
         let xR = centerX + thickness / 2
 
-        // 1. Chrome-Welle
-        let shaftStartX = isLeft ? (xL - shaftLength) : xR
-        let shaftRect = CGRect(x: shaftStartX, y: centerY - shaftRadius, width: shaftLength, height: shaftRadius * 2)
-        var shaftPath = Path()
-        shaftPath.addRoundedRect(in: shaftRect, cornerSize: CGSize(width: shaftRadius * 0.45, height: shaftRadius * 0.45))
-
-        let chromeGradient = Gradient(colors: [
-            Color(white: 0.32), Color(white: 0.90), Color(white: 0.45), Color(white: 0.20)
-        ])
-        context.fill(shaftPath, with: .linearGradient(chromeGradient, startPoint: CGPoint(x: shaftStartX, y: centerY - shaftRadius), endPoint: CGPoint(x: shaftStartX, y: centerY + shaftRadius)))
+        // 1. Chrome-Welle (für linke Scheibe: hinter der Scheibe gezeichnet)
+        if isLeft {
+            drawShaft(context: context, startX: xL - shaftLength, centerY: centerY, length: shaftLength, radius: shaftRadius, isLeft: true)
+        }
 
         // 2. Randstreifen (Cylindrical Rim)
         let sectorCount = 8
@@ -303,12 +297,28 @@ public struct KupplungTutorialView: View {
             context.fill(facePath, with: .color(segColor))
         }
 
-        // 4. Zentrierte Nabe
+        // 4. Chrome-Welle (für rechte Scheibe: VOR der Scheibe gezeichnet, damit sie sauber nach rechts herausragt!)
+        if !isLeft {
+            drawShaft(context: context, startX: xR - 2, centerY: centerY, length: shaftLength, radius: shaftRadius, isLeft: false)
+        }
+
+        // 5. Zentrierte Nabe
         var hubPath = Path()
         let hubR = radius * 0.25
         hubPath.addEllipse(in: CGRect(x: xR - hubR * yawScale, y: centerY - hubR, width: hubR * 2 * yawScale, height: hubR * 2))
-        context.fill(hubPath, with: .color(darkColor.opacity(0.85)))
+        context.fill(hubPath, with: .color(darkColor.opacity(0.88)))
         context.stroke(hubPath, with: .color(primaryColor.opacity(0.7)), lineWidth: 1.5)
+    }
+
+    private func drawShaft(context: GraphicsContext, startX: CGFloat, centerY: CGFloat, length: CGFloat, radius: CGFloat, isLeft: Bool) {
+        let shaftRect = CGRect(x: startX, y: centerY - radius, width: length, height: radius * 2)
+        var shaftPath = Path()
+        shaftPath.addRoundedRect(in: shaftRect, cornerSize: CGSize(width: radius * 0.45, height: radius * 0.45))
+
+        let chromeGradient = Gradient(colors: [
+            Color(white: 0.32), Color(white: 0.90), Color(white: 0.45), Color(white: 0.20)
+        ])
+        context.fill(shaftPath, with: .linearGradient(chromeGradient, startPoint: CGPoint(x: startX, y: centerY - radius), endPoint: CGPoint(x: startX, y: centerY + radius)))
     }
 
     // MARK: Status Banner
