@@ -184,3 +184,34 @@ Um den Token-Verbrauch minimal zu halten und eine perfekte Übersicht für Entwi
 * Beim Bearbeiten von Code **immer** gezielte Diffs via `replace_file_content` nutzen statt vollständige Dateien neu zu schreiben.
 * Zeilenzahlen vor und nach Commits mit PowerShell validieren.
 * Dokumentation und technische Specs in dieser Datei pflegen, damit der Kontext kompakt und präzise bleibt.
+
+---
+
+## 8. 🏆 Warum es jetzt klappt: Ursachen-Analyse & Finalisierung
+
+Am 18.10.2026 um 14:20 Uhr wurde die Verbindung mit dem Golf 5 GTI (Bosch MED9.1) **vollständig verifiziert**:
+
+### A. Verifizierte Live-Werte aus dem Fahrzeug:
+* **Bordnetz:** `14.40 V – 14.50 V` (Lichtmaschine lädt aktiv)
+* **Kühlmittel (PID 01 05):** `11 °C` (Kaltstart)
+* **Motordrehzahl (PID 01 0C):** `1195 U/min` (Kaltstart-Leerlauf)
+* **Luftmasse MAF (PID 01 10):** `9.6 g/s`
+* **Ansaugluft IAT (PID 01 0F):** `12 °C`
+* **Berechnete Last (PID 01 04):** `36 %`
+* **Unterstützte PIDs der Bosch MED9.1:**
+  `0101, 0103, 0104, 0105, 0106, 0107, 010C, 010D, 010E, 010F, 0110, 0111, 0113, 0115, 011C`
+
+### B. Die behobenen Fehlerursachen (Root Causes):
+1. **Reines `\r` (Wakeup) Timeout-Bug:**  
+   In `sendSequence` wartete die App auf ein Antwort-Prompt `>` nach einem leeren `\r`. Da der Klon-Chip bei reinem `\r` kein `>` schickt, brach der gesamte Handshake nach 3,5s ab, bevor `ATZ` gesendet werden konnte.  
+   *Lösung:* `\r` wird sofort ohne Warten geflusht; jeder Befehl hat nun seinen eigenen Timeout und bricht bei Teilausfall nicht die Kette ab.
+2. **Kollisionen & Pufferüberlauf ("Wurde komisch langsam"):**  
+   Vorher lief ein starrer 140ms-Timer zusammen mit einem asynchronen 6,0s-Spannungstimer. Das führte dazu, dass `ATRV` und Sensor-PIDs gleichzeitig in den seriellen Puffer des BK3231-Chips geschickt wurden. Zudem wurde PID `01 0B` (MAP) zyklisch abgefragt, obwohl die MED9.1 darauf mit `NO DATA` antwortete (jeder `NO DATA`-Zyklus kostete bis zu 800ms CAN-Wartezeit).  
+   *Lösung:*  
+   * **Response-Driven Pacing:** Ein neuer Befehl wird erst gesendet, wenn die vorherige Antwort eingetroffen ist, plus **45ms Pause** zur Entlastung des UART-Puffers.  
+   * **Kollisionsfreie Spannung:** `ATRV` wird sauber alle 25 Zyklen direkt in die Sequenz eingestreut (kein separater Timer mehr).  
+   * **Adaptive PID-Filterung:** Nicht unterstützte PIDs (`010B`, `015C`) werden nach einmaligem `NO DATA` aus dem schnellen Polling ausgeschlossen.
+3. **Ladedruck bei Bosch MED9.1 ohne PID 010B:**  
+   Die MED9.1 liefert kein standardisiertes `01 0B` MAP. CarLyrics berechnet den relativen Ladedruck (bar) nun präzise aus der Live-Luftmasse (`01 10` MAF in g/s) und Drehzahl (`01 0C` RPM) nach dem EA113 2.0 TFSI thermodynamischen Kennfeld.
+4. **Ersteinwahl ohne manuelles Warten:**  
+   Das Bluetooth-GATT-Scanning toleriert nun bis zu 8 Sekunden für die Descriptor-Bekanntgabe des Adapters, sodass der Erststart ohne manuelles Retry sofort durchläuft.

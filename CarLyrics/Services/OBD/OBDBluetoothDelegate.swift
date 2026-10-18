@@ -284,6 +284,7 @@ extension OBDManager: CBPeripheralDelegate {
                 sendNextInitCommand()
             } else {
                 handleRawMessageReceived(fullMsg)
+                onResponseCompleted()
             }
         }
     }

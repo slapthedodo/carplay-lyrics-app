@@ -60,6 +60,12 @@ public final class OBDManager: NSObject, ObservableObject {
         return baseOil + loadBonus
     }
 
+    // PID-Unterstützungs-Flags (Bosch MED9.1 Filter)
+    @Published public var hasMAPPID            : Bool    = true
+    @Published public var hasCheckedMAPPID     : Bool    = false
+    @Published public var isPollingActive      : Bool    = false
+    internal var pollWatchdogTimer             : Timer?  = nil
+
     // Hardware Zustand
     @Published public var batteryVoltage       : Double? = nil    // ATRV
     @Published public var isIgnitionOn         : Bool?   = nil    // >= 11.8V
@@ -229,60 +235,92 @@ public final class OBDManager: NSObject, ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     internal func startPolling() {
-        guard !isProbingProtocols && !isManualTerminalMode else { return }
+        guard !isProbingProtocols && !isManualTerminalMode && !isAutoDiagnosing else { return }
+        isPollingActive = true
         pollTimer?.invalidate()
+        pollTimer = nil
+        pollWatchdogTimer?.invalidate()
+        pollWatchdogTimer = nil
+        voltageTimer?.invalidate()
+        voltageTimer = nil
 
-        let timer = Timer(timeInterval: 0.14, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.pollNextPID()
-            }
+        // Ersten Befehl mit kleiner 60ms Pause absetzen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { [weak self] in
+            guard let self = self, self.isPollingActive, self.connectionState == .connected else { return }
+            self.pollNextPID()
         }
-        RunLoop.main.add(timer, forMode: .common)
-        pollTimer = timer
     }
 
     internal func stopPolling() {
+        isPollingActive = false
         pollTimer?.invalidate()
         pollTimer = nil
+        pollWatchdogTimer?.invalidate()
+        pollWatchdogTimer = nil
         voltageTimer?.invalidate()
         voltageTimer = nil
     }
 
     internal func startVoltageMonitor() {
+        // ATRV wird nun kollisionsfrei direkt im Polling-Zyklus alle 25 Zyklen abgefragt
         voltageTimer?.invalidate()
-        let timer = Timer(timeInterval: 6.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self, self.connectionState == .connected, !self.isProbingProtocols else { return }
-                self.sendCommandRaw("ATRV")
-            }
+        voltageTimer = nil
+    }
+
+    // Antwort wurde empfangen (">"): 45ms Pacing-Pause für BK3231 UART Puffer, dann nächster PID
+    internal func onResponseCompleted() {
+        guard isPollingActive, connectionState == .connected, !isProbingProtocols, !isManualTerminalMode, !isAutoDiagnosing else { return }
+        pollWatchdogTimer?.invalidate()
+        pollWatchdogTimer = nil
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+            guard let self = self, self.isPollingActive, self.connectionState == .connected else { return }
+            self.pollNextPID()
         }
-        RunLoop.main.add(timer, forMode: .common)
-        voltageTimer = timer
     }
 
     private func pollNextPID() {
-        guard connectionState == .connected, !isProbingProtocols, !isManualTerminalMode else { return }
+        guard connectionState == .connected, !isProbingProtocols, !isManualTerminalMode, !isAutoDiagnosing else { return }
 
-        if isWaitingForResponse {
-            if Date().timeIntervalSince(lastCommandSentTime) > 2.2 {
-                logSystem("⚠ Timeout auf Antwort von \(lastCommandSent)")
-                isWaitingForResponse = false
-            } else {
-                return
-            }
+        // PIDs für Bosch MED9.1 zusammenstellen
+        var activePIDs: [String] = [
+            "010C",     // Motordrehzahl RPM (Prio 1)
+            "0110",     // Luftmasse MAF (Prio 1)
+            "0104",     // Motorlast (Prio 2)
+            "0105",     // Kühlmittel (Prio 2)
+            "010D",     // Geschwindigkeit
+            "010F"      // Ansaugluft IAT
+        ]
+
+        // 010B nur abfragen wenn unterstützt (MED9.1 liefert typischerweise NODATA)
+        if !hasCheckedMAPPID || hasMAPPID {
+            activePIDs.append("010B")
         }
 
-        var pid = queryCycle[currentPIDIndex % queryCycle.count]
+        // 015C nur alle 35 Zyklen kurz anfragen
+        if !hasCheckedOilTempPID || hasOilTempPID || (currentPIDIndex % 35 == 0) {
+            activePIDs.append("015C")
+        }
+
+        // ATRV alle 25 Zyklen kollisionsfrei in den Stream einstreuen
+        if currentPIDIndex % 25 == 0 {
+            activePIDs.append("ATRV")
+        }
+
+        let pid = activePIDs[currentPIDIndex % activePIDs.count]
         currentPIDIndex += 1
 
-        // Optimierung: Wenn 015C bereits geprüft wurde und NODATA zurückgab (typisch für MED9.1),
-        // frage 015C nur alle 30 Zyklen erneut ab, um den Bus nicht unnötig mit NODATA zu bremsen!
-        if pid == "015C" && hasCheckedOilTempPID && !hasOilTempPID && (currentPIDIndex % 30 != 0) {
-            pid = queryCycle[currentPIDIndex % queryCycle.count]
-            currentPIDIndex += 1
-        }
-
         sendCommandRaw(pid)
+
+        // Sicherheits-Watchdog: Falls BLE ein Paket verschluckt, nach 850ms weitermachen
+        pollWatchdogTimer?.invalidate()
+        pollWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 0.85, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self, self.isPollingActive, self.connectionState == .connected else { return }
+                self.isWaitingForResponse = false
+                self.pollNextPID()
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

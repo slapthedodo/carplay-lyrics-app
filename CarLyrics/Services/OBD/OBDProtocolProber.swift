@@ -169,12 +169,18 @@ extension OBDManager {
         guard isAutoDiagnosing else { return }
         if let p = peripheral, txChar != nil, rxChar != nil {
             diagnosisSteps[0].status = .success
-            diagnosisSteps[0].detail = "Verbunden mit '\(p.name ?? "OBD-Adapter")'"
-            executeDiagStep2_Hardware()
+            diagnosisSteps[0].detail = "Verbunden mit '\(p.name ?? "OBD-Adapter")' (Kanäle bereit)"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.executeDiagStep2_Hardware()
+            }
             return
         }
 
-        if attempt >= 12 {
+        if let p = peripheral {
+            diagnosisSteps[0].detail = "Gekoppelt mit '\(p.name ?? "OBDII")' • Schalte Funkkanäle frei…"
+        }
+
+        if attempt >= 16 {
             diagnosisSteps[0].status = .failed
             diagnosisSteps[0].detail = "Kein Adapter in Reichweite"
             diagnosisSummary = "⚠️ Kein Bluetooth-Adapter gefunden. Bitte prüfe, ob der blaue Allstric Dongle im OBD2-Port steckt und die rote LED leuchtet."

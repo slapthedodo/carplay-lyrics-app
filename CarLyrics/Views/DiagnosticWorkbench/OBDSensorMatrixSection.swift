@@ -50,11 +50,13 @@ public struct OBDSensorMatrixSection: View {
 
                     SensorBox(title: "Ladedruck Relativ",
                               value: obd.liveBoostBar != nil ? String(format: "%.2f bar", obd.liveBoostBar!) : "—",
-                              status: obd.liveBoostBar != nil ? .cyan : .secondary)
+                              status: obd.liveBoostBar != nil ? .cyan : .secondary,
+                              badge: !obd.hasMAPPID && obd.liveBoostBar != nil ? "EA113 MAF" : nil)
 
                     SensorBox(title: "Saugrohr MAP (01 0B)",
                               value: obd.liveMAP != nil ? "\(obd.liveMAP!) kPa" : "—",
-                              status: obd.liveMAP != nil ? .white : .secondary)
+                              status: obd.liveMAP != nil ? .white : .secondary,
+                              badge: !obd.hasMAPPID && obd.liveMAP != nil ? "Berechnet" : nil)
 
                     SensorBox(title: "Drehzahl (01 0C)",
                               value: "\(obd.liveRPM) U/min",

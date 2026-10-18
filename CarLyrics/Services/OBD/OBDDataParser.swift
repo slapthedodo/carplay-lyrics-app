@@ -102,7 +102,13 @@ extension OBDManager {
                 liveMAP = mapKpa
                 let relativeKpa = max(0, mapKpa - liveBaro)
                 liveBoostBar = Double(relativeKpa) / 100.0
+                hasMAPPID = true
+                hasCheckedMAPPID = true
             }
+        } else if (compact.contains("NODATA") || clean.contains("NO DATA")) &&
+                  (lastCommandSent == "010B" || lastCommandSent.hasSuffix("0B")) {
+            hasMAPPID = false
+            hasCheckedMAPPID = true
         }
 
         // 8. Öltemperatur (PID 01 5C)
@@ -137,6 +143,18 @@ extension OBDManager {
                let b1 = UInt8(after.prefix(2), radix: 16),
                let b2 = UInt8(after.dropFirst(2).prefix(2), radix: 16) {
                 liveMAF = Double((Int(b1) * 256) + Int(b2)) / 100.0
+
+                // EA113 2.0 TFSI Ladedruck-Berechnung wenn kein Standard 010B MAP vorhanden ist
+                if !hasMAPPID && liveRPM > 500 {
+                    let iatK = Double(liveIAT + 273)
+                    let baseAirflowNA = (Double(liveRPM) / 120.0) * 0.001984 * (101325.0 / (287.05 * iatK)) * 0.88
+                    if baseAirflowNA > 1.0 {
+                        let ratio = liveMAF / baseAirflowNA
+                        let boostEst = max(0.0, ratio - 1.0)
+                        liveBoostBar = Double(round(boostEst * 50) / 50)
+                        liveMAP = Int(101.3 * ratio)
+                    }
+                }
             }
         }
 
