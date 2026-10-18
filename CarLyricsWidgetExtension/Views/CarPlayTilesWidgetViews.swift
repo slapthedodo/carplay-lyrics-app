@@ -45,68 +45,71 @@ struct TelemetryWidgetEntryView: View {
             Text("TFSI: \(entry.oilTemp ?? 85)°C ÖL • Boost \(entry.boostBar.map { String(format: "%.1fb", $0) } ?? "0.0b")")
 
         case .systemSmall:
-            ZStack {
-                Color.black
-                VStack(spacing: 4) {
-                    Spacer(minLength: 1)
+            Button(intent: RefreshWidgetIntent()) {
+                ZStack {
+                    Color.black
+                    VStack(spacing: 4) {
+                        Spacer(minLength: 1)
 
-                    // 1. Oben: Öltemperatur & Kühlwasser nebeneinander
-                    HStack(spacing: 20) {
-                        VStack(spacing: 2) {
-                            OilTempBadge(
-                                temp     : entry.oilTemp,
-                                progress : entry.warmupProgress,
-                                phase    : entry.phase,
-                                size     : 46
-                            )
-                            Text("ÖL")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(phaseColor(entry.phase))
+                        // 1. Oben: Öltemperatur & Kühlwasser nebeneinander
+                        HStack(spacing: 20) {
+                            VStack(spacing: 2) {
+                                OilTempBadge(
+                                    temp     : entry.oilTemp,
+                                    progress : entry.warmupProgress,
+                                    phase    : entry.phase,
+                                    size     : 46
+                                )
+                                Text("ÖL")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(phaseColor(entry.phase))
+                            }
+
+                            VStack(spacing: 2) {
+                                CoolantGaugeBadge(
+                                    temp : entry.coolantTemp,
+                                    size : 46
+                                )
+                                Text("WASSER")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            }
                         }
 
-                        VStack(spacing: 2) {
-                            CoolantGaugeBadge(
-                                temp : entry.coolantTemp,
-                                size : 46
+                        Spacer(minLength: 2)
+
+                        // 2. Mitte davon: 20% größeres G-Kraft Instrument mit Fadenkreuz & lila Bogen
+                        VStack(spacing: 1.5) {
+                            GForceGaugeBadge(
+                                currentG : entry.currentG,
+                                maxG     : 1.2,
+                                size     : 66
                             )
-                            Text("WASSER")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            Text("MOMENTAN")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
                         }
+
+                        Spacer(minLength: 2)
+
+                        Divider().overlay(Color.white.opacity(0.15))
+
+                        // 3. Unten: Peak-Schrift ZUSAMMEN / ANEINANDER (zentriert)
+                        HStack(spacing: 4) {
+                            Text("PEAK:")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                            Text(String(format: "%.2f G", entry.peakG))
+                                .font(.system(size: 11, weight: .black, design: .monospaced))
+                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
+                        }
+
+                        Spacer(minLength: 1)
                     }
-
-                    Spacer(minLength: 2)
-
-                    // 2. Mitte davon: 20% größeres G-Kraft Instrument mit Fadenkreuz & lila Bogen
-                    VStack(spacing: 1.5) {
-                        GForceGaugeBadge(
-                            currentG : entry.currentG,
-                            maxG     : 1.2,
-                            size     : 66
-                        )
-                        Text("MOMENTAN")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
-                    }
-
-                    Spacer(minLength: 2)
-
-                    Divider().overlay(Color.white.opacity(0.15))
-
-                    // 3. Unten: Peak-Schrift ZUSAMMEN / ANEINANDER (zentriert)
-                    HStack(spacing: 4) {
-                        Text("PEAK:")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                        Text(String(format: "%.2f G", entry.peakG))
-                            .font(.system(size: 11, weight: .black, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                    }
-
-                    Spacer(minLength: 1)
+                    .padding(10)
                 }
-                .padding(10)
             }
+            .buttonStyle(.plain)
 
         default: // .systemMedium
             ZStack {
@@ -183,79 +186,82 @@ struct BoostPerformanceWidgetEntryView: View {
             Text("🚀 Boost: \(entry.boostBar.map { String(format: "%.2f bar", $0) } ?? "0.00 bar") • IAT: \(entry.iat ?? 24)°C")
 
         case .systemSmall:
-            ZStack {
-                Color.black
-                VStack(spacing: 4) {
-                    Spacer(minLength: 1)
+            Button(intent: RefreshWidgetIntent()) {
+                ZStack {
+                    Color.black
+                    VStack(spacing: 4) {
+                        Spacer(minLength: 1)
 
-                    // 1. Oben: Großer Ladedruck & der horizontale Balken
-                    VStack(spacing: 2) {
-                        HStack(alignment: .firstTextBaseline, spacing: 3) {
-                            Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "0.00")
-                                .font(.system(size: 24, weight: .black, design: .monospaced))
-                                .foregroundStyle(.cyan)
-                            Text("BAR")
-                                .font(.system(size: 10, weight: .black, design: .monospaced))
-                                .foregroundStyle(.cyan)
-                        }
+                        // 1. Oben: Großer Ladedruck & der horizontale Balken
+                        VStack(spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                                Text(entry.boostBar.map { String(format: "%.2f", $0) } ?? "0.00")
+                                    .font(.system(size: 24, weight: .black, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                                Text("BAR")
+                                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
 
-                        Text("LADEDRUCK RELATIV")
-                            .font(.system(size: 7, weight: .bold))
-                            .foregroundStyle(.secondary)
+                            Text("LADEDRUCK RELATIV")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(.secondary)
 
-                        // Horizontaler Ladedruck-Balken bis 1.6 Bar
-                        GeometryReader { geo in
-                            let boostVal = entry.boostBar ?? 0.0
-                            let ratio = min(max(boostVal / 1.6, 0.0), 1.0)
-                            ZStack(alignment: .leading) {
-                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 6)
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [.cyan, Color(red: 0.22, green: 0.74, blue: 0.97), .blue],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
+                            // Horizontaler Ladedruck-Balken bis 1.6 Bar
+                            GeometryReader { geo in
+                                let boostVal = entry.boostBar ?? 0.0
+                                let ratio = min(max(boostVal / 1.6, 0.0), 1.0)
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.12)).frame(height: 6)
+                                    Capsule()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.cyan, Color(red: 0.22, green: 0.74, blue: 0.97), .blue],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
                                         )
-                                    )
-                                    .frame(width: max(6, geo.size.width * ratio), height: 6)
+                                        .frame(width: max(6, geo.size.width * ratio), height: 6)
+                                }
+                            }
+                            .frame(height: 6)
+
+                            HStack {
+                                Text("0.0").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("0.8").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("1.6 BAR").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
                             }
                         }
-                        .frame(height: 6)
 
-                        HStack {
-                            Text("0.0").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
-                            Spacer()
-                            Text("0.8").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
-                            Spacer()
-                            Text("1.6 BAR").font(.system(size: 7, design: .monospaced)).foregroundStyle(.secondary)
+                        Spacer(minLength: 2)
+
+                        Divider().overlay(Color.white.opacity(0.15))
+
+                        // 2. Unten: Ansaugluft & Luftmasse ALS ECHTE RUNDE KUGELN!
+                        HStack(spacing: 20) {
+                            VStack(spacing: 2) {
+                                IATGaugeBadge(iat: entry.iat, size: 46)
+                                Text("ANSAUG")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                            }
+
+                            VStack(spacing: 2) {
+                                MAFGaugeBadge(maf: entry.maf, size: 46)
+                                Text("MASSE")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
                         }
+
+                        Spacer(minLength: 1)
                     }
-
-                    Spacer(minLength: 2)
-
-                    Divider().overlay(Color.white.opacity(0.15))
-
-                    // 2. Unten: Ansaugluft & Luftmasse ALS ECHTE RUNDE KUGELN!
-                    HStack(spacing: 20) {
-                        VStack(spacing: 2) {
-                            IATGaugeBadge(iat: entry.iat, size: 46)
-                            Text("ANSAUG")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
-                        }
-
-                        VStack(spacing: 2) {
-                            MAFGaugeBadge(maf: entry.maf, size: 46)
-                            Text("MASSE")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                    }
-
-                    Spacer(minLength: 1)
+                    .padding(10)
                 }
-                .padding(10)
             }
+            .buttonStyle(.plain)
 
         default: // .systemMedium: 3 Rundanzeigen nebeneinander (Boost, IAT, MAF)
             ZStack {

@@ -39,9 +39,10 @@ extension MusicObserver {
         let minInterval = force ? 1.0 : 6.0
         if elapsed >= minInterval {
             lastWidgetReloadTime = now
-            WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
-            if !force {
-                WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_OilTempWidget")
+            if force {
+                WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
+            } else {
+                WidgetCenter.shared.reloadAllTimelines()
             }
         }
     }
