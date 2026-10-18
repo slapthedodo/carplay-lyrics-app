@@ -16,7 +16,8 @@ extension OBDManager {
             logSystem("⚠️ Kein Bluetooth TX Characteristic gefunden.")
             return
         }
-        let fullCmd = cmd + "\r"
+        let cleanCmd = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fullCmd = cleanCmd.isEmpty ? "\r" : (cleanCmd + "\r")
         if let data = fullCmd.data(using: .utf8) ?? fullCmd.data(using: .ascii) {
             let writeType: CBCharacteristicWriteType
             if forceWriteWithResponse {
