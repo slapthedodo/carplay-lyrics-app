@@ -199,34 +199,39 @@ public struct LyricsActivityWidget: Widget {
                     .padding(.trailing, 6)
                 }
 
-                // ── Expanded Center: Große Öltemperatur-Anzeige ───────────────
+                // ── Expanded Center: Track-Header & Öltemperatur ─────────────
                 DynamicIslandExpandedRegion(.center) {
                     VStack(spacing: 2) {
                         HStack(spacing: 4) {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 8.5, weight: .bold))
+                                .foregroundStyle(.cyan)
+                            Text(context.state.songTitle.isEmpty ? "TFSI Telemetrie" : context.state.songTitle)
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                        }
+
+                        HStack(spacing: 4) {
                             if let temp = context.state.oilTemp {
                                 Text("\(temp)°C")
-                                    .font(.system(size: 24, weight: .black, design: .monospaced))
+                                    .font(.system(size: 12, weight: .black, design: .monospaced))
                                     .foregroundStyle(phaseColor(context.state.warmupPhase))
-                            } else {
-                                Text("--°C")
-                                    .font(.system(size: 24, weight: .black, design: .monospaced))
-                                    .foregroundStyle(.secondary)
                             }
-                            Text("ÖL")
-                                .font(.system(size: 9, weight: .black, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.4))
+                            Text(context.state.warmupPhase.rawValue)
+                                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(phaseColor(context.state.warmupPhase))
                         }
-                        Text(context.state.warmupPhase.rawValue)
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(phaseColor(context.state.warmupPhase))
                     }
                 }
 
-                // ── Expanded Bottom: Warmup-Balken & Empfehlung ───────────────
+                // ── Expanded Bottom: 3-Zeilen Synchrone Lyrics & Warmup ───────
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        DynamicIsland3LineLyricsView(state: context.state)
+
                         WarmupStatusBar(state: context.state)
-                            .frame(height: 3.5)
+                            .frame(height: 3)
 
                         HStack {
                             Text("VW Golf 5 GTI • EA113 2.0 TFSI")
@@ -239,7 +244,7 @@ public struct LyricsActivityWidget: Widget {
                         }
                         .padding(.horizontal, 4)
                     }
-                    .padding(.bottom, 6)
+                    .padding(.bottom, 4)
                 }
 
             } compactLeading: {
@@ -260,15 +265,30 @@ public struct LyricsActivityWidget: Widget {
                 }
 
             } compactTrailing: {
-                // ── Dynamic Island Kompakt Rechts: Phase & Kühlwasser ──
-                HStack(spacing: 3) {
-                    Text(context.state.warmupPhase.rawValue)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .foregroundStyle(phaseColor(context.state.warmupPhase))
-                    if let water = context.state.coolantTemp {
-                        Text("(\(water)°)")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.65))
+                // ── Dynamic Island Kompakt Rechts: Mitsing-Zeile ODER Phase & Kühlwasser ──
+                let cleanLine = context.state.currentLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                let hasLiveLyric = !cleanLine.isEmpty && cleanLine != "♪" && cleanLine != "Öl- & Telemetrie-Monitor" && cleanLine != "Bereit zur Fahrt"
+                if hasLiveLyric {
+                    HStack(spacing: 2) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .foregroundStyle(.cyan)
+                        Text(cleanLine)
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .frame(maxWidth: 80, alignment: .trailing)
+                    }
+                } else {
+                    HStack(spacing: 3) {
+                        Text(context.state.warmupPhase.rawValue)
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .foregroundStyle(phaseColor(context.state.warmupPhase))
+                        if let water = context.state.coolantTemp {
+                            Text("(\(water)°)")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
                     }
                 }
 

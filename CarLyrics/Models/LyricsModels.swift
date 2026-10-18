@@ -98,8 +98,10 @@ public struct LyricsAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
 
         // ── Lyrics ───────────────────────────────────────────────────────────
+        public var previousLine: String
         public var currentLine : String
         public var nextLine    : String
+        public var nextLine2   : String
         public var songTitle   : String
         public var artist      : String
         public var progress    : Double   // 0.0 … 1.0
@@ -123,8 +125,10 @@ public struct LyricsAttributes: ActivityAttributes {
 
         // ─────────────────────────────────────────────────────────────────────
         public init(
+            previousLine   : String       = "",
             currentLine    : String       = "",
             nextLine       : String       = "",
+            nextLine2      : String       = "",
             songTitle      : String       = "",
             artist         : String       = "",
             progress       : Double       = 0,
@@ -142,8 +146,10 @@ public struct LyricsAttributes: ActivityAttributes {
             warmupPhase    : WarmupPhase  = .cold,
             isEngineWarm   : Bool         = false
         ) {
+            self.previousLine   = previousLine
             self.currentLine    = currentLine
             self.nextLine       = nextLine
+            self.nextLine2      = nextLine2
             self.songTitle      = songTitle
             self.artist         = artist
             self.progress       = progress

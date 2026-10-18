@@ -55,10 +55,10 @@ extension MusicObserver {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
-        // Apple Rate-Limit Schutz für Öltemperatur-Updates:
-        // Bei Temperaturwechsel: min 0.6s Abstand
-        // Bei Telemetrie-Heartbeat: min 1.5s Abstand
-        let minAllowed = force ? 0.6 : 1.5
+        // Apple Rate-Limit Schutz für Live Activity Updates:
+        // Bei Lyrics-Wechsel oder Temperatur-Event (force): min 0.3s Abstand
+        // Bei regulärem Telemetrie-Heartbeat: min 2.0s Abstand
+        let minAllowed = force ? 0.3 : 2.0
         if !force && elapsed < minAllowed {
             return
         }
@@ -257,8 +257,10 @@ extension MusicObserver {
         TelemetrySharedStore.save(sharedData)
 
         return LyricsAttributes.ContentState(
+            previousLine   : previousLine,
             currentLine    : currentLine.isEmpty ? (currentTrackTitle.isEmpty ? "Öl- & Telemetrie-Monitor" : "♪") : currentLine,
             nextLine       : nextLine,
+            nextLine2      : nextLine2,
             songTitle      : currentTrackTitle.isEmpty ? "TFSI 2.0 Telemetrie" : currentTrackTitle,
             artist         : currentArtist.isEmpty ? "Motor-Monitor" : currentArtist,
             progress       : progress,

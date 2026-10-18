@@ -404,8 +404,8 @@ public final class MusicObserver: ObservableObject {
                     nextLine      = newNext
                     nextLine2     = newNext2
                     nextLine3     = newNext3
-                    // Hinweis: Lyrics laufen flüssig in der App & im Handy-Modus.
-                    // Die Dynamic Island wird nicht mit Lyrics belastet, damit Öltemp nicht hinterherhängt.
+                    // Live Activity sofort mit neuer Textzeile aktualisieren (min 0.3s Abstand schützt vor Throttling)
+                    pushActivityUpdate(force: true)
                 }
             }
         }
