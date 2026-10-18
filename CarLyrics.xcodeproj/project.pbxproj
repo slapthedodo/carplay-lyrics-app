@@ -309,6 +309,12 @@
 				97C1E0552A000001, /* CockpitTabView.swift */
 				97C1E0562A000001, /* SettingsTabView.swift */
 				97C1E0572A000001, /* SpotifySetupSheet.swift */
+					97C1E0802A000001, /* HandyModusBackground.swift */
+					97C1E0812A000001, /* HandyModusGaugesView.swift */
+					97C1E0822A000001, /* HandyModusLyricsPanel.swift */
+					97C1E0832A000001, /* HandyModusStatsBar.swift */
+					97C1E0842A000001, /* HandyModusGForcePanel.swift */
+					97C1E0852A000001, /* HandyModusView.swift */
 				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
 				97C1E0612A000001, /* OBDStatusBarHeader.swift */
 				97C1E0622A000001, /* OBDMethodProbeSection.swift */
@@ -417,6 +423,14 @@
 		97C1E0562A000001 = { isa = PBXBuildFile; fileRef = 97C1B0362A000001; };
 		97C1E0572A000001 = { isa = PBXBuildFile; fileRef = 97C1B0372A000001; };
 
+
+		/* HandyModus Views */
+		97C1B0602A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusBackground.swift; path = HandyModus/HandyModusBackground.swift; sourceTree = "<group>"; };
+		97C1B0612A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGaugesView.swift; path = HandyModus/HandyModusGaugesView.swift; sourceTree = "<group>"; };
+		97C1B0622A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLyricsPanel.swift; path = HandyModus/HandyModusLyricsPanel.swift; sourceTree = "<group>"; };
+		97C1B0632A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusStatsBar.swift; path = HandyModus/HandyModusStatsBar.swift; sourceTree = "<group>"; };
+		97C1B0642A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusGForcePanel.swift; path = HandyModus/HandyModusGForcePanel.swift; sourceTree = "<group>"; };
+		97C1B0652A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusView.swift; path = HandyModus/HandyModusView.swift; sourceTree = "<group>"; };
 		/* Diagnostic Workbench */
 		97C1E0602A000001 = { isa = PBXBuildFile; fileRef = 97C1B0402A000001; };
 		97C1E0612A000001 = { isa = PBXBuildFile; fileRef = 97C1B0412A000001; };
@@ -437,6 +451,14 @@
 		97C1E0722A000001 = { isa = PBXBuildFile; fileRef = 97C1C0122A000001; };
 		97C1E0732A000001 = { isa = PBXBuildFile; fileRef = 97C1C0132A000001; };
 
+
+		/* HandyModus Build Files */
+		97C1E0802A000001  = { isa = PBXBuildFile; fileRef = 97C1B0602A000001;  };
+		97C1E0812A000001  = { isa = PBXBuildFile; fileRef = 97C1B0612A000001;  };
+		97C1E0822A000001  = { isa = PBXBuildFile; fileRef = 97C1B0622A000001;  };
+		97C1E0832A000001  = { isa = PBXBuildFile; fileRef = 97C1B0632A000001;  };
+		97C1E0842A000001 = { isa = PBXBuildFile; fileRef = 97C1B0642A000001; };
+		97C1E0852A000001  = { isa = PBXBuildFile; fileRef = 97C1B0652A000001;  };
 /* ─────────────────────── Groups ─────────────────────── */
 
 		97C1F0002A000000 /* Root */ = {
@@ -519,6 +541,7 @@
 				97C1B0022A000001, /* ContentView.swift */
 				97C1F0112A000001, /* Cockpit */
 				97C1F0122A000001, /* DiagnosticWorkbench */
+				97C1F0132A000001, /* HandyModus */
 			);
 			name = Views;
 			path = Views;
@@ -542,6 +565,21 @@
 			sourceTree = "<group>";
 		};
 
+
+		97C1F0132A000001 /* HandyModus */ = {
+			isa = PBXGroup;
+			children = (
+				97C1B0602A000001, /* HandyModusBackground.swift */
+				97C1B0612A000001, /* HandyModusGaugesView.swift */
+				97C1B0622A000001, /* HandyModusLyricsPanel.swift */
+				97C1B0632A000001, /* HandyModusStatsBar.swift */
+				97C1B0642A000001, /* HandyModusGForcePanel.swift */
+				97C1B0652A000001, /* HandyModusView.swift */
+			);
+			name = HandyModus;
+			path = HandyModus;
+			sourceTree = "<group>";
+		};
 		97C1F0122A000001 /* DiagnosticWorkbench */ = {
 			isa = PBXGroup;
 			children = (

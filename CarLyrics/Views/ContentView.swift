@@ -37,9 +37,16 @@ public struct ContentView: View {
                     .tabItem { Label("OBD Labor", systemImage: "wrench.and.screwdriver.fill") }
                     .tag(1)
 
+                HandyModusView(observer: observer,
+                               obd: obd,
+                               motion: motion,
+                               warmup: warmup)
+                    .tabItem { Label("Handy", systemImage: "iphone.gen3") }
+                    .tag(2)
+
                 SettingsTabView(spotify: spotify, obd: obd, observer: observer)
                     .tabItem { Label("Setup", systemImage: "gearshape.fill") }
-                    .tag(2)
+                    .tag(3)
             }
             .tint(.cyan)
         }
