@@ -270,12 +270,15 @@ public final class MusicObserver: ObservableObject {
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                // IMMER Telemetrie-Speicher für Widgets schreiben, auch wenn keine Live Activity läuft
+                _ = self.makeState()
+
                 if self.activeActivity == nil {
                     await self.reattachOrCreateLiveActivity()
                 } else {
                     self.pushActivityUpdate(force: false)
                 }
-                // Widgets im Hintergrund schonend aktualisieren (max alle 25 Sekunden)
+                // Widgets im Hintergrund schonend aktualisieren (max alle 15 Sekunden)
                 self.scheduleWidgetReload(force: false)
             }
         }
