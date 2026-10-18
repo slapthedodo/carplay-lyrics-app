@@ -28,9 +28,40 @@ public struct SettingsTabView: View {
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Die Dynamic Island aktualisiert Öltemperatur, Ladedruck, G-Kraft und Songtexte live. Beim Beenden der App wird sie nach 8 Sekunden automatisch entfernt.")
+                        Text("Die Dynamic Island aktualisiert Öltemperatur, Ladedruck, G-Kraft und Songtexte live. Wenn du das Auto verlässt, schließt sie sich nach 10 Sekunden automatisch.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        // Live Fahrzeug-Status & Auto-Close Watchdog
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Auto-Erkennung (CarPlay / BT / OBD):")
+                                    .font(.caption2.bold())
+                                    .foregroundStyle(.secondary)
+                                if observer.isCarOrActiveConnected {
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.green).frame(width: 8, height: 8)
+                                        Text("Fahrzeug / App aktiv")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.green)
+                                    }
+                                } else {
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.orange).frame(width: 8, height: 8)
+                                        let rem = max(0, 10 - observer.disconnectedSeconds)
+                                        Text(rem > 0 ? "Getrennt (Schließt in \(rem)s)" : "Getrennt (Beendet ✓)")
+                                            .font(.caption.bold())
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                            }
+                            Spacer()
+                            Toggle("", isOn: $observer.autoDismissEnabled)
+                                .labelsHidden()
+                                .tint(.cyan)
+                        }
+                        .padding(8)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
 
                         HStack {
                             Button {

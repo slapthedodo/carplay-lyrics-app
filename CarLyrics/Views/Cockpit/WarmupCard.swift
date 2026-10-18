@@ -82,7 +82,7 @@ public struct WarmupCard: View {
                 .frame(width: 120, height: 120)
 
                 // Phasenhinweis & Saison-Modell
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     Text(phaseText(displayTemp))
                         .font(.caption)
                         .fontWeight(.semibold)
@@ -90,9 +90,66 @@ public struct WarmupCard: View {
                         .foregroundStyle(displayTemp != nil ? tempColor(displayTemp!) : .secondary)
 
                     if !obd.isEnabled || obd.connectionState != .connected {
-                        Text("Safety-Modell: \(warmup.currentProfile.seasonName) • ca. \(warmup.currentProfile.estimatedMinutesTo80) Min. bis 80°C")
-                            .font(.system(size: 9.5, design: .rounded))
-                            .foregroundStyle(.secondary)
+                        Divider().overlay(Color.white.opacity(0.1))
+
+                        HStack(spacing: 16) {
+                            VStack(spacing: 2) {
+                                Text("FAHRZEIT")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                Text(warmup.elapsedFormatted)
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
+
+                            Divider().frame(height: 20).overlay(Color.white.opacity(0.15))
+
+                            VStack(spacing: 2) {
+                                Text("NOCH CA.")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                let remMins = max(0, warmup.currentProfile.estimatedMinutesTo80 - Int(warmup.elapsedSeconds / 60))
+                                Text(remMins > 0 ? "\(remMins) Min." : "Warm ✓")
+                                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(remMins == 0 ? .green : .orange)
+                            }
+
+                            Divider().frame(height: 20).overlay(Color.white.opacity(0.15))
+
+                            VStack(spacing: 2) {
+                                Text("PROFIL")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                Text(warmup.currentProfile.seasonName)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .padding(.top, 2)
+
+                        Button {
+                            warmup.start(cold: true)
+                        } label: {
+                            Label("Kaltstart-Timer neu starten", systemImage: "arrow.counterclockwise.circle.fill")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .buttonStyle(CockpitButtonStyle(color: .secondary))
+                        .padding(.top, 4)
+                    } else {
+                        // OBD Live Datenübersicht
+                        HStack(spacing: 16) {
+                            if let coolant = obd.liveCoolantTemp {
+                                Text("Kühlwasser: \(coolant)°C")
+                                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.cyan)
+                            }
+                            if obd.liveRPM > 0 {
+                                Text("Drehzahl: \(obd.liveRPM) U/min")
+                                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.white)
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal)

@@ -8,6 +8,8 @@ import ActivityKit
 import Combine
 import CoreMotion
 import WidgetKit
+import AVFoundation
+import UIKit
 
 @MainActor
 public final class MusicObserver: ObservableObject {
@@ -31,6 +33,22 @@ public final class MusicObserver: ObservableObject {
     @Published public var nextLine3         : String       = ""  // 3 Zeilen danach
     @Published public var lyricsStatus      : LyricsStatus = .idle
     @Published public var progress          : Double       = 0
+    @Published public var isCarOrActiveConnected : Bool   = true
+    @Published public var disconnectedSeconds     : Int    = 0
+    public var autoDismissEnabled                : Bool   = true
+
+    public var isCarOrActive: Bool {
+        if UIApplication.shared.applicationState == .active { return true }
+        let hasCarPlay = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+        if hasCarPlay { return true }
+        let route = AVAudioSession.sharedInstance().currentRoute
+        let isCarAudio = route.outputs.contains {
+            $0.portType == .carAudio || $0.portType == .bluetoothA2DP || $0.portType == .bluetoothHFP
+        }
+        if isCarAudio { return true }
+        if obd.connectionState == .connected { return true }
+        return false
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Subsystem References
@@ -266,20 +284,40 @@ public final class MusicObserver: ObservableObject {
 
     public func startTelemetryHeartbeat() {
         telemetryTimer?.invalidate()
-        // Aktualisiert regelmäßig Motordaten & Widgets im Hintergrund
         let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                // IMMER Telemetrie-Speicher für Widgets schreiben, auch wenn keine Live Activity läuft
-                _ = self.makeState()
 
-                if self.activeActivity == nil {
-                    await self.reattachOrCreateLiveActivity()
+                let connected = self.isCarOrActive
+                self.isCarOrActiveConnected = connected
+
+                if connected {
+                    self.disconnectedSeconds = 0
+                    // Falls Keep-Alive pausiert war, wieder aktivieren
+                    BackgroundKeepAliveManager.shared.start()
+
+                    // IMMER Telemetrie-Speicher für Widgets schreiben
+                    _ = self.makeState()
+
+                    if self.activeActivity == nil {
+                        await self.reattachOrCreateLiveActivity()
+                    } else {
+                        self.pushActivityUpdate(force: false)
+                    }
+                    // Widgets im Hintergrund schonend aktualisieren (max alle 15 Sekunden)
+                    self.scheduleWidgetReload(force: false)
                 } else {
-                    self.pushActivityUpdate(force: false)
+                    self.disconnectedSeconds += 1
+
+                    // Exakt nach 10 Sekunden ohne Verbindung (CarPlay/Bluetooth/OBD) im Hintergrund:
+                    if self.autoDismissEnabled && self.disconnectedSeconds == 10 {
+                        await self.endAllLiveActivities()
+                        BackgroundKeepAliveManager.shared.stop()
+                    }
+
+                    // Während getrennt: KEINE neue Live Activity anlegen!
+                    _ = self.makeState()
                 }
-                // Widgets im Hintergrund schonend aktualisieren (max alle 15 Sekunden)
-                self.scheduleWidgetReload(force: false)
             }
         }
         RunLoop.main.add(timer, forMode: .common)

@@ -89,19 +89,32 @@ struct TelemetryTimelineProvider: TimelineProvider {
 
         if let liveOil = data.oilTemp, liveOil > 0 {
             displayTemp = liveOil
-            displayWater = data.coolantTemp ?? (liveOil >= 70 ? 90 : max(20, liveOil + 10))
+            displayWater = data.coolantTemp ?? (liveOil >= 70 ? 90 : max(liveOil, liveOil + 8))
             phase = data.phase
             warmupProgress = data.warmupProgress
         } else {
-            // Live dynamische Simulation
+            // Live dynamische Simulation mit lokaler Widget-Session Speicherung
             let profile = WarmupCalculator.profileForCurrentDate(date: date)
             let sTemp = data.sessionStartTemp > -20 ? data.sessionStartTemp : profile.ambientTemp
-            let baseElapsed = data.sessionStartTime > 0 ? max(0, date.timeIntervalSince1970 - data.sessionStartTime) : 0
+            
+            let savedWidgetStart = UserDefaults.standard.double(forKey: "widget_local_session_start")
+            let effectiveStartTime: Double
+            if data.sessionStartTime > 0 {
+                effectiveStartTime = data.sessionStartTime
+                UserDefaults.standard.set(data.sessionStartTime, forKey: "widget_local_session_start")
+            } else if savedWidgetStart > 0 && (date.timeIntervalSince1970 - savedWidgetStart) < 2700 {
+                effectiveStartTime = savedWidgetStart
+            } else {
+                effectiveStartTime = date.timeIntervalSince1970
+                UserDefaults.standard.set(effectiveStartTime, forKey: "widget_local_session_start")
+            }
+
+            let baseElapsed = max(0, date.timeIntervalSince1970 - effectiveStartTime)
             let totalElapsed = baseElapsed + additionalElapsed
 
             let calcOil = WarmupCalculator.calculateOilTemp(at: totalElapsed, from: sTemp)
             displayTemp = Int(calcOil.rounded())
-            displayWater = displayTemp >= 70 ? 90 : max(20, displayTemp + 10)
+            displayWater = displayTemp >= 70 ? 90 : max(displayTemp, displayTemp + 8)
             phase = WarmupCalculator.phaseFor(temp: calcOil)
             warmupProgress = WarmupCalculator.warmupProgress(temp: calcOil, startTemp: sTemp)
         }
@@ -117,11 +130,11 @@ struct TelemetryTimelineProvider: TimelineProvider {
             maf            : data.maf,
             phase          : phase,
             warmupProgress : warmupProgress,
-            songTitle      : data.songTitle.isEmpty ? "Kein Song aktiv" : data.songTitle,
-            artist         : data.artist.isEmpty ? "Spotify / Musik" : data.artist,
+            songTitle      : data.songTitle.isEmpty ? "TFSI Telemetrie" : data.songTitle,
+            artist         : data.artist.isEmpty ? "CarLyrics Cockpit" : data.artist,
             previousLine2  : data.previousLine2,
             previousLine   : data.previousLine,
-            currentLine    : data.currentLine.isEmpty ? "Warte auf Musikwiedergabe…" : data.currentLine,
+            currentLine    : data.currentLine.isEmpty ? "Bereit zur Fahrt" : data.currentLine,
             nextLine       : data.nextLine,
             nextLine2      : data.nextLine2,
             currentTimeStr : data.currentTimeStr,

@@ -45,12 +45,20 @@ public final class OBDManager: NSObject, ObservableObject {
         // VW EA113 2.0 TFSI Thermik:
         // Der integrierte Öl-Wasser-Wärmetauscher am Ölfilterflansch sorgt dafür,
         // dass sich das Öl dem Kühlmittel mit ca. 8°C Nachlauf anpasst.
-        // Bei höherer Last / Drehzahl steigt die Öltemperatur über das Kühlwasser.
-        let baseOil = max(20, coolant - 8)
+        // Bei kaltem Motor starten beide bei ähnlicher Temperatur (z.B. 10°C).
+        let baseOil: Int
+        if coolant < 25 {
+            baseOil = coolant
+        } else if coolant < 60 {
+            baseOil = coolant - 6
+        } else {
+            baseOil = coolant - 8
+        }
+
         let loadBonus: Int
         if coolant >= 80 {
             if liveRPM > 3000 || (liveBoostBar ?? 0) > 0.3 {
-                loadBonus = min(20, max(0, Int((liveBoostBar ?? 0) * 12) + (liveRPM > 4000 ? 5 : 2)))
+                loadBonus = min(25, max(0, Int((liveBoostBar ?? 0) * 12) + (liveRPM > 4000 ? 6 : 2)))
             } else {
                 loadBonus = 0
             }

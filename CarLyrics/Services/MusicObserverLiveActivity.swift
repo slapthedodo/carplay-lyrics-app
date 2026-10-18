@@ -106,6 +106,7 @@ extension MusicObserver {
     // ─────────────────────────────────────────────────────────────────────────
 
     public func reattachOrCreateLiveActivity() async {
+        guard isCarOrActive else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         // Erst alle toten oder beendeten Activities sauber aus dem System entfernen
@@ -142,6 +143,7 @@ extension MusicObserver {
     }
 
     public func startNewLiveActivity(title: String, artist: String) async {
+        guard isCarOrActive else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         if let _ = activeActivity {
@@ -197,7 +199,7 @@ extension MusicObserver {
                 oilTemp = temp
                 isEngineWarm = temp >= 80
                 effectiveBoost = obd.liveBoostBar ?? 0.0
-                effectiveCoolant = obd.liveCoolantTemp ?? max(20, (wm?.oilTempInt ?? 20) + 10)
+                effectiveCoolant = obd.liveCoolantTemp ?? (temp >= 70 ? 90 : max(temp, temp + 8))
                 effectiveIAT = obd.liveIAT ?? 20
                 effectiveMAF = obd.liveMAF ?? 3.5
             } else {
@@ -206,17 +208,17 @@ extension MusicObserver {
                 oilTemp = simOil
                 isEngineWarm = wm?.isEngineWarm ?? false
                 effectiveBoost = 0.0
-                effectiveCoolant = simOil > 70 ? 90 : max(20, simOil + 10)
+                effectiveCoolant = simOil >= 70 ? 90 : max(simOil, simOil + 8)
                 effectiveIAT = 20
                 effectiveMAF = 3.5
             }
         } else {
-            // Reines TFSI Simulationsmodell
+            // Reines TFSI Simulationsmodell (Kein OBD)
             let simOil = wm?.oilTempInt ?? 20
             oilTemp = simOil
             isEngineWarm = wm?.isEngineWarm ?? false
             effectiveBoost = nil
-            effectiveCoolant = simOil > 70 ? 90 : max(20, simOil + 10)
+            effectiveCoolant = simOil >= 70 ? 90 : max(simOil, simOil + 8)
             effectiveIAT = nil
             effectiveMAF = nil
         }

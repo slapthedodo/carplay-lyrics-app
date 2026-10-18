@@ -4,7 +4,11 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
+		<string>group.com.yourcompany.CarLyrics</string>
+		<string>group.com.yourcompany.CarLyrics.widget</string>
 		<string>group.com.carlyrics</string>
+		<string>group.com.slapthedodo.CarLyrics</string>
+		<string>group.com.slapthedodo.carlyrics</string>
 	</array>
 </dict>
 </plist>

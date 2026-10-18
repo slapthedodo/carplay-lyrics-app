@@ -324,25 +324,39 @@ public struct TelemetrySharedData: Codable {
 }
 
 public enum TelemetrySharedStore {
-    public static let appGroupId = "group.com.carlyrics"
+    public static let candidateAppGroupIds: [String] = [
+        "group.com.yourcompany.CarLyrics",
+        "group.com.carlyrics",
+        "group.com.slapthedodo.CarLyrics",
+        "group.com.slapthedodo.carlyrics"
+    ]
     public static let jsonFileName = "telemetry_store.json"
 
-    private static var appGroupDefaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupId)
+    private static var activeGroupDefaults: [UserDefaults] {
+        var list: [UserDefaults] = []
+        for id in candidateAppGroupIds {
+            if let defs = UserDefaults(suiteName: id) {
+                list.append(defs)
+            }
+        }
+        return list
     }
 
-    private static var sharedFileURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?
-            .appendingPathComponent(jsonFileName)
+    private static var activeContainerURLs: [URL] {
+        var list: [URL] = []
+        for id in candidateAppGroupIds {
+            if let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) {
+                list.append(dir.appendingPathComponent(jsonFileName))
+            }
+        }
+        return list
     }
 
     public static func save(_ data: TelemetrySharedData) {
-        // 1. UserDefaults App Group
-        if let group = appGroupDefaults {
-            if let enc = try? JSONEncoder().encode(data) {
-                group.set(enc, forKey: "carlyrics_telemetry_payload")
-            }
-            // Individual keys for fast access
+        let enc = try? JSONEncoder().encode(data)
+        // 1. Alle verfügbaren App Group UserDefaults
+        for group in activeGroupDefaults {
+            if let enc { group.set(enc, forKey: "carlyrics_telemetry_payload") }
             group.set(data.oilTemp, forKey: "widget_oil_temp")
             group.set(data.coolantTemp, forKey: "widget_coolant_temp")
             group.set(data.boostBar, forKey: "widget_boost_bar")
@@ -366,58 +380,57 @@ public enum TelemetrySharedStore {
             group.set(data.sessionStartTemp, forKey: "carlyrics_warmup_start_temp")
         }
 
-        // Standard defaults
-        if let enc = try? JSONEncoder().encode(data) {
+        // 2. Lokale Standard Defaults
+        if let enc {
             UserDefaults.standard.set(enc, forKey: "carlyrics_telemetry_payload")
         }
 
-        // 2. Container JSON file
-        if let fileURL = sharedFileURL {
-            do {
-                let enc = try JSONEncoder().encode(data)
-                try enc.write(to: fileURL, options: .atomic)
-            } catch {
-                // Ignore file write errors
+        // 3. Shared Container JSON Dateien (atomar)
+        if let enc {
+            for fileURL in activeContainerURLs {
+                try? enc.write(to: fileURL, options: .atomic)
             }
         }
     }
 
     public static func load() -> TelemetrySharedData {
-        // Try App Group UserDefaults encoded struct
-        if let group = appGroupDefaults,
-           let data = group.data(forKey: "carlyrics_telemetry_payload"),
-           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
-            return decoded
+        // 1. Check all App Group Container JSON files
+        for fileURL in activeContainerURLs {
+            if let data = try? Data(contentsOf: fileURL),
+               let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
+                return decoded
+            }
         }
 
-        // Try container JSON file
-        if let fileURL = sharedFileURL,
-           let data = try? Data(contentsOf: fileURL),
-           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
-            return decoded
+        // 2. Check all App Group UserDefaults
+        for group in activeGroupDefaults {
+            if let data = group.data(forKey: "carlyrics_telemetry_payload"),
+               let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
+                return decoded
+            }
         }
 
-        // Try standard defaults
+        // 3. Check Standard UserDefaults
         if let data = UserDefaults.standard.data(forKey: "carlyrics_telemetry_payload"),
            let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
             return decoded
         }
 
-        // Fallback: Dynamic default based on live WarmupCalculator & Standby
+        // 4. Fallback: Dynamische Standby-Werte mit Live-Berechnung
         let now = Date()
         let profile = WarmupCalculator.profileForCurrentDate(date: now)
-        let savedTime = appGroupDefaults?.double(forKey: "carlyrics_warmup_started_at") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
-        let savedTemp = appGroupDefaults?.double(forKey: "carlyrics_warmup_start_temp") ?? UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
+        let sTime = UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
+        let sTempSaved = UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
 
-        let sTemp = (savedTemp > -20 && savedTemp != 0) ? savedTemp : profile.ambientTemp
-        let sTime = (savedTime > 0) ? savedTime : now.timeIntervalSince1970
-        let elapsed = max(0, now.timeIntervalSince1970 - sTime)
+        let sTemp = (sTempSaved > -20 && sTempSaved != 0) ? sTempSaved : profile.ambientTemp
+        let baseTime = (sTime > 0) ? sTime : now.timeIntervalSince1970
+        let elapsed = max(0, now.timeIntervalSince1970 - baseTime)
 
         let calculatedTemp = WarmupCalculator.calculateOilTemp(at: elapsed, from: sTemp)
         let intTemp = Int(calculatedTemp.rounded())
         let phase = WarmupCalculator.phaseFor(temp: calculatedTemp)
         let progress = WarmupCalculator.warmupProgress(temp: calculatedTemp, startTemp: sTemp)
-        let waterTemp = calculatedTemp >= 70 ? 90 : max(20, intTemp + 10)
+        let waterTemp = calculatedTemp >= 70 ? 90 : max(intTemp, intTemp + 8)
 
         return TelemetrySharedData(
             oilTemp: intTemp,
@@ -429,18 +442,18 @@ public enum TelemetrySharedStore {
             maf: 3.5,
             phase: phase,
             warmupProgress: progress,
-            songTitle: "Kein Song aktiv",
-            artist: "Spotify / Musik",
+            songTitle: "TFSI Telemetrie",
+            artist: "CarLyrics Cockpit",
             previousLine2: "",
             previousLine: "",
-            currentLine: "Starte Musik auf dem iPhone",
+            currentLine: "Bereit zur Fahrt",
             nextLine: "",
             nextLine2: "",
             currentTimeStr: "--:--",
             totalTimeStr: "--:--",
             progress: 0.0,
             isPlaying: false,
-            sessionStartTime: sTime,
+            sessionStartTime: baseTime,
             sessionStartTemp: sTemp,
             updatedAt: now
         )
