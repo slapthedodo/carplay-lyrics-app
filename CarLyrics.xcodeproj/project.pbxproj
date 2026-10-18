@@ -544,7 +544,7 @@
 				97C1B0022A000001, /* ContentView.swift */
 				97C1F0112A000001, /* Cockpit */
 				97C1F0122A000001, /* DiagnosticWorkbench */
-				97C1F0132A000001, /* HandyModus */
+				97C1F0142A000001, /* HandyModus */
 			);
 			name = Views;
 			path = Views;
@@ -584,7 +584,7 @@
 			sourceTree = "<group>";
 		};
 
-		97C1F0132A000001 /* HandyModus */ = {
+		97C1F0142A000001 /* HandyModus */ = {
 			isa = PBXGroup;
 			children = (
 				97C1B0602A000001, /* HandyModusBackground.swift */
