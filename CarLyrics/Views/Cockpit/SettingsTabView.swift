@@ -11,6 +11,7 @@ public struct SettingsTabView: View {
     @ObservedObject var observer: MusicObserver
     @State private var tokenInput: String = ""
     @State private var resetSuccess: Bool = false
+    @State private var showKupplungTutorial: Bool = false
 
     public init(spotify: SpotifyManager, obd: OBDManager, observer: MusicObserver) {
         self.spotify = spotify
@@ -21,6 +22,40 @@ public struct SettingsTabView: View {
     public var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+                // 0. Fahrschule & Kupplungs-Tutorial (3D Anfahren)
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Image(systemName: "steeringwheel")
+                                .font(.title3)
+                                .foregroundStyle(Color(red: 0.95, green: 0.86, blue: 0.48))
+                            Text("Fahrschule: 3D Anfahren")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                            Spacer()
+                        }
+
+                        Text("Interaktives 3D-Kupplungstutorial: Erkläre Schülern das Anfahren (Motor- vs. Auto-Scheibe, Schleifpunkt und wie man ein Abwürgen verhindert).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Button {
+                            showKupplungTutorial = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "play.circle.fill")
+                                Text("3D-Kupplungstutorial öffnen")
+                                    .fontWeight(.bold)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(CockpitButtonStyle(color: Color(red: 0.95, green: 0.86, blue: 0.48)))
+                    }
+                }
+
                 // 1. Dynamic Island & Live Activity Steuerung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
@@ -322,6 +357,9 @@ public struct SettingsTabView: View {
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 24)
+        }
+        .sheet(isPresented: $showKupplungTutorial) {
+            KupplungTutorialView(obd: obd)
         }
     }
 }
