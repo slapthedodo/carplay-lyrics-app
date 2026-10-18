@@ -145,11 +145,11 @@ extension OBDManager {
                 liveMAF = Double((Int(b1) * 256) + Int(b2)) / 100.0
 
                 // EA113 2.0 TFSI Ladedruck-Berechnung wenn kein Standard 010B MAP vorhanden ist
-                if !hasMAPPID && liveRPM > 500 {
+                if let maf = liveMAF, !hasMAPPID && liveRPM > 500 {
                     let iatK = Double((liveIAT ?? 20) + 273)
                     let baseAirflowNA = (Double(liveRPM) / 120.0) * 0.001984 * (101325.0 / (287.05 * iatK)) * 0.88
                     if baseAirflowNA > 1.0 {
-                        let ratio = liveMAF / baseAirflowNA
+                        let ratio = maf / baseAirflowNA
                         let boostEst = max(0.0, ratio - 1.0)
                         liveBoostBar = Double(round(boostEst * 50) / 50)
                         liveMAP = Int(101.3 * ratio)
