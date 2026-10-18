@@ -215,3 +215,25 @@ Am 18.10.2026 um 14:20 Uhr wurde die Verbindung mit dem Golf 5 GTI (Bosch MED9.1
    Die MED9.1 liefert kein standardisiertes `01 0B` MAP. CarLyrics berechnet den relativen Ladedruck (bar) nun präzise aus der Live-Luftmasse (`01 10` MAF in g/s) und Drehzahl (`01 0C` RPM) nach dem EA113 2.0 TFSI thermodynamischen Kennfeld.
 4. **Ersteinwahl ohne manuelles Warten:**  
    Das Bluetooth-GATT-Scanning toleriert nun bis zu 8 Sekunden für die Descriptor-Bekanntgabe des Adapters, sodass der Erststart ohne manuelles Retry sofort durchläuft.
+
+---
+
+## 9. 🚀 Letzter Stand & Features (Build #81 – 18.10.2026)
+
+### A. Signulous Re-Signing & Widgets
+* App Groups (`suiteName`) funktionieren über Prozessgrenzen bei re-signierten IPAs auf iOS nicht.
+* Widgets beziehen Live-Daten über Step 0 (`Activity<LyricsAttributes>.activities` ActivityKit IPC) mit `UserDefaults.standard` Fallback.
+
+### B. Live Activity Rate-Limiting
+* Telemetrie (Öltemperatur/Kühlmittel) feuert höchstens alle 3 Sekunden und **nie** mit `force: true`.
+* Songtext-Zeilenwechsel in `tick()` behalten absolute Priorität mit `force: true` und min 0,5s Abstand.
+
+### C. HandyModus (Querformat)
+* `HandyModusLandscapeView.swift` nutzt `GeometryReader` ohne ScrollView – exakt eingepasstes Vollbild (Links 45% Gauges & G-Ball, Rechts 55% Lyrics & Stats).
+
+### D. Fahrschule / 3D-Kupplungstutorial
+* `KupplungTutorialView.swift` ist in den Einstellungen (`SettingsTabView.swift`) als Sheet integriert.
+* 3D-Canvas mit konsistenter Blickrichtung von schräg links auf die Welle.
+* Rechte Welle ragt sauber nach rechts aus der Nabe heraus.
+* Kupplungsschnalz-Schutz: Zu schnelles Loslassen (>90 %/s) oder Einkuppeln ohne Gas würgt den Motor realistisch ab ("ABGEWÜRGT! 😬").
+* Zum Neustarten muss die Kupplung erst wieder komplett durchgetreten werden (<10%).
