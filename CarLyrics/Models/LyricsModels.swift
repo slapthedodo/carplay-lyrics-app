@@ -125,47 +125,23 @@ public struct LyricsAttributes: ActivityAttributes {
 
         // ─────────────────────────────────────────────────────────────────────
         public init(
-            previousLine   : String       = "",
-            currentLine    : String       = "",
-            nextLine       : String       = "",
-            nextLine2      : String       = "",
-            songTitle      : String       = "",
-            artist         : String       = "",
-            progress       : Double       = 0,
-            isPlaying      : Bool         = true,
-            currentG       : Double       = 0,
-            peakG          : Double       = 0,
-            gVectorX       : Double       = 0,
-            gVectorY       : Double       = 0,
-            oilTemp        : Int?         = 20,
-            coolantTemp    : Int?         = 90,
-            boostBar       : Double?      = nil,
-            iatTemp        : Int?         = nil,
-            mafVal         : Double?      = nil,
-            warmupProgress : Double       = 0,
-            warmupPhase    : WarmupPhase  = .cold,
-            isEngineWarm   : Bool         = false
+            previousLine: String = "", currentLine: String = "", nextLine: String = "", nextLine2: String = "",
+            songTitle: String = "", artist: String = "", progress: Double = 0, isPlaying: Bool = true,
+            currentG: Double = 0, peakG: Double = 0, gVectorX: Double = 0, gVectorY: Double = 0,
+            oilTemp: Int? = 20, coolantTemp: Int? = 90, boostBar: Double? = nil,
+            iatTemp: Int? = nil, mafVal: Double? = nil, warmupProgress: Double = 0,
+            warmupPhase: WarmupPhase = .cold, isEngineWarm: Bool = false
         ) {
-            self.previousLine   = previousLine
-            self.currentLine    = currentLine
-            self.nextLine       = nextLine
-            self.nextLine2      = nextLine2
-            self.songTitle      = songTitle
-            self.artist         = artist
-            self.progress       = progress
-            self.isPlaying      = isPlaying
-            self.currentG       = currentG
-            self.peakG          = peakG
-            self.gVectorX       = gVectorX
-            self.gVectorY       = gVectorY
-            self.oilTemp        = oilTemp
-            self.coolantTemp    = coolantTemp
-            self.boostBar       = boostBar
-            self.iatTemp        = iatTemp
-            self.mafVal         = mafVal
-            self.warmupProgress = warmupProgress
-            self.warmupPhase    = warmupPhase
-            self.isEngineWarm   = isEngineWarm
+            self.previousLine = previousLine; self.currentLine = currentLine
+            self.nextLine = nextLine; self.nextLine2 = nextLine2
+            self.songTitle = songTitle; self.artist = artist
+            self.progress = progress; self.isPlaying = isPlaying
+            self.currentG = currentG; self.peakG = peakG
+            self.gVectorX = gVectorX; self.gVectorY = gVectorY
+            self.oilTemp = oilTemp; self.coolantTemp = coolantTemp
+            self.boostBar = boostBar; self.iatTemp = iatTemp
+            self.mafVal = mafVal; self.warmupProgress = warmupProgress
+            self.warmupPhase = warmupPhase; self.isEngineWarm = isEngineWarm
         }
 
         public static let placeholder = ContentState(
@@ -279,52 +255,24 @@ public struct TelemetrySharedData: Codable {
     public var updatedAt        : Date
 
     public init(
-        oilTemp: Int? = nil,
-        coolantTemp: Int? = nil,
-        boostBar: Double? = nil,
-        currentG: Double = 0.0,
-        peakG: Double = 0.0,
-        iat: Int? = nil,
-        maf: Double? = nil,
-        phase: WarmupPhase = .cold,
-        warmupProgress: Double = 0.0,
-        songTitle: String = "",
-        artist: String = "",
-        previousLine2: String = "",
-        previousLine: String = "",
-        currentLine: String = "",
-        nextLine: String = "",
-        nextLine2: String = "",
-        currentTimeStr: String = "0:00",
-        totalTimeStr: String = "0:00",
-        progress: Double = 0.0,
-        isPlaying: Bool = false,
-        sessionStartTime: Double = 0,
-        sessionStartTemp: Double = 20,
-        updatedAt: Date = Date()
+        oilTemp: Int? = nil, coolantTemp: Int? = nil, boostBar: Double? = nil,
+        currentG: Double = 0.0, peakG: Double = 0.0, iat: Int? = nil, maf: Double? = nil,
+        phase: WarmupPhase = .cold, warmupProgress: Double = 0.0,
+        songTitle: String = "", artist: String = "", previousLine2: String = "",
+        previousLine: String = "", currentLine: String = "", nextLine: String = "",
+        nextLine2: String = "", currentTimeStr: String = "0:00", totalTimeStr: String = "0:00",
+        progress: Double = 0.0, isPlaying: Bool = false,
+        sessionStartTime: Double = 0, sessionStartTemp: Double = 20, updatedAt: Date = Date()
     ) {
-        self.oilTemp = oilTemp
-        self.coolantTemp = coolantTemp
-        self.boostBar = boostBar
-        self.currentG = currentG
-        self.peakG = peakG
-        self.iat = iat
-        self.maf = maf
-        self.phase = phase
-        self.warmupProgress = warmupProgress
-        self.songTitle = songTitle
-        self.artist = artist
-        self.previousLine2 = previousLine2
-        self.previousLine = previousLine
-        self.currentLine = currentLine
-        self.nextLine = nextLine
-        self.nextLine2 = nextLine2
-        self.currentTimeStr = currentTimeStr
-        self.totalTimeStr = totalTimeStr
-        self.progress = progress
-        self.isPlaying = isPlaying
-        self.sessionStartTime = sessionStartTime
-        self.sessionStartTemp = sessionStartTemp
+        self.oilTemp = oilTemp; self.coolantTemp = coolantTemp; self.boostBar = boostBar
+        self.currentG = currentG; self.peakG = peakG; self.iat = iat; self.maf = maf
+        self.phase = phase; self.warmupProgress = warmupProgress
+        self.songTitle = songTitle; self.artist = artist
+        self.previousLine2 = previousLine2; self.previousLine = previousLine
+        self.currentLine = currentLine; self.nextLine = nextLine; self.nextLine2 = nextLine2
+        self.currentTimeStr = currentTimeStr; self.totalTimeStr = totalTimeStr
+        self.progress = progress; self.isPlaying = isPlaying
+        self.sessionStartTime = sessionStartTime; self.sessionStartTemp = sessionStartTemp
         self.updatedAt = updatedAt
     }
 }

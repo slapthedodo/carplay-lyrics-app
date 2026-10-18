@@ -42,7 +42,7 @@ extension OBDManager {
             }
         }
 
-        let compact = clean.replacingOccurrences(of: " ", with: "")
+        let compact = clean.replacingOccurrences(of: " ", with: "").uppercased()
 
         // 2. ELM Version (ATI: z.B. "ELM327 v1.5")
         if compact.contains("ELM327") {
@@ -142,10 +142,11 @@ extension OBDManager {
             if after.count >= 4,
                let b1 = UInt8(after.prefix(2), radix: 16),
                let b2 = UInt8(after.dropFirst(2).prefix(2), radix: 16) {
-                liveMAF = Double((Int(b1) * 256) + Int(b2)) / 100.0
+                let maf = Double((Int(b1) * 256) + Int(b2)) / 100.0
+                liveMAF = maf
 
-                // EA113 2.0 TFSI Ladedruck-Berechnung wenn kein Standard 010B MAP vorhanden ist
-                if let maf = liveMAF, !hasMAPPID && liveRPM > 500 {
+                // EA113 2.0 TFSI Ladedruck-Berechnung (Bosch MED9.1 hat kein PID 010B MAP)
+                if liveRPM > 500 {
                     let iatK = Double((liveIAT ?? 20) + 273)
                     let baseAirflowNA = (Double(liveRPM) / 120.0) * 0.001984 * (101325.0 / (287.05 * iatK)) * 0.88
                     if baseAirflowNA > 1.0 {
@@ -153,7 +154,13 @@ extension OBDManager {
                         let boostEst = max(0.0, ratio - 1.0)
                         liveBoostBar = Double(round(boostEst * 50) / 50)
                         liveMAP = Int(101.3 * ratio)
+                    } else {
+                        liveBoostBar = 0.0
+                        liveMAP = 101
                     }
+                } else {
+                    liveBoostBar = 0.0
+                    liveMAP = 101
                 }
             }
         }
@@ -170,7 +177,14 @@ extension OBDManager {
         if let range = compact.range(of: "4104") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
-                liveEngineLoad = Int(Double(val) * 100.0 / 255.0)
+                let load = Int(Double(val) * 100.0 / 255.0)
+                liveEngineLoad = load
+                if liveBoostBar == nil || liveBoostBar == 0.0 {
+                    if liveRPM > 2000 && load > 75 {
+                        let est = Double(load - 75) / 25.0 * 0.9
+                        liveBoostBar = Double(round(est * 50) / 50)
+                    }
+                }
             }
         }
 

@@ -47,10 +47,75 @@ extension MusicObserver {
         }
     }
 
+    public func startTelemetryHeartbeat() {
+        telemetryTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: timerQueue)
+        timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
+        timer.setEventHandler { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+
+                let connected = self.isCarOrActive
+                self.isCarOrActiveConnected = connected
+
+                if connected {
+                    self.disconnectedSeconds = 0
+                    BackgroundKeepAliveManager.shared.ensureActive()
+
+                    // Im Hintergrund regelmäßig prüfen, ob System-Song gewechselt hat (da iOS-Events im BG ruhen)
+                    if !self.spotify.isAuthenticated {
+                        self.syncSystemItem()
+                    }
+
+                    _ = self.makeState()
+
+                    if self.activeActivity == nil {
+                        await self.reattachOrCreateLiveActivity()
+                    } else {
+                        let now = Date()
+                        let curOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
+                        let curCoolant = self.obd.liveCoolantTemp
+                        let curPhase = self.warmupManager?.phase
+                        let curBoost = self.obd.liveBoostBar
+                        let curG = self.motionManager?.currentG ?? 0
+
+                        let hasDelta = (curOil != self.lastSentOilTemp ||
+                                        curCoolant != self.lastSentCoolant ||
+                                        curPhase != self.lastSentPhase ||
+                                        abs((curBoost ?? 0) - (self.lastSentBoost ?? 0)) >= 0.05 ||
+                                        abs(curG - self.lastSentG) >= 0.1)
+
+                        if now.timeIntervalSince(self.lastTelemetryPush) >= 2.5 || hasDelta {
+                            self.lastSentOilTemp = curOil
+                            self.lastSentCoolant = curCoolant
+                            self.lastSentPhase = curPhase
+                            self.lastSentBoost = curBoost
+                            self.lastSentG = curG
+                            self.lastTelemetryPush = now
+                            self.pushActivityUpdate(force: false)
+                        }
+                    }
+                    self.scheduleWidgetReload(force: false)
+                } else {
+                    self.disconnectedSeconds += 1
+                    if self.autoDismissEnabled && self.disconnectedSeconds >= 30 {
+                        await self.endAllLiveActivities()
+                        BackgroundKeepAliveManager.shared.stop()
+                    }
+                    _ = self.makeState()
+                }
+            }
+        }
+        timer.resume()
+        telemetryTimer = timer
+    }
+
     public func handleFastGForceChange(currentG: Double, peakG: Double) {
-        // G-Kräfte aktualisieren die in-app Instrumente in Echtzeit.
-        // Die Dynamic Island wird nicht mit G-Kraft Spikes überflutet,
-        // um Apple ActivityKit Throttling zu verhindern.
+        let delta = abs(currentG - lastSentG)
+        if delta >= 0.15 || (peakG > lastSentG && currentG > 0.4) {
+            lastSentG = currentG
+            pushActivityUpdate(force: false)
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -59,14 +124,22 @@ extension MusicObserver {
 
     public func pushActivityUpdate(force: Bool = false) {
         let now = Date()
-        let elapsed = now.timeIntervalSince(lastActivityUpdate)
 
         // Apple Rate-Limit Schutz für Live Activity Updates:
-        // Bei Lyrics-Wechsel (force): min 0.5s Abstand
-        // Bei regulärem Telemetrie-Heartbeat: min 3.0s Abstand
-        let minAllowed = force ? 0.5 : 3.0
-        if !force && elapsed < minAllowed {
-            return
+        // Bei Lyrics-Wechsel (force): min 0.35s Abstand
+        // Bei regulärem Telemetrie-Update: min 1.8s Abstand
+        if force {
+            let elapsedLyric = now.timeIntervalSince(lastLyricUpdate)
+            if elapsedLyric < 0.35 {
+                pendingActivityUpdate = true
+                return
+            }
+            lastLyricUpdate = now
+        } else {
+            let elapsedTelemetry = now.timeIntervalSince(lastTelemetryPush)
+            if elapsedTelemetry < 1.8 {
+                return
+            }
         }
 
         if isUpdatingActivity {
@@ -194,6 +267,8 @@ extension MusicObserver {
         let effectiveIAT: Int?
         let effectiveMAF: Double?
 
+        let ambientTemp = Int(WarmupCalculator.profileForCurrentDate().ambientTemp.rounded())
+
         if obd.isEnabled {
             if obd.connectionState == .connected {
                 let temp = obd.effectiveOilTemp ?? wm?.oilTempInt ?? 20
@@ -201,8 +276,8 @@ extension MusicObserver {
                 isEngineWarm = temp >= 80
                 effectiveBoost = obd.liveBoostBar ?? 0.0
                 effectiveCoolant = obd.liveCoolantTemp ?? (temp >= 70 ? 90 : max(temp, temp + 8))
-                effectiveIAT = obd.liveIAT ?? 20
-                effectiveMAF = obd.liveMAF ?? 3.5
+                effectiveIAT = obd.liveIAT ?? ambientTemp
+                effectiveMAF = obd.liveMAF ?? (obd.liveRPM > 500 ? 3.5 : 0.0)
             } else {
                 // Solange OBD noch sucht oder verbindet: Sanfter Übergang mit Standby-Werten
                 let simOil = wm?.oilTempInt ?? 20
@@ -210,18 +285,18 @@ extension MusicObserver {
                 isEngineWarm = wm?.isEngineWarm ?? false
                 effectiveBoost = 0.0
                 effectiveCoolant = simOil >= 70 ? 90 : max(simOil, simOil + 8)
-                effectiveIAT = 20
+                effectiveIAT = ambientTemp
                 effectiveMAF = 3.5
             }
         } else {
-            // Reines TFSI Simulationsmodell (Kein OBD)
+            // Reines TFSI Simulationsmodell (Standby / Kein OBD)
             let simOil = wm?.oilTempInt ?? 20
             oilTemp = simOil
             isEngineWarm = wm?.isEngineWarm ?? false
-            effectiveBoost = nil
+            effectiveBoost = 0.0
             effectiveCoolant = simOil >= 70 ? 90 : max(simOil, simOil + 8)
-            effectiveIAT = nil
-            effectiveMAF = nil
+            effectiveIAT = ambientTemp
+            effectiveMAF = 3.5
         }
 
         let progressVal = wm?.warmupProgress ?? 0

@@ -238,3 +238,37 @@ Am 18.10.2026 um 14:20 Uhr wurde die Verbindung mit dem Golf 5 GTI (Bosch MED9.1
 * **Reibungs-Glühen:** Am Schleifpunkt leuchtet der Übergang orange, solange Schlupf herrscht. Sobald die Geschwindigkeiten angeglichen sind (100%), erlischt das Reibungsglühen.
 * **Kupplungsschnalz- & Abwürg-Schutz:** Zu schnelles Loslassen (>90 %/s) oder vorzeitiges Einkuppeln bei stehendem Auto (<35% Drehzahl) ohne ausreichend Gas würgt den Motor realistisch ab ("ABGEWÜRGT! 😬").
 * Zum Neustarten muss die Kupplung erst wieder komplett durchgetreten werden (<10%).
+
+---
+
+## 10. 🎵 CarPlay & Background Live Activity Engine (Build #83 – 18.10.2026)
+
+### A. Ursachen-Analyse für das Einfrieren der Live Activity im Hintergrund:
+1. **iOS Background Suspension von `MPMusicPlayerController`:**  
+   Sobald die App in den Hintergrund oder der Sperrbildschirm aktiv ist, friert iOS Benachrichtigungen wie `.MPMusicPlayerControllerNowPlayingItemDidChange` und die Zeitabfrage `currentPlaybackTime` ein. Dadurch stoppte der Zeilenvorschub, bis die App wieder geöffnet wurde.
+2. **Audio-Sitzungsunterbrechung bei CarPlay-Verbindung:**  
+   Beim Verbinden mit CarPlay oder Bluetooth wechselt die Audio-Route (`AVAudioSession.routeChangeNotification`), wodurch der Silent-Keep-Alive-Player von iOS pausiert wurde.
+3. **Leere Gauges (`--`) für BAR, IAT, MAF:**  
+   Die Bosch MED9.1 unterstützt standardmäßig kein PID `01 0B` (MAP). Zudem schickten manche Clone-Adapter Hex-Antworten in Kleinbuchstaben (`410f`, `4110`), die der case-sensitive Parser ignorierte.
+
+### B. Technische Lösungen in Build #83:
+1. **Wall-Clock Playback Time Interpolation:**  
+   `MusicObserver` speichert beim Start/Wechsel eines Songs `systemPlaybackBaseTime` und `systemPlaybackBaseDate`. Die aktuelle Songposition im Hintergrund wird über `systemPlaybackBaseTime + Date().timeIntervalSince(systemPlaybackBaseDate)` exakt berechnet. Zeitdrift (>1.5s beim Spulen) wird automatisch resynchronisiert.
+2. **Hintergrund-Track-Polling im 1.0s Heartbeat:**  
+   Auch im Hintergrund prüft der Heartbeat-Timer regelmäßig, ob der Titel gewechselt hat, und fordert die neuen Lyrics sofort asynchron an.
+3. **Resilienter Background Audio Keep-Alive:**  
+   `BackgroundKeepAliveManager` spielt eine endlose, unhörbare 16-Bit-PCM-WAV (`volume = 0.001`, `numberOfLoops = -1`, `.mixWithOthers`). Er fängt Route-Changes und Audio-Interruptions (`.ended`) ab und startet die Wiedergabe unverzüglich neu.
+4. **Feste Fallback-Werte für alle 5 Cockpit-Kugeln:**  
+   `makeState()` setzt bei fehlender OBD-Verbindung realistische Standardwerte (Boost `0.00 bar`, IAT saisonale Außentemperatur, MAF `3.5 g/s`, Öl `20°C`), sodass die Anzeige im CarPlay-Dashboard niemals leere `--` Striche anzeigt.
+5. **Entkoppeltes Rate-Limiting:**  
+   Songtext-Updates nutzen einen schnellen 0.35s Debounce (`force: true`), während Telemetrie-Werte im 1.8s–2.5s Takt ohne Blockade der Lyrics aktualisiert werden.
+
+### C. CarPlay-Einrichtung für den Nutzer:
+Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem CarPlay-Bildschirm erscheinen:
+1. **Auf dem CarPlay-Bildschirm im Auto:**
+   * Gehe in **Einstellungen (Zahnrad) -> Live-Aktivitäten** und aktiviere den Schalter.
+   * Gehe in **Einstellungen -> Siri & Vorschläge** und aktiviere **„Vorschläge auf Dashboard anzeigen“**.
+2. **Auf dem iPhone:**
+   * Öffne **Einstellungen -> Allgemein -> CarPlay -> [Dein Auto] -> Widgets**.
+   * Füge die **CarLyrics** Widgets (All-in-One Cockpit / Lyrics) zu deinen CarPlay-Widgets hinzu.
+

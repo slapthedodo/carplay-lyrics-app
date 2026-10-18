@@ -77,9 +77,9 @@ public final class OBDManager: NSObject, ObservableObject {
         return baseOil + loadBonus
     }
 
-    // PID-Unterstützungs-Flags (Bosch MED9.1 Filter)
-    @Published public var hasMAPPID            : Bool    = true
-    @Published public var hasCheckedMAPPID     : Bool    = false
+    // PID-Unterstützungs-Flags (Bosch MED9.1 Filter: 010B standardmäßig false)
+    @Published public var hasMAPPID            : Bool    = false
+    @Published public var hasCheckedMAPPID     : Bool    = true
     @Published public var isPollingActive      : Bool    = false
     internal var pollWatchdogTimer             : Timer?  = nil
 
@@ -230,10 +230,10 @@ public final class OBDManager: NSObject, ObservableObject {
     public func resetTelemetryValues() {
         liveOilTemp = nil
         liveCoolantTemp = nil
-        liveBoostBar = nil
-        liveMAP = nil
-        liveIAT = nil
-        liveMAF = nil
+        liveBoostBar = 0.0
+        liveMAP = 101
+        liveIAT = 20
+        liveMAF = 3.5
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0

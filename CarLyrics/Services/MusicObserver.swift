@@ -94,21 +94,27 @@ public final class MusicObserver: ObservableObject {
     }
 
     private var lineTimer      : DispatchSourceTimer?
-    private var telemetryTimer : DispatchSourceTimer?
-    private let timerQueue     = DispatchQueue(label: "com.carlyrics.musicobserver.timer", qos: .userInteractive)
+    var telemetryTimer         : DispatchSourceTimer?
+    let timerQueue             = DispatchQueue(label: "com.carlyrics.musicobserver.timer", qos: .userInteractive)
     private var cancellables   : Set<AnyCancellable> = []
 
     // ActivityKit State (genutzt von MusicObserverLiveActivity.swift)
     var liveActivity           : Activity<LyricsAttributes>?
     var lastActivityUpdate     : Date   = .distantPast
+    var lastLyricUpdate        : Date   = .distantPast
     var lastSentG              : Double = 0
     var lastSentOilTemp        : Int?   = nil
     var lastSentCoolant        : Int?   = nil
     var lastSentPhase          : WarmupPhase? = nil
+    var lastSentBoost          : Double? = nil
     var isUpdatingActivity     : Bool   = false
     var pendingActivityUpdate  : Bool   = false
     var lastWidgetReloadTime   : Date   = .distantPast
     var lastTelemetryPush      : Date   = .distantPast
+
+    // Präzise Wall-Clock Interpolation für System-Player im Sperrbildschirm / Hintergrund / CarPlay
+    private var systemPlaybackBaseTime : TimeInterval = 0
+    private var systemPlaybackBaseDate : Date = Date()
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Init
@@ -196,28 +202,69 @@ public final class MusicObserver: ObservableObject {
         }
     }
 
-    private func syncSystemItem() {
+    public func syncSystemItem() {
         guard !spotify.isAuthenticated else { return }
-        guard let item = systemPlayer.nowPlayingItem else { handleNoTrack(); return }
+        guard let item = systemPlayer.nowPlayingItem else {
+            if isPlaying || !currentTrackTitle.isEmpty {
+                handleNoTrack()
+            }
+            return
+        }
         let title  = item.title  ?? ""
         let artist = item.artist ?? ""
         let album  = item.albumTitle ?? ""
         let dur    = item.playbackDuration
-        guard title != currentTrackTitle || artist != currentArtist else { return }
+        let statePlaying = (systemPlayer.playbackState == .playing)
 
-        currentTrackTitle = title
-        currentArtist     = artist
-        currentAlbum      = album
-        duration          = dur
-        isPlaying         = systemPlayer.playbackState == .playing
-        lyrics            = nil
-        previousLine      = ""
-        currentLine       = ""
-        nextLine          = ""
+        let trackChanged = (title != currentTrackTitle || artist != currentArtist)
 
-        pushActivityUpdate(force: true)
-        scheduleWidgetReload(force: true)
-        Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
+        if trackChanged {
+            currentTrackTitle = title
+            currentArtist     = artist
+            currentAlbum      = album
+            duration          = dur
+            isPlaying         = statePlaying
+            systemPlaybackBaseTime = max(0, systemPlayer.currentPlaybackTime)
+            systemPlaybackBaseDate = Date()
+            lyrics            = nil
+            previousLine3     = ""
+            previousLine2     = ""
+            previousLine      = ""
+            currentLine       = ""
+            nextLine          = ""
+            nextLine2         = ""
+            nextLine3         = ""
+
+            pushActivityUpdate(force: true)
+            scheduleWidgetReload(force: true)
+            Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
+        } else {
+            // Track unverändert: Playback-Zustand & Zeit-Drift synchronisieren
+            if isPlaying != statePlaying {
+                isPlaying = statePlaying
+                if isPlaying {
+                    systemPlaybackBaseTime = max(0, systemPlayer.currentPlaybackTime)
+                    systemPlaybackBaseDate = Date()
+                    startLineTimer()
+                } else {
+                    stopLineTimer()
+                }
+                pushActivityUpdate(force: false)
+                scheduleWidgetReload(force: true)
+            } else if statePlaying {
+                // Bei aktiver Wiedergabe: Resync der Baseline wenn Drift > 1.5s (z.B. User hat gespult)
+                let sampledTime = systemPlayer.currentPlaybackTime
+                let expectedTime = systemPlaybackBaseTime + Date().timeIntervalSince(systemPlaybackBaseDate)
+                if abs(sampledTime - expectedTime) > 1.5 {
+                    systemPlaybackBaseTime = max(0, sampledTime)
+                    systemPlaybackBaseDate = Date()
+                }
+            }
+        }
+
+        if isPlaying && lineTimer == nil {
+            startLineTimer()
+        }
     }
 
     private func setupNotifications() {
@@ -329,76 +376,18 @@ public final class MusicObserver: ObservableObject {
         lineTimer = nil
     }
 
-    public func startTelemetryHeartbeat() {
-        telemetryTimer?.cancel()
-        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: timerQueue)
-        timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
-        timer.setEventHandler { [weak self] in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-
-                let connected = self.isCarOrActive
-                self.isCarOrActiveConnected = connected
-
-                if connected {
-                    self.disconnectedSeconds = 0
-                    // Falls Keep-Alive pausiert war, wieder aktivieren
-                    BackgroundKeepAliveManager.shared.start()
-
-                    // IMMER Telemetrie-Speicher für Widgets schreiben
-                    _ = self.makeState()
-
-                    if self.activeActivity == nil {
-                        await self.reattachOrCreateLiveActivity()
-                    } else {
-                        // Dynamic Island Öltemperatur-Update:
-                        // Nur pushen wenn mindestens 3 Sekunden seit dem letzten
-                        // Telemetrie-Push vergangen sind, um ActivityKit nicht zu
-                        // überlasten. Lyric-Updates in tick() nutzen force:true und
-                        // behalten so immer Vorrang.
-                        let now = Date()
-                        if now.timeIntervalSince(self.lastTelemetryPush) >= 3.0 {
-                            let currentOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
-                            let currentCoolant = self.obd.liveCoolantTemp
-                            let currentPhase = self.warmupManager?.phase
-
-                            if currentOil != self.lastSentOilTemp || currentCoolant != self.lastSentCoolant || currentPhase != self.lastSentPhase {
-                                self.lastSentOilTemp = currentOil
-                                self.lastSentCoolant = currentCoolant
-                                self.lastSentPhase = currentPhase
-                            }
-                            // Telemetrie nutzt NIE force:true — Lyric-Updates sollen
-                            // stets höhere Priorität in der ActivityKit-Queue haben.
-                            self.lastTelemetryPush = now
-                            self.pushActivityUpdate(force: false)
-                        }
-                    }
-                    // Widgets im Hintergrund schonend aktualisieren
-                    self.scheduleWidgetReload(force: false)
-                } else {
-                    self.disconnectedSeconds += 1
-
-                    // Erst nach 30 Sekunden ohne Verbindung/Musik im Hintergrund beenden:
-                    if self.autoDismissEnabled && self.disconnectedSeconds >= 30 {
-                        await self.endAllLiveActivities()
-                        BackgroundKeepAliveManager.shared.stop()
-                    }
-
-                    _ = self.makeState()
-                }
-            }
-        }
-        timer.resume()
-        telemetryTimer = timer
-    }
-
     private func tick() {
-        // Aktuelle Zeit ermitteln (Spotify mit CarPlay-Delay Kompensation ODER System Player)
+        // Aktuelle Zeit: Spotify Delay-Kompensation ODER System-Player mit Wall-Clock Interpolation
         let time: TimeInterval
         if spotify.isAuthenticated {
             time = spotify.calculatedPlaybackTime()
         } else {
-            time = max(0, systemPlayer.currentPlaybackTime - spotify.carPlayDelayCompensation)
+            if isPlaying {
+                let elapsed = Date().timeIntervalSince(systemPlaybackBaseDate)
+                time = max(0, systemPlaybackBaseTime + elapsed - spotify.carPlayDelayCompensation)
+            } else {
+                time = max(0, systemPlaybackBaseTime - spotify.carPlayDelayCompensation)
+            }
         }
 
         currentPlaybackTime = time

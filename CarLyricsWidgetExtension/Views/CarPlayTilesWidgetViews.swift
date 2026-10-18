@@ -54,25 +54,12 @@ struct TelemetryWidgetEntryView: View {
                         // 1. Oben: Öltemperatur & Kühlwasser nebeneinander
                         HStack(spacing: 16) {
                             VStack(spacing: 2) {
-                                OilTempBadge(
-                                    temp     : entry.oilTemp,
-                                    progress : entry.warmupProgress,
-                                    phase    : entry.phase,
-                                    size     : 44
-                                )
-                                Text("ÖL")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(phaseColor(entry.phase))
+                                OilTempBadge(temp: entry.oilTemp, progress: entry.warmupProgress, phase: entry.phase, size: 44)
+                                Text("ÖL").font(.system(size: 8, weight: .bold)).foregroundStyle(phaseColor(entry.phase))
                             }
-
                             VStack(spacing: 2) {
-                                CoolantGaugeBadge(
-                                    temp : entry.coolantTemp,
-                                    size : 44
-                                )
-                                Text("WASSER")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
+                                CoolantGaugeBadge(temp: entry.coolantTemp, size: 44)
+                                Text("WASSER").font(.system(size: 8, weight: .bold)).foregroundStyle(Color(red: 0.22, green: 0.74, blue: 0.97))
                             }
                         }
 
@@ -80,14 +67,8 @@ struct TelemetryWidgetEntryView: View {
 
                         // 2. Mitte davon: G-Kraft Instrument mit Fadenkreuz & lila Bogen
                         VStack(spacing: 1.5) {
-                            GForceGaugeBadge(
-                                currentG : entry.currentG,
-                                maxG     : 1.2,
-                                size     : 62
-                            )
-                            Text("MOMENTAN")
-                                .font(.system(size: 7, weight: .bold))
-                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
+                            GForceGaugeBadge(currentG: entry.currentG, maxG: 1.2, size: 62)
+                            Text("MOMENTAN").font(.system(size: 7, weight: .bold)).foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
                         }
 
                         Spacer(minLength: 1)

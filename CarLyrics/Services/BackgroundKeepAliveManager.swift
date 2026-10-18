@@ -45,12 +45,13 @@ public final class BackgroundKeepAliveManager: NSObject, AVAudioPlayerDelegate {
                 let player = try AVAudioPlayer(data: silentData)
                 player.delegate = self
                 player.numberOfLoops = -1
-                player.volume = 0.01
+                player.volume = 0.001
                 player.prepareToPlay()
                 self.audioPlayer = player
             }
 
             if audioPlayer?.isPlaying != true {
+                audioPlayer?.prepareToPlay()
                 audioPlayer?.play()
             }
 
@@ -58,6 +59,15 @@ public final class BackgroundKeepAliveManager: NSObject, AVAudioPlayerDelegate {
             log.info("Background keep-alive active via AVAudioPlayer.")
         } catch {
             log.error("Failed to start keep-alive: \(error.localizedDescription)")
+            // Fallback: Player neu instanziieren falls beschädigt
+            audioPlayer = nil
+        }
+    }
+
+    /// Regelmäßiger Health-Check vom MusicObserver – startet Player neu, falls iOS ihn pausiert hat
+    public func ensureActive() {
+        if !isActive || audioPlayer == nil || audioPlayer?.isPlaying != true {
+            start()
         }
     }
 
@@ -112,10 +122,10 @@ public final class BackgroundKeepAliveManager: NSObject, AVAudioPlayerDelegate {
 
         switch type {
         case .began:
-            log.info("Audio interruption began.")
+            log.info("Audio interruption began (e.g. Siri or CarPlay prompt).")
         case .ended:
-            log.info("Audio interruption ended -> restarting keep-alive.")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            log.info("Audio interruption ended -> restarting keep-alive immediately.")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.start()
             }
         @unknown default:
@@ -124,16 +134,15 @@ public final class BackgroundKeepAliveManager: NSObject, AVAudioPlayerDelegate {
     }
 
     @objc private func handleRouteChange(_ notification: Notification) {
-        if isActive && audioPlayer?.isPlaying != true {
-            log.info("Audio route changed -> ensuring keep-alive continues.")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.start()
-            }
+        log.info("Audio route changed (CarPlay / Bluetooth) -> ensuring keep-alive continues.")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            self?.start()
         }
     }
 
     @objc private func handleDidEnterBackground() {
         guard isActive else { return }
+        endBackgroundTask()
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "CarLyricsKeepAlive") { [weak self] in
             self?.endBackgroundTask()
         }
