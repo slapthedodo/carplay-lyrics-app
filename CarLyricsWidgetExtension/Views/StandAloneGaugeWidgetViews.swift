@@ -124,6 +124,7 @@ struct OilTempWidgetEntryView: View {
                 .padding(14)
             }
         }
+        .widgetURL(URL(string: "carlyrics://cockpit"))
     }
 }
 
@@ -243,5 +244,6 @@ struct GForceWidgetEntryView: View {
                 .padding(14)
             }
         }
+        .widgetURL(URL(string: "carlyrics://cockpit"))
     }
 }

@@ -400,6 +400,40 @@ public enum TelemetrySharedStore {
     }
 
     public static func load() -> TelemetrySharedData {
+        // 0. Live Activity State (ActivityKit IPC wird direkt von iOS verwaltet und funktioniert auch ohne App-Group-Entitlements!)
+        if #available(iOS 16.1, *) {
+            if let liveState = Activity<LyricsAttributes>.activities.first(where: { $0.activityState == .active })?.content.state {
+                let cleanSong = liveState.songTitle.isEmpty ? "TFSI Telemetrie" : liveState.songTitle
+                let cleanArtist = liveState.artist.isEmpty ? "CarLyrics Cockpit" : liveState.artist
+                let cleanLine = liveState.currentLine.isEmpty ? "Bereit zur Fahrt" : liveState.currentLine
+                return TelemetrySharedData(
+                    oilTemp: liveState.oilTemp,
+                    coolantTemp: liveState.coolantTemp,
+                    boostBar: liveState.boostBar,
+                    currentG: liveState.currentG,
+                    peakG: liveState.peakG,
+                    iat: liveState.iatTemp,
+                    maf: liveState.mafVal,
+                    phase: liveState.warmupPhase,
+                    warmupProgress: liveState.warmupProgress,
+                    songTitle: cleanSong,
+                    artist: cleanArtist,
+                    previousLine2: "",
+                    previousLine: liveState.previousLine,
+                    currentLine: cleanLine,
+                    nextLine: liveState.nextLine,
+                    nextLine2: liveState.nextLine2,
+                    currentTimeStr: "--:--",
+                    totalTimeStr: "--:--",
+                    progress: liveState.progress,
+                    isPlaying: liveState.isPlaying,
+                    sessionStartTime: 0,
+                    sessionStartTemp: 0,
+                    updatedAt: Date()
+                )
+            }
+        }
+
         // 1. Check all App Group Container JSON files
         for fileURL in activeContainerURLs {
             if let data = try? Data(contentsOf: fileURL),

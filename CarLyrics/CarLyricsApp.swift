@@ -67,20 +67,12 @@ struct CarLyricsApp: App {
                 await MusicObserver.shared.reattachOrCreateLiveActivity()
                 MusicObserver.shared.startTelemetryHeartbeat()
             }
-        } else if host == "toggle" || path.contains("toggle") {
+        } else if host == "cockpit" || path.contains("cockpit") {
             Task { @MainActor in
-                if MusicObserver.shared.hasActiveLiveActivity {
-                    await MusicObserver.shared.endAllLiveActivities()
-                    BackgroundKeepAliveManager.shared.stop()
-                    MotionManager.shared.stop()
-                    WarmupManager.shared.stop()
-                } else {
-                    BackgroundKeepAliveManager.shared.start()
-                    MotionManager.shared.start()
-                    WarmupManager.shared.start()
-                    await MusicObserver.shared.reattachOrCreateLiveActivity()
-                    MusicObserver.shared.startTelemetryHeartbeat()
-                }
+                BackgroundKeepAliveManager.shared.start()
+                await MusicObserver.shared.reattachOrCreateLiveActivity()
+                MusicObserver.shared.pushActivityUpdate(force: true)
+                MusicObserver.shared.scheduleWidgetReload(force: true)
             }
         }
     }

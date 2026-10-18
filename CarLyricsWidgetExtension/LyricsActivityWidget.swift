@@ -335,6 +335,7 @@ public struct OilTempWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }
 
@@ -356,6 +357,7 @@ public struct GForceWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }
 
@@ -377,6 +379,7 @@ public struct BoostPerformanceWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }
 
@@ -397,6 +400,7 @@ public struct LyricsWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }
 
@@ -418,6 +422,7 @@ public struct TelemetryCockpitWidget: Widget {
             .accessoryRectangular,
             .accessoryInline
         ])
+        .contentMarginsDisabled()
     }
 }
 
@@ -427,8 +432,8 @@ public struct TelemetryCockpitWidget: Widget {
 
 public struct RefreshWidgetIntent: AppIntent {
     public static var title: LocalizedStringResource = "Widget aktualisieren"
-    public static var description = IntentDescription("Aktualisiert sofort alle Widgets und Telemetriedaten.")
-    public static var openAppWhenRun: Bool = false
+    public static var description = IntentDescription("Aktualisiert sofort alle Widgets und öffnet das Cockpit.")
+    public static var openAppWhenRun: Bool = true
 
     public init() {}
 

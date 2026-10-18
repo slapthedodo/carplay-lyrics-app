@@ -48,17 +48,17 @@ struct TelemetryWidgetEntryView: View {
             Button(intent: RefreshWidgetIntent()) {
                 ZStack {
                     Color.black
-                    VStack(spacing: 4) {
+                    VStack(spacing: 3) {
                         Spacer(minLength: 1)
 
                         // 1. Oben: Öltemperatur & Kühlwasser nebeneinander
-                        HStack(spacing: 20) {
+                        HStack(spacing: 16) {
                             VStack(spacing: 2) {
                                 OilTempBadge(
                                     temp     : entry.oilTemp,
                                     progress : entry.warmupProgress,
                                     phase    : entry.phase,
-                                    size     : 46
+                                    size     : 44
                                 )
                                 Text("ÖL")
                                     .font(.system(size: 8, weight: .bold))
@@ -68,7 +68,7 @@ struct TelemetryWidgetEntryView: View {
                             VStack(spacing: 2) {
                                 CoolantGaugeBadge(
                                     temp : entry.coolantTemp,
-                                    size : 46
+                                    size : 44
                                 )
                                 Text("WASSER")
                                     .font(.system(size: 8, weight: .bold))
@@ -76,40 +76,42 @@ struct TelemetryWidgetEntryView: View {
                             }
                         }
 
-                        Spacer(minLength: 2)
+                        Spacer(minLength: 1)
 
-                        // 2. Mitte davon: 20% größeres G-Kraft Instrument mit Fadenkreuz & lila Bogen
+                        // 2. Mitte davon: G-Kraft Instrument mit Fadenkreuz & lila Bogen
                         VStack(spacing: 1.5) {
                             GForceGaugeBadge(
                                 currentG : entry.currentG,
                                 maxG     : 1.2,
-                                size     : 66
+                                size     : 62
                             )
                             Text("MOMENTAN")
                                 .font(.system(size: 7, weight: .bold))
                                 .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.85))
                         }
 
-                        Spacer(minLength: 2)
+                        Spacer(minLength: 1)
 
                         Divider().overlay(Color.white.opacity(0.15))
 
                         // 3. Unten: Peak-Schrift ZUSAMMEN / ANEINANDER (zentriert)
                         HStack(spacing: 4) {
                             Text("PEAK:")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.secondary)
                             Text(String(format: "%.2f G", entry.peakG))
-                                .font(.system(size: 11, weight: .black, design: .monospaced))
+                                .font(.system(size: 10.5, weight: .black, design: .monospaced))
                                 .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
                         }
 
                         Spacer(minLength: 1)
                     }
-                    .padding(10)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
             }
             .buttonStyle(.plain)
+            .widgetURL(URL(string: "carlyrics://cockpit"))
 
         default: // .systemMedium
             ZStack {
@@ -258,10 +260,12 @@ struct BoostPerformanceWidgetEntryView: View {
 
                         Spacer(minLength: 1)
                     }
-                    .padding(10)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
             }
             .buttonStyle(.plain)
+            .widgetURL(URL(string: "carlyrics://cockpit"))
 
         default: // .systemMedium: 3 Rundanzeigen nebeneinander (Boost, IAT, MAF)
             ZStack {
@@ -317,16 +321,17 @@ struct LyricsWidgetEntryView: View {
             Button(intent: RefreshWidgetIntent()) {
                 ZStack {
                     Color.black
-                    VStack(spacing: 4) {
-                        // 1. Header: NUR Songtitel & Artist (KEIN 'Mitsing-Modus' Text mehr!)
+                    VStack(spacing: 3) {
+                        // 1. Header: Songtitel & Artist mit ScaleFactor
                         HStack(spacing: 3.5) {
                             Image(systemName: "music.note")
-                                .font(.system(size: 8.5, weight: .bold))
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.green)
                             Text("\(entry.songTitle) • \(entry.artist)")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 8.5, weight: .bold, design: .rounded))
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                             Spacer()
                         }
 
@@ -334,54 +339,59 @@ struct LyricsWidgetEntryView: View {
 
                         Spacer(minLength: 1)
 
-                        // 2. Mitte: Maximal viel Text (5 Zeilen!)
-                        VStack(spacing: 2) {
-                            if !entry.previousLine2.isEmpty {
-                                Text(entry.previousLine2)
+                        // 2. Mitte: Synchrone Lyrics ODER klarer Standby-Zustand
+                        let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
+                        if isStandby {
+                            VStack(spacing: 3) {
+                                Image(systemName: "music.note.list")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundStyle(.green)
+                                Text("Bereit zur Fahrt")
+                                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .minimumScaleFactor(0.8)
+                                Text("Starte Musik auf dem iPhone")
                                     .font(.system(size: 7.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.35))
-                                    .italic()
-                                    .lineLimit(1)
+                                    .foregroundStyle(.white.opacity(0.55))
+                                    .minimumScaleFactor(0.8)
                             }
+                            .frame(maxWidth: .infinity)
+                        } else {
+                            VStack(spacing: 2) {
+                                if !entry.previousLine.isEmpty {
+                                    Text(entry.previousLine)
+                                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                        .italic()
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
 
-                            if !entry.previousLine.isEmpty {
-                                Text(entry.previousLine)
-                                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.6))
-                                    .italic()
-                                    .lineLimit(1)
-                            }
+                                Text(entry.currentLine)
+                                    .font(.system(size: 10.5, weight: .heavy, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.75)
+                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 5)
+                                            .fill(Color.white.opacity(0.08))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 5)
+                                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
+                                            )
+                                    )
 
-                            Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
-                                .font(.system(size: 11.5, weight: .heavy, design: .rounded))
-                                .foregroundStyle(.white)
-                                .multilineTextAlignment(.center)
-                                .lineLimit(2)
-                                .padding(.vertical, 2)
-                                .padding(.horizontal, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(Color.white.opacity(0.08))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                        )
-                                )
-
-                            if !entry.nextLine.isEmpty {
-                                Text(entry.nextLine)
-                                    .font(.system(size: 8.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.65))
-                                    .italic()
-                                    .lineLimit(1)
-                            }
-
-                            if !entry.nextLine2.isEmpty {
-                                Text(entry.nextLine2)
-                                    .font(.system(size: 7.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.35))
-                                    .italic()
-                                    .lineLimit(1)
+                                if !entry.nextLine.isEmpty {
+                                    Text(entry.nextLine)
+                                        .font(.system(size: 8, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.65))
+                                        .italic()
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
                             }
                         }
 
@@ -389,15 +399,15 @@ struct LyricsWidgetEntryView: View {
 
                         Divider().overlay(Color.white.opacity(0.15))
 
-                        // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe!
-                        HStack(spacing: 5) {
+                        // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe
+                        HStack(spacing: 4) {
                             Text(entry.currentTimeStr)
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
                                 .foregroundStyle(.green)
 
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
-                                    Capsule().fill(Color.white.opacity(0.15)).frame(height: 3.5)
+                                    Capsule().fill(Color.white.opacity(0.15)).frame(height: 3)
                                     Capsule()
                                         .fill(
                                             LinearGradient(
@@ -406,20 +416,22 @@ struct LyricsWidgetEntryView: View {
                                                 endPoint: .trailing
                                             )
                                         )
-                                        .frame(width: max(3.5, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3.5)
+                                        .frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
                                 }
                             }
-                            .frame(height: 3.5)
+                            .frame(height: 3)
 
                             Text(entry.totalTimeStr)
-                                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(10)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
             }
             .buttonStyle(.plain)
+            .widgetURL(URL(string: "carlyrics://cockpit"))
 
         default: // .systemMedium
             Button(intent: RefreshWidgetIntent()) {

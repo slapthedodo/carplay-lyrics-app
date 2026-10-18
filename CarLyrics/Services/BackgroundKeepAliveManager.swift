@@ -1,35 +1,31 @@
 // MARK: - BackgroundKeepAliveManager.swift
-// CarLyrics – keeps the app alive in the background via a silent AVAudioSession,
-// WITHOUT interrupting Spotify / Apple Music.
+// CarLyrics – keeps the app alive in the background via a silent AVAudioPlayer,
+// WITHOUT interrupting Spotify / Apple Music or CarPlay audio.
 // ─────────────────────────────────────────────────────────────────────────────
-//
 // Strategy:
-//   • Category  : .playback   (needed for background audio capability)
-//   • Options   : .mixWithOthers  → other audio continues uninterrupted
-//   • Content   : 1-frame silent AVAudioPCMBuffer looped via AVAudioPlayerNode
-//   • Effect    : iOS keeps the process alive; Live Activity updates fire on time
-//
-// Usage:
-//   BackgroundKeepAliveManager.shared.start()
-//   BackgroundKeepAliveManager.shared.stop()
+//   • Category  : .playback (UIBackgroundModes includes 'audio')
+//   • Options   : .mixWithOthers + .allowBluetooth + .allowBluetoothA2DP
+//   • Content   : Infinite-looping (-1) in-memory silent 16-bit PCM WAV (all zeros)
+//   • Volume    : 0.01 (active audio queue rendering in mediaserverd, mathematically 0 sound)
+//   • Effect    : iOS mediaserverd maintains continuous background audio assertion;
+//                 Live Activity and telemetry updates never freeze when screen is locked!
 // ─────────────────────────────────────────────────────────────────────────────
 
 import AVFoundation
 import UIKit
 import os
 
-public final class BackgroundKeepAliveManager {
+public final class BackgroundKeepAliveManager: NSObject, AVAudioPlayerDelegate {
 
     public static let shared = BackgroundKeepAliveManager()
 
-    private let engine   = AVAudioEngine()
-    private let player   = AVAudioPlayerNode()
-    private let log      = Logger(subsystem: "com.carlyrics", category: "BGKeepAlive")
+    private var audioPlayer: AVAudioPlayer?
+    private let log = Logger(subsystem: "com.carlyrics", category: "BGKeepAlive")
     private var isActive = false
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
-    private init() {
-        setupEngine()
+    private override init() {
+        super.init()
         setupNotifications()
     }
 
@@ -38,20 +34,28 @@ public final class BackgroundKeepAliveManager {
     // ─────────────────────────────────────────────────────────────────────────
 
     public func start() {
-        guard !isActive || !engine.isRunning else { return }
+        guard !isActive || audioPlayer?.isPlaying != true else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            // .mixWithOthers + bluetooth → Spotify / Apple Music / CarPlay laufen 100% ungestört weiter
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .allowBluetooth, .allowBluetoothA2DP])
             try session.setActive(true)
 
-            if !engine.isRunning {
-                try engine.start()
+            if audioPlayer == nil {
+                let silentData = Self.createSilentWAVData()
+                let player = try AVAudioPlayer(data: silentData)
+                player.delegate = self
+                player.numberOfLoops = -1
+                player.volume = 0.01
+                player.prepareToPlay()
+                self.audioPlayer = player
             }
-            scheduleBuffer()
-            player.play()
+
+            if audioPlayer?.isPlaying != true {
+                audioPlayer?.play()
+            }
+
             isActive = true
-            log.info("Background keep-alive active and running.")
+            log.info("Background keep-alive active via AVAudioPlayer.")
         } catch {
             log.error("Failed to start keep-alive: \(error.localizedDescription)")
         }
@@ -59,21 +63,19 @@ public final class BackgroundKeepAliveManager {
 
     public func stop() {
         guard isActive else { return }
-        player.stop()
-        engine.stop()
-        try? AVAudioSession.sharedInstance().setActive(false,
-            options: .notifyOthersOnDeactivation)
+        audioPlayer?.stop()
+        audioPlayer = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         isActive = false
         endBackgroundTask()
         log.info("Background keep-alive stopped.")
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Interruption & Hardware Configuration Resilience
+    // MARK: Interruption & Route Change Resilience
     // ─────────────────────────────────────────────────────────────────────────
 
     private func setupNotifications() {
-        // Audio-Unterbrechungen (Anrufe, Siri, Blitzer-Warnung)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleInterruption(_:)),
@@ -81,7 +83,6 @@ public final class BackgroundKeepAliveManager {
             object: nil
         )
 
-        // Bluetooth / CarPlay Verbindung / Trennung
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleRouteChange(_:)),
@@ -89,19 +90,17 @@ public final class BackgroundKeepAliveManager {
             object: nil
         )
 
-        // Hardware-Konfigurationsänderung von iOS
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleEngineConfigurationChange(_:)),
-            name: .AVAudioEngineConfigurationChange,
-            object: nil
-        )
-
-        // App wechselt in den Hintergrund -> Sicherheits-Puffer
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDidEnterBackground),
             name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
             object: nil
         )
     }
@@ -116,7 +115,7 @@ public final class BackgroundKeepAliveManager {
             log.info("Audio interruption began.")
         case .ended:
             log.info("Audio interruption ended -> restarting keep-alive.")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.start()
             }
         @unknown default:
@@ -125,18 +124,8 @@ public final class BackgroundKeepAliveManager {
     }
 
     @objc private func handleRouteChange(_ notification: Notification) {
-        if isActive && (!engine.isRunning || !player.isPlaying) {
-            log.info("Audio route changed -> restarting keep-alive.")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.start()
-            }
-        }
-    }
-
-    @objc private func handleEngineConfigurationChange(_ notification: Notification) {
-        if isActive {
-            log.info("Audio engine configuration changed -> re-configuring engine.")
-            setupEngine()
+        if isActive && audioPlayer?.isPlaying != true {
+            log.info("Audio route changed -> ensuring keep-alive continues.")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 self?.start()
             }
@@ -145,9 +134,18 @@ public final class BackgroundKeepAliveManager {
 
     @objc private func handleDidEnterBackground() {
         guard isActive else { return }
-        // Begin temporary background task to guarantee seamless audio continuation
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "CarLyricsKeepAlive") { [weak self] in
             self?.endBackgroundTask()
+        }
+        if audioPlayer?.isPlaying != true {
+            start()
+        }
+    }
+
+    @objc private func handleWillEnterForeground() {
+        endBackgroundTask()
+        if isActive && audioPlayer?.isPlaying != true {
+            start()
         }
     }
 
@@ -159,32 +157,44 @@ public final class BackgroundKeepAliveManager {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Private helpers
+    // MARK: In-Memory Silent WAV Generator
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func setupEngine() {
-        if engine.attachedNodes.contains(player) {
-            engine.disconnectNodeOutput(player)
-            engine.detach(player)
-        }
-        engine.attach(player)
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
-        engine.connect(player, to: engine.mainMixerNode, format: format)
-        // Mute output to zero volume — no audible sound
-        engine.mainMixerNode.outputVolume = 0
-    }
+    private static func createSilentWAVData() -> Data {
+        let sampleRate: UInt32 = 44100
+        let numChannels: UInt16 = 1
+        let bitsPerSample: UInt16 = 16
+        let durationSeconds: UInt32 = 2
+        let numSamples = sampleRate * durationSeconds
+        let subChunk2Size = numSamples * UInt32(numChannels) * UInt32(bitsPerSample / 8)
+        let chunkSize = 36 + subChunk2Size
+        let byteRate = sampleRate * UInt32(numChannels) * UInt32(bitsPerSample / 8)
+        let blockAlign = numChannels * (bitsPerSample / 8)
 
-    private func scheduleBuffer() {
-        let sampleRate: Double = 44_100
-        let frameCount = AVAudioFrameCount(sampleRate * 3)
-        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
-        buffer.frameLength = frameCount
+        var data = Data()
+        // RIFF header
+        data.append(contentsOf: [0x52, 0x49, 0x46, 0x46]) // "RIFF"
+        data.append(contentsOf: withUnsafeBytes(of: chunkSize.littleEndian) { Array($0) })
+        data.append(contentsOf: [0x57, 0x41, 0x56, 0x45]) // "WAVE"
 
-        if let channelData = buffer.floatChannelData?[0] {
-            memset(channelData, 0, Int(frameCount) * MemoryLayout<Float>.size)
-        }
+        // "fmt " subchunk
+        data.append(contentsOf: [0x66, 0x6D, 0x74, 0x20]) // "fmt "
+        let subChunk1Size: UInt32 = 16
+        data.append(contentsOf: withUnsafeBytes(of: subChunk1Size.littleEndian) { Array($0) })
+        let audioFormat: UInt16 = 1 // PCM
+        data.append(contentsOf: withUnsafeBytes(of: audioFormat.littleEndian) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: numChannels.littleEndian) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: sampleRate.littleEndian) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: byteRate.littleEndian) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: blockAlign.littleEndian) { Array($0) })
+        data.append(contentsOf: withUnsafeBytes(of: bitsPerSample.littleEndian) { Array($0) })
 
-        player.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+        // "data" subchunk
+        data.append(contentsOf: [0x64, 0x61, 0x74, 0x61]) // "data"
+        data.append(contentsOf: withUnsafeBytes(of: subChunk2Size.littleEndian) { Array($0) })
+
+        // PCM silent samples (zeros)
+        data.append(Data(count: Int(subChunk2Size)))
+        return data
     }
 }

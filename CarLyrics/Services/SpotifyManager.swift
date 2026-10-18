@@ -90,7 +90,8 @@ public final class SpotifyManager: ObservableObject {
     // MARK: Private State
     // ─────────────────────────────────────────────────────────────────────────
 
-    private var pollTimer        : Timer?
+    private var pollTimer        : DispatchSourceTimer?
+    private let pollQueue        = DispatchQueue(label: "com.carlyrics.spotify.poll", qos: .utility)
     private var baseProgressSec  : TimeInterval = 0
     private var lastSnapshotDate : Date = Date()
     private let session          = URLSession.shared
@@ -124,21 +125,23 @@ public final class SpotifyManager: ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     public func startPolling() {
-        pollTimer?.invalidate()
+        stopPolling()
         fetchCurrentlyPlaying()
 
         // Fragt alle 1.5 Sekunden den Spotify Server ab für Drift-Korrektur und Track-Wechsel auch im Hintergrund
-        let timer = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: pollQueue)
+        timer.schedule(deadline: .now() + 1.5, repeating: .milliseconds(1500), leeway: .milliseconds(200))
+        timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 self?.fetchCurrentlyPlaying()
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
+        timer.resume()
         pollTimer = timer
     }
 
     public func stopPolling() {
-        pollTimer?.invalidate()
+        pollTimer?.cancel()
         pollTimer = nil
     }
 

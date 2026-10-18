@@ -40,10 +40,12 @@ public final class MusicObserver: ObservableObject {
     /// Zeitstempel der letzten Vordergrund-Aktivität (verhindert vorzeitiges Beenden beim Sperren/Testen)
     public var lastForegroundTime : Date = Date()
 
-    /// Prüft ob ein echtes CarPlay-Display oder CarPlay-Audioausgang aktiv ist
+    /// Prüft ob ein echtes CarPlay-Display oder CarPlay- / Auto-Audioausgang aktiv ist
     public var isCarPlayConnected: Bool {
         let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
-        let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .carAudio }
+        let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+            $0.portType == .carAudio || $0.portType == .bluetoothA2DP || $0.portType == .bluetoothHFP
+        }
         return hasCarPlayScreen || hasCarAudio
     }
 
@@ -52,7 +54,7 @@ public final class MusicObserver: ObservableObject {
     /// - ODER CarPlay verbunden ist
     /// - ODER Musik läuft (Spotify oder Apple Music)
     /// - ODER OBD verbunden ist
-    /// - ODER die App vor weniger als 180s im Vordergrund war (z.B. Sperrbildschirm-Test auf der Couch!)
+    /// - ODER die App vor weniger als 600s im Vordergrund war (z.B. Sperrbildschirm-Test auf der Couch / im Stand)
     public var isCarOrActive: Bool {
         if UIApplication.shared.applicationState == .active {
             lastForegroundTime = Date()
@@ -61,7 +63,7 @@ public final class MusicObserver: ObservableObject {
         if isCarPlayConnected { return true }
         if obd.connectionState == .connected { return true }
         if isPlaying { return true }
-        if Date().timeIntervalSince(lastForegroundTime) < 180.0 { return true }
+        if Date().timeIntervalSince(lastForegroundTime) < 600.0 { return true }
         return false
     }
 
@@ -91,8 +93,9 @@ public final class MusicObserver: ObservableObject {
         return String(format: "%d:%02d", m, remS)
     }
 
-    private var lineTimer      : Timer?
-    private var telemetryTimer : Timer?
+    private var lineTimer      : DispatchSourceTimer?
+    private var telemetryTimer : DispatchSourceTimer?
+    private let timerQueue     = DispatchQueue(label: "com.carlyrics.musicobserver.timer", qos: .userInteractive)
     private var cancellables   : Set<AnyCancellable> = []
 
     // ActivityKit State (genutzt von MusicObserverLiveActivity.swift)
@@ -148,8 +151,10 @@ public final class MusicObserver: ObservableObject {
     deinit {
         systemPlayer.endGeneratingPlaybackNotifications()
         NotificationCenter.default.removeObserver(self)
-        lineTimer?.invalidate()
-        telemetryTimer?.invalidate()
+        lineTimer?.cancel()
+        lineTimer = nil
+        telemetryTimer?.cancel()
+        telemetryTimer = nil
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -308,19 +313,26 @@ public final class MusicObserver: ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     private func startLineTimer() {
-        lineTimer?.invalidate()
-        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+        stopLineTimer()
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: timerQueue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(200), leeway: .milliseconds(50))
+        timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in self?.tick() }
         }
-        RunLoop.main.add(timer, forMode: .common)
+        timer.resume()
         lineTimer = timer
     }
 
-    private func stopLineTimer() { lineTimer?.invalidate(); lineTimer = nil }
+    private func stopLineTimer() {
+        lineTimer?.cancel()
+        lineTimer = nil
+    }
 
     public func startTelemetryHeartbeat() {
-        telemetryTimer?.invalidate()
-        let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+        telemetryTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(flags: .strict, queue: timerQueue)
+        timer.schedule(deadline: .now(), repeating: .seconds(1), leeway: .milliseconds(100))
+        timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
@@ -359,8 +371,8 @@ public final class MusicObserver: ObservableObject {
                 } else {
                     self.disconnectedSeconds += 1
 
-                    // Erst nach 20 Sekunden ohne Verbindung/Musik im Hintergrund beenden:
-                    if self.autoDismissEnabled && self.disconnectedSeconds >= 20 {
+                    // Erst nach 30 Sekunden ohne Verbindung/Musik im Hintergrund beenden:
+                    if self.autoDismissEnabled && self.disconnectedSeconds >= 30 {
                         await self.endAllLiveActivities()
                         BackgroundKeepAliveManager.shared.stop()
                     }
@@ -369,7 +381,7 @@ public final class MusicObserver: ObservableObject {
                 }
             }
         }
-        RunLoop.main.add(timer, forMode: .common)
+        timer.resume()
         telemetryTimer = timer
     }
 
