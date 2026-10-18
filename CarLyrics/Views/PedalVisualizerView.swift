@@ -20,12 +20,13 @@ public struct PedalVisualizerView: View {
 
     // ── Derived values ────────────────────────────────────────────────────────
 
+    // Exklusiv nur echte Pedal- & Drehzahldaten abfragen
     private var gasValue: Int {
-        obd.liveEngineLoad ?? 0
+        obd.throttlePosition ?? obd.liveEngineLoad ?? 0
     }
 
     private var brakeValue: Int {
-        let g = motion.gY   // negative = braking
+        let g = motion.gY   // negative = braking (Längsbeschleunigung)
         guard g < -0.15 else { return 0 }
         return min(100, Int(abs(g) * 200))
     }
@@ -53,6 +54,13 @@ public struct PedalVisualizerView: View {
         }
         .navigationTitle("Pedale")
         .preferredColorScheme(.dark)
+        .onAppear {
+            // Im Pedal-Tab NUR Pedal-, RPM- und Gang-relevante PIDs abfragen für maximale 30Hz Flüssigkeit
+            obd.focusMode = .pedalOnly
+        }
+        .onDisappear {
+            obd.focusMode = .standard
+        }
     }
 
     // MARK: Portrait

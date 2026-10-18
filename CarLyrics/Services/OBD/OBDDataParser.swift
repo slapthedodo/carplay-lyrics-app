@@ -173,6 +173,14 @@ extension OBDManager {
                 liveEngineLoad = Int(Double(val) * 100.0 / 255.0)
             }
         }
+
+        // 13. Drosselklappe / Gaspedal (PID 01 11)
+        if let range = compact.range(of: "4111") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
+                throttlePosition = Int(Double(val) * 100.0 / 255.0)
+            }
+        }
     }
 
     private func decodeSupportedPIDs(_ hex8: String, offset: Int) {

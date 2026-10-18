@@ -8,23 +8,37 @@ import SwiftUI
 
 public struct KupplungTutorialView: View {
 
+    @ObservedObject public var obd: OBDManager
+
     // ── State ─────────────────────────────────────────────────────────────────
-    @State private var gasPercent: Double      = 0      // 0–100
-    @State private var kupplungPercent: Double = 0      // 0–100
+    @State private var gasPercent: Double      = 0      // 0–100 (Slider)
+    @State private var kupplungPercent: Double = 0      // 0–100 (Slider)
 
     @State private var motorRotation: Double   = 0      // current angle (°)
     @State private var autoRotation: Double    = 0
 
     // Timer driving the motor disc animation
     @State private var animTimer: Timer?
+    @State private var lastTick: Date = Date()
 
-    public init() {}
+    public init(obd: OBDManager = OBDManager.shared) {
+        self.obd = obd
+    }
 
     // ── Derived ───────────────────────────────────────────────────────────────
 
-    /// Motor speed in °/frame (60 fps assumption)
+    /// Echter Gaspedalwert aus dem Auto wenn OBD verbunden ist, sonst der Schieberegler
+    private var effectiveGas: Double {
+        if obd.isEnabled && obd.connectionState == .connected {
+            if let thr = obd.throttlePosition, thr > 0 { return Double(thr) }
+            if let load = obd.liveEngineLoad, load > 5 { return Double(load) }
+        }
+        return gasPercent
+    }
+
+    /// Motor speed in °/s
     private var motorDPS: Double {
-        gasPercent * 3.6   // 0 → 0 °/s, 100 → 360 °/s
+        effectiveGas * 3.6   // 0 → 0 °/s, 100 → 360 °/s
     }
 
     /// Engagement factor 0–1 (ramps up 50–100% clutch)
@@ -40,16 +54,16 @@ public struct KupplungTutorialView: View {
     }
 
     private var isStalled: Bool {
-        kupplungPercent > 50 && gasPercent < 15
+        kupplungPercent > 50 && effectiveGas < 15
     }
 
     private var statusText: String {
         if isStalled                                      { return "ABGEWÜRGT! 😬" }
         if kupplungPercent < 1                            { return "Kupplung komplett treten!" }
-        if kupplungPercent >= 90 && gasPercent > 30      { return "Angefahren! 🎉" }
+        if kupplungPercent >= 90 && effectiveGas > 30     { return "Angefahren! 🎉" }
         if kupplungPercent >= 70                         { return "Fast da!" }
         if kupplungPercent >= 30                         { return "Kupplung langsam loslassen..." }
-        if gasPercent < 20                               { return "Gas geben..." }
+        if effectiveGas < 20                             { return "Gas geben..." }
         return "Kupplung langsam loslassen..."
     }
 
@@ -77,8 +91,14 @@ public struct KupplungTutorialView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear(perform: startTimer)
-        .onDisappear(perform: stopTimer)
+        .onAppear {
+            obd.focusMode = .minimal
+            startTimer()
+        }
+        .onDisappear {
+            obd.focusMode = .standard
+            stopTimer()
+        }
     }
 
     // MARK: Layouts
@@ -254,18 +274,27 @@ public struct KupplungTutorialView: View {
         }
     }
 
-    // MARK: Timer
+    // MARK: Timer (Ruckelfrei ohne Task-Allocation)
 
     private func startTimer() {
-        animTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) { _ in
-            Task { @MainActor in
-                motorRotation += motorDPS / 60.0
-                if motorRotation >= 360 { motorRotation -= 360 }
+        stopTimer()
+        lastTick = Date()
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [self] _ in
+            let now = Date()
+            let dt = min(0.1, now.timeIntervalSince(self.lastTick))
+            self.lastTick = now
 
-                autoRotation += autoDPS / 60.0
-                if autoRotation >= 360 { autoRotation -= 360 }
-            }
+            let mDPS = self.motorDPS
+            let aDPS = self.autoDPS
+
+            // Wenn der Motor steht, keine State-Invalidierung auslösen (0% CPU)
+            guard mDPS > 0 || aDPS > 0 else { return }
+
+            self.motorRotation = (self.motorRotation + mDPS * dt).truncatingRemainder(dividingBy: 360)
+            self.autoRotation  = (self.autoRotation + aDPS * dt).truncatingRemainder(dividingBy: 360)
         }
+        RunLoop.main.add(timer, forMode: .common)
+        animTimer = timer
     }
 
     private func stopTimer() {

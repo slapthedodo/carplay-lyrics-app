@@ -48,7 +48,7 @@ public struct ContentView: View {
                     .tabItem { Label("Pedale", systemImage: "pedal.accelerator") }
                     .tag(3)
 
-                KupplungTutorialView()
+                KupplungTutorialView(obd: obd)
                     .tabItem { Label("Fahren", systemImage: "car.fill") }
                     .tag(4)
 
@@ -57,6 +57,16 @@ public struct ContentView: View {
                     .tag(5)
             }
             .tint(.cyan)
+            .onChange(of: selectedTab) { newTab in
+                switch newTab {
+                case 3:
+                    obd.focusMode = .pedalOnly
+                case 4:
+                    obd.focusMode = .minimal
+                default:
+                    obd.focusMode = .standard
+                }
+            }
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showMockSheet) {

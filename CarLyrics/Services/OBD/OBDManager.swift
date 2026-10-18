@@ -21,6 +21,14 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var isEnabled            : Bool = true
     @Published public var connectionState      : OBDConnectionState = .disconnected
 
+    // Fokus-Modus für gezielte Sensorabfrage ohne Ruckeln
+    public enum OBDFocusMode: Equatable {
+        case standard      // Alle Cockpit-Sensoren
+        case pedalOnly     // Nur Gaspedal/Last, RPM & Speed (ultraschnell für Pedale)
+        case minimal       // Relaxed, nur Basiswerte für Fahrschul-Tutorial
+    }
+    @Published public var focusMode: OBDFocusMode = .standard
+
     // Live Telemetrie
     @Published public var liveCoolantTemp : Int?    = nil        // PID 01 05
     @Published public var liveOilTemp     : Int?    = nil        // PID 01 5C / Sim
@@ -31,6 +39,7 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var liveIAT         : Int?    = nil        // Ansaugluft °C (01 0F)
     @Published public var liveMAF         : Double? = nil        // Luftmasse g/s (01 10)
     @Published public var liveEngineLoad  : Int?    = nil        // Motorlast % (01 04)
+    @Published public var throttlePosition: Int?    = nil        // Gaspedal / Drosselklappe % (PID 01 11)
     @Published public var liveBaro        : Int     = 101        // Barometer kPa
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
@@ -275,13 +284,23 @@ public final class OBDManager: NSObject, ObservableObject {
         voltageTimer = nil
     }
 
-    // Antwort wurde empfangen (">"): 45ms Pacing-Pause für BK3231 UART Puffer, dann nächster PID
+    // Antwort wurde empfangen (">"): Adaptive Pause basierend auf Fokus-Modus
     internal func onResponseCompleted() {
         guard isPollingActive, connectionState == .connected, !isProbingProtocols, !isManualTerminalMode, !isAutoDiagnosing else { return }
         pollWatchdogTimer?.invalidate()
         pollWatchdogTimer = nil
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+        let delay: Double
+        switch focusMode {
+        case .pedalOnly:
+            delay = 0.020 // 20ms ultraschnell für 20-30Hz flüssige Pedal- & Ganganzeige
+        case .minimal:
+            delay = 0.100 // 100ms entspannt für Kupplungs-Tutorial, schont CPU & BLE
+        case .standard:
+            delay = 0.045 // 45ms Standard Cockpit-Takt
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self = self, self.isPollingActive, self.connectionState == .connected else { return }
             self.pollNextPID()
         }
@@ -290,31 +309,52 @@ public final class OBDManager: NSObject, ObservableObject {
     private func pollNextPID() {
         guard connectionState == .connected, !isProbingProtocols, !isManualTerminalMode, !isAutoDiagnosing else { return }
 
-        // PIDs für Bosch MED9.1 zusammenstellen
-        var activePIDs: [String] = [
-            "010C",     // Motordrehzahl RPM (Prio 1)
-            "0110",     // Luftmasse MAF (Prio 1)
-            "0104",     // Motorlast (Prio 2)
-            "0105",     // Kühlmittel (Prio 2)
-            "010D",     // Geschwindigkeit
-            "010F"      // Ansaugluft IAT
-        ]
+        let activePIDs: [String]
+        switch focusMode {
+        case .pedalOnly:
+            // Exklusiv nur Werte für den Pedal- und Ganganzeige-Tab (Null Overhead)
+            activePIDs = [
+                "010C",     // Motordrehzahl RPM
+                "0111",     // Gaspedal / Drosselklappe %
+                "0104",     // Motorlast % (Fallback)
+                "010D"      // Geschwindigkeit km/h (für Gang)
+            ]
+        case .minimal:
+            // Für Kupplungs-Tutorial: Nur RPM & Gas, keine schweren Cockpit-Sensoren
+            activePIDs = [
+                "010C",     // RPM
+                "0111",     // Gaspedal %
+                "0104"      // Motorlast %
+            ]
+        case .standard:
+            // PIDs für Bosch MED9.1 zusammenstellen (Cockpit / HandyModus)
+            var pids: [String] = [
+                "010C",     // Motordrehzahl RPM (Prio 1)
+                "0110",     // Luftmasse MAF (Prio 1)
+                "0104",     // Motorlast (Prio 2)
+                "0105",     // Kühlmittel (Prio 2)
+                "010D",     // Geschwindigkeit
+                "010F"      // Ansaugluft IAT
+            ]
 
-        // 010B nur abfragen wenn unterstützt (MED9.1 liefert typischerweise NODATA)
-        if !hasCheckedMAPPID || hasMAPPID {
-            activePIDs.append("010B")
+            // 010B nur abfragen wenn unterstützt (MED9.1 liefert typischerweise NODATA)
+            if !hasCheckedMAPPID || hasMAPPID {
+                pids.append("010B")
+            }
+
+            // 015C nur alle 35 Zyklen kurz anfragen
+            if !hasCheckedOilTempPID || hasOilTempPID || (currentPIDIndex % 35 == 0) {
+                pids.append("015C")
+            }
+
+            // ATRV alle 25 Zyklen kollisionsfrei in den Stream einstreuen
+            if currentPIDIndex % 25 == 0 {
+                pids.append("ATRV")
+            }
+            activePIDs = pids
         }
 
-        // 015C nur alle 35 Zyklen kurz anfragen
-        if !hasCheckedOilTempPID || hasOilTempPID || (currentPIDIndex % 35 == 0) {
-            activePIDs.append("015C")
-        }
-
-        // ATRV alle 25 Zyklen kollisionsfrei in den Stream einstreuen
-        if currentPIDIndex % 25 == 0 {
-            activePIDs.append("ATRV")
-        }
-
+        guard !activePIDs.isEmpty else { return }
         let pid = activePIDs[currentPIDIndex % activePIDs.count]
         currentPIDIndex += 1
 

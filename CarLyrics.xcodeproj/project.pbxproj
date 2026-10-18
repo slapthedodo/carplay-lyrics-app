@@ -272,6 +272,10 @@
 		97C1B0652A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusView.swift; path = HandyModusView.swift; sourceTree = "<group>"; };
 		97C1B0662A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusLandscapeView.swift; path = HandyModusLandscapeView.swift; sourceTree = "<group>"; };
 
+		/* Pedal & Tutorial Views */
+		97C1B0702A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PedalVisualizerView.swift; path = PedalVisualizerView.swift; sourceTree = "<group>"; };
+		97C1B0712A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KupplungTutorialView.swift; path = KupplungTutorialView.swift; sourceTree = "<group>"; };
+
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift; path = CarLyricsWidgetBundle.swift; sourceTree = "<group>"; };
 		97C1C0022A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LyricsActivityWidget.swift; path = LyricsActivityWidget.swift; sourceTree = "<group>"; };
@@ -332,6 +336,8 @@
 				97C1E0842A000001, /* HandyModusGForcePanel.swift */
 				97C1E0852A000001, /* HandyModusView.swift */
 				97C1E0862A000001, /* HandyModusLandscapeView.swift */
+				97C1E0902A000001, /* PedalVisualizerView.swift */
+				97C1E0912A000001, /* KupplungTutorialView.swift */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -451,6 +457,10 @@
 		97C1E0852A000001 = { isa = PBXBuildFile; fileRef = 97C1B0652A000001; };
 		97C1E0862A000001 = { isa = PBXBuildFile; fileRef = 97C1B0662A000001; };
 
+		/* Pedal & Tutorial Views */
+		97C1E0902A000001 = { isa = PBXBuildFile; fileRef = 97C1B0702A000001; };
+		97C1E0912A000001 = { isa = PBXBuildFile; fileRef = 97C1B0712A000001; };
+
 		97C1E0202A000001 = { isa = PBXBuildFile; fileRef = 97C1B00D2A000001; };
 
 		/* Widget sources */
@@ -542,6 +552,8 @@
 			isa = PBXGroup;
 			children = (
 				97C1B0022A000001, /* ContentView.swift */
+				97C1B0702A000001, /* PedalVisualizerView.swift */
+				97C1B0712A000001, /* KupplungTutorialView.swift */
 				97C1F0112A000001, /* Cockpit */
 				97C1F0122A000001, /* DiagnosticWorkbench */
 				97C1F0142A000001, /* HandyModus */
