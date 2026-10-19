@@ -319,5 +319,39 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 * **AVAudioSession:** `BackgroundKeepAliveManager` bindet `.allowAirPlay` ein, damit der stumme Hintergrundton bei Wireless CarPlay nicht vom iOS-Audio-Router pausiert wird.
 * **Verbindungs-Timeout:** Die Live Activity und der Hintergrund-Task werden bei Musikpause oder Motorstillstand nicht mehr nach 30 Sekunden getötet, sondern bleiben 15 Minuten lang (900s) aktiv im Hintergrund betriebsbereit.
 
+---
+
+## 13. 🛡️ Build #86: Dynamic Island CarPlay-Gating & 80°C Warmup Push Fix (19.10.2026)
+
+### A. Dynamic Island / Live Activity Aktivierungs-Gating:
+* **Bisheriges Problem:**  
+  `isCarPlayConnected` wertete `.bluetoothA2DP` und `.airPlay` als Auto-Verbindung, und `isCarOrActive` erlaubte die Aktivierung auch im Vordergrund oder bei kürzlicher Nutzung auf der Couch. Dadurch ploppte die Dynamic Island auch zu Hause oder bei offener App auf.
+* **Lösung (`shouldDynamicIslandBeActive`):**  
+  Die Live Activity und Dynamic Island dürfen **NUR DANN** aktiv sein, wenn:
+  1. `UIApplication.shared.applicationState != .active` (App ist minimiert / Hintergrund / Sperrbildschirm)
+  2. **UND** `isRealCarPlayActive` (echtes CarPlay-Display `userInterfaceIdiom == .carPlay` ODER echte CarPlay-Audio-Route `portType == .carAudio`).
+  * Sobald die App in den Vordergrund geholt wird ODER CarPlay getrennt wird, beendet `handleAppStateOrRouteChanged()` alle Live Activities sofort (`dismissalPolicy: .immediate`).
+
+### B. 80°C Warmup-Benachrichtigung während der Fahrt:
+* **Warum die Meldung bisher während der Fahrt nicht kam:**
+  1. `WarmupManager` nutzte einen `Foundation.Timer` auf `RunLoop.main`. Wenn die App minimiert oder das Display gesperrt ist, pausiert iOS Main-RunLoop-Timer!
+  2. `OBDManager` decodierte zwar Live-Temperaturen, leitete diese aber **nie** an den `WarmupManager` weiter.
+  3. Wurde die App mit gespeicherter Session gestartet, blieb `didSendWarmNotification = true` im Speicher, wenn die Schwelle einmal überschritten war. Nach dem Abkühlen des Motors gab es kein Re-Arming.
+  4. Die Benachrichtigung nutzte eine statische Kennung `carlyrics_warm_engine`, wodurch iOS wiederholte Alerts im Notification Center verwarf.
+* **Lösung:**
+  * `WarmupManager.updateLiveOilTemp(_ temp: Int)` wird nun sowohl im 1-Hz-Heartbeat von `MusicObserverLiveActivity` (DispatchSourceTimer auf Hintergrund-Queue) als auch bei jedem decodierten OBD-Kühlmittel-/Öl-Frame direkt gefüttert.
+  * Automatisches Re-Arming: Sobald das Öl wieder unter 60°C abkühlt (z.B. nach Zwischenstopp), wird `didSendWarmNotification` automatisch zurückgesetzt.
+  * Eindeutiger dynamischer Identifier `carlyrics_warm_engine_<timestamp>` mit `UNTimeIntervalNotificationTrigger(timeInterval: 0.1)` garantiert sofortige Zustellung auch bei gesperrtem Bildschirm.
+
+### C. Bluetooth OBD Batterie-Schutz & CarPlay-Gating (Konzept & Diagnose):
+* **Fahrzeug-Fakt Golf 5 GTI (PQ35 Plattform):**  
+  Am OBD-2 Port liegt Pin 16 direkt an **Klemme 30 (Dauerplus)** der 12V-Autobatterie. Der OBD-Port schaltet sich beim Abziehen des Zündschlüssels **NICHT** stromlos!
+* Ein eingesteckter ELM327 BLE Adapter zieht dauerhaft Ruhestrom (~20–45 mA). Wenn das iPhone im Hintergrund permanent per Bluetooth scannt oder die Verbindung hält, kann das CAN-Gateway nicht in den Tiefschlaf (Busruhe) gehen. Folge: Nach wenigen Tagen Standzeit ist die Starterbatterie entladen!
+* **Vorgeschlagenes Schutzkonzept (Vor Umsetzung zur Freigabe vorgelegt):**
+  1. **CarPlay-Gated Scan & Connect:** Bluetooth-Scan und Verbindungsaufbau starten erst, wenn CarPlay aktiv ist (`isRealCarPlayActive`).
+  2. **Auto-Disconnect bei CarPlay-Trennung:** Sobald der Motor abgestellt wird und CarPlay trennt, sendet die App den ELM-Sleep-Befehl (`ATLP` Low Power) und kappt die BLE-Verbindung sofort (`centralManager.cancelPeripheralConnection`).
+  3. **Bordspannungs-Sicherheitsnetz (`ATRV`):** Fällt die Spannung unter 12.0V (Zündung aus), trennt die App die Verbindung sofort, selbst wenn CarPlay noch nachläuft.
+
+
 
 

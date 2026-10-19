@@ -81,6 +81,11 @@ extension OBDManager {
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
                 let tempC = Int(val) - 40
                 liveCoolantTemp = tempC
+                if let eff = effectiveOilTemp {
+                    Task { @MainActor in
+                        WarmupManager.shared.updateLiveOilTemp(eff)
+                    }
+                }
             }
         }
 
@@ -121,6 +126,9 @@ extension OBDManager {
                     liveOilTemp = oil
                     hasOilTempPID = true
                     hasCheckedOilTempPID = true
+                    Task { @MainActor in
+                        WarmupManager.shared.updateLiveOilTemp(oil)
+                    }
                 }
             }
         } else if (compact.contains("NODATA") || clean.contains("NO DATA")) &&

@@ -40,6 +40,21 @@ public final class MusicObserver: ObservableObject {
     /// Zeitstempel der letzten Vordergrund-Aktivität (verhindert vorzeitiges Beenden beim Sperren/Testen)
     public var lastForegroundTime : Date = Date()
 
+    /// Prüft ob ein echtes Apple CarPlay Display oder die dedizierte CarPlay-Audio-Route aktiv ist
+    public var isRealCarPlayActive: Bool {
+        let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+        let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .carAudio }
+        return hasCarPlayScreen || hasCarAudio
+    }
+
+    /// Dynamic Island & Live Activity dürfen NUR aktiv sein, wenn:
+    /// 1. Die App MINIMIERT / im Hintergrund ist (nicht im Vordergrund)
+    /// 2. UND das iPhone mit echtem CarPlay verbunden ist!
+    public var shouldDynamicIslandBeActive: Bool {
+        let isMinimized = (UIApplication.shared.applicationState != .active)
+        return isMinimized && isRealCarPlayActive
+    }
+
     /// Prüft ob ein echtes CarPlay-Display oder CarPlay- / Auto-Audioausgang aktiv ist
     public var isCarPlayConnected: Bool {
         let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
@@ -283,21 +298,34 @@ public final class MusicObserver: ObservableObject {
             self, selector: #selector(appWillTerminate),
             name: UIApplication.willTerminateNotification, object: nil)
         NotificationCenter.default.addObserver(
-            self, selector: #selector(carPlayRouteChanged),
+            self, selector: #selector(handleAppStateOrRouteChanged),
+            name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleAppStateOrRouteChanged),
+            name: UIApplication.didBecomeActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleAppStateOrRouteChanged),
             name: UIScreen.didDisconnectNotification, object: nil)
         NotificationCenter.default.addObserver(
-            self, selector: #selector(carPlayRouteChanged),
+            self, selector: #selector(handleAppStateOrRouteChanged),
             name: UIScreen.didConnectNotification, object: nil)
         NotificationCenter.default.addObserver(
-            self, selector: #selector(carPlayRouteChanged),
+            self, selector: #selector(handleAppStateOrRouteChanged),
             name: AVAudioSession.routeChangeNotification, object: nil)
     }
 
-    @objc private func carPlayRouteChanged() {
+    @objc private func handleAppStateOrRouteChanged() {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if self.isCarOrActive && self.activeActivity == nil {
-                await self.reattachOrCreateLiveActivity()
+            if self.shouldDynamicIslandBeActive {
+                if self.activeActivity == nil {
+                    await self.reattachOrCreateLiveActivity()
+                }
+            } else {
+                // Wenn die App im Vordergrund geöffnet ist ODER kein CarPlay aktiv ist: Live Activity aus
+                if self.activeActivity != nil {
+                    await self.endAllLiveActivities()
+                }
             }
         }
     }

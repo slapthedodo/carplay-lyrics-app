@@ -58,6 +58,14 @@ extension MusicObserver {
                 let connected = self.isCarOrActive
                 self.isCarOrActiveConnected = connected
 
+                // Dynamic Island Gating:
+                // Darf NUR aktiv sein, wenn die App minimiert ist UND echtes CarPlay aktiv ist!
+                let islandAllowed = self.shouldDynamicIslandBeActive
+
+                if !islandAllowed && self.activeActivity != nil {
+                    await self.endAllLiveActivities()
+                }
+
                 if connected {
                     self.disconnectedSeconds = 0
                     BackgroundKeepAliveManager.shared.ensureActive()
@@ -69,30 +77,36 @@ extension MusicObserver {
 
                     _ = self.makeState()
 
-                    if self.activeActivity == nil {
-                        await self.reattachOrCreateLiveActivity()
-                    } else {
-                        let now = Date()
-                        let curOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
-                        let curCoolant = self.obd.liveCoolantTemp
-                        let curPhase = self.warmupManager?.phase
-                        let curBoost = self.obd.liveBoostBar
-                        let curG = self.motionManager?.currentG ?? 0
+                    let curOil = self.obd.effectiveOilTemp ?? self.warmupManager?.oilTempInt
+                    if let curOil {
+                        self.warmupManager?.updateLiveOilTemp(curOil)
+                    }
 
-                        let hasDelta = (curOil != self.lastSentOilTemp ||
-                                        curCoolant != self.lastSentCoolant ||
-                                        curPhase != self.lastSentPhase ||
-                                        abs((curBoost ?? 0) - (self.lastSentBoost ?? 0)) >= 0.05 ||
-                                        abs(curG - self.lastSentG) >= 0.1)
+                    if islandAllowed {
+                        if self.activeActivity == nil {
+                            await self.reattachOrCreateLiveActivity()
+                        } else {
+                            let now = Date()
+                            let curCoolant = self.obd.liveCoolantTemp
+                            let curPhase = self.warmupManager?.phase
+                            let curBoost = self.obd.liveBoostBar
+                            let curG = self.motionManager?.currentG ?? 0
 
-                        if now.timeIntervalSince(self.lastTelemetryPush) >= 2.5 || hasDelta {
-                            self.lastSentOilTemp = curOil
-                            self.lastSentCoolant = curCoolant
-                            self.lastSentPhase = curPhase
-                            self.lastSentBoost = curBoost
-                            self.lastSentG = curG
-                            self.lastTelemetryPush = now
-                            self.pushActivityUpdate(force: false)
+                            let hasDelta = (curOil != self.lastSentOilTemp ||
+                                            curCoolant != self.lastSentCoolant ||
+                                            curPhase != self.lastSentPhase ||
+                                            abs((curBoost ?? 0) - (self.lastSentBoost ?? 0)) >= 0.05 ||
+                                            abs(curG - self.lastSentG) >= 0.1)
+
+                            if now.timeIntervalSince(self.lastTelemetryPush) >= 2.5 || hasDelta {
+                                self.lastSentOilTemp = curOil
+                                self.lastSentCoolant = curCoolant
+                                self.lastSentPhase = curPhase
+                                self.lastSentBoost = curBoost
+                                self.lastSentG = curG
+                                self.lastTelemetryPush = now
+                                self.pushActivityUpdate(force: false)
+                            }
                         }
                     }
                     self.scheduleWidgetReload(force: false)
@@ -183,7 +197,12 @@ extension MusicObserver {
     // ─────────────────────────────────────────────────────────────────────────
 
     public func reattachOrCreateLiveActivity() async {
-        guard isCarOrActive else { return }
+        guard shouldDynamicIslandBeActive else {
+            if self.activeActivity != nil {
+                await self.endAllLiveActivities()
+            }
+            return
+        }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         // Erst alle toten oder beendeten Activities sauber aus dem System entfernen
@@ -220,7 +239,7 @@ extension MusicObserver {
     }
 
     public func startNewLiveActivity(title: String, artist: String) async {
-        guard isCarOrActive else { return }
+        guard shouldDynamicIslandBeActive else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
 
         if let _ = activeActivity {

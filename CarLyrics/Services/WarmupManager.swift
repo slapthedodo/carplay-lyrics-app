@@ -203,6 +203,28 @@ public final class WarmupManager: ObservableObject {
     // MARK: Helpers & Benachrichtigungen
     // ─────────────────────────────────────────────────────────────────────────
 
+    /// Wird kontinuierlich von OBDManager oder MusicObserver mit der echten oder modellierten Öltemperatur aufgerufen
+    public func updateLiveOilTemp(_ temp: Int) {
+        let tempD = Double(temp)
+        self.oilTemp = tempD
+        self.phase = phaseFor(temp: tempD)
+
+        let span = max(10.0, 85.0 - startTemp)
+        self.warmupProgress = max(0, min((tempD - startTemp) / span, 1.0))
+
+        // Automatisches Re-Arming: Sobald das Öl unter 60°C abkühlt (z.B. längere Pause/Parken),
+        // wird die Benachrichtigung für die nächste Erwärmung wieder scharfgeschaltet!
+        if temp < 60 {
+            didSendWarmNotification = false
+            didFireWarmHaptic = false
+            isEngineWarm = false
+        }
+
+        if temp >= 80 {
+            triggerWarmNotificationIfNeeded(temp: temp)
+        }
+    }
+
     public func triggerWarmNotificationIfNeeded(temp: Int) {
         guard !didSendWarmNotification else { return }
         if temp >= 80 {
@@ -223,15 +245,19 @@ public final class WarmupManager: ObservableObject {
 
     private func sendWarmNotification(temp: Int) {
         let content = UNMutableNotificationContent()
-        content.title = "Motor ist warm"
-        content.body = "Öltemperatur: \(temp)°C"
+        content.title = "Motor ist warm (80°C)"
+        content.body = "Öltemperatur: \(temp)°C – Der EA113 2.0 TFSI hat Betriebstemperatur erreicht!"
         content.sound = .default
         if #available(iOS 15.0, *) {
             content.interruptionLevel = .timeSensitive
         }
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(identifier: "carlyrics_warm_engine", content: content, trigger: trigger)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 0.1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "carlyrics_warm_engine_\(Int(Date().timeIntervalSince1970))",
+            content: content,
+            trigger: trigger
+        )
         UNUserNotificationCenter.current().add(request) { error in
             if let error {
                 print("[WarmupManager] Send notification error: \(error)")
