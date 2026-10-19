@@ -41,6 +41,11 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var liveEngineLoad  : Int?    = nil        // Motorlast % (01 04)
     @Published public var throttlePosition: Int?    = nil        // Gaspedal / Drosselklappe % (PID 01 11)
     @Published public var liveBaro        : Int     = 101        // Barometer kPa
+    @Published public var liveEGT         : Int?    = nil        // Geschätzte Abgastemperatur °C (thermische Trägheit)
+    @Published public var isColdOverloaded: Bool    = false      // Kaltstart-Überlastung erkannt
+    @Published public var coldOverloadMessage: String = ""      // Kurztitel der Warnung
+    @Published public var coldOverloadDetail: String = ""       // Detailhinweis für Fahrer
+    internal var smoothedEGT              : Double? = nil
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
 
@@ -237,6 +242,11 @@ public final class OBDManager: NSObject, ObservableObject {
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0
+        liveEGT = nil
+        smoothedEGT = nil
+        isColdOverloaded = false
+        coldOverloadMessage = ""
+        coldOverloadDetail = ""
         batteryVoltage = nil
         isIgnitionOn = nil
         hasOilTempPID = false

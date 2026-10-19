@@ -237,10 +237,18 @@ public struct GForceCard: View {
                     Button {
                         motion.calibrate()
                     } label: {
-                        Label("Nullpunkt setzen", systemImage: "scope")
-                            .font(.caption.bold())
+                        if motion.isCalibrating {
+                            HStack(spacing: 4) {
+                                ProgressView().scaleEffect(0.7).tint(.cyan)
+                                Text("1s Mittelwert…").font(.caption.bold())
+                            }
+                        } else {
+                            Label("Nullpunkt setzen", systemImage: "scope")
+                                .font(.caption.bold())
+                        }
                     }
                     .buttonStyle(CockpitButtonStyle(color: .cyan))
+                    .disabled(motion.isCalibrating)
                 }
             }
             .frame(maxWidth: .infinity)

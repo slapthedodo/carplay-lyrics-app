@@ -149,9 +149,19 @@ public struct HandyModusLyricsPanel: View {
                 .font(.system(size: 9, weight: .black))
                 .foregroundStyle(.green)
         case .error:
-            Label("OFFLINE", systemImage: "wifi.slash")
-                .font(.system(size: 9, weight: .bold))
+            Button {
+                observer.retryLyrics()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "wifi.slash")
+                    Text("OFFLINE (RETRY)")
+                }
+                .font(.system(size: 8.5, weight: .bold))
                 .foregroundStyle(.orange)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.15), in: Capsule())
+            }
         case .idle:
             EmptyView()
         }

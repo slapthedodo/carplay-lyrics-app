@@ -85,6 +85,13 @@ public struct HandyModusView: View {
         }
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
+        .overlay(
+            Group {
+                if obd.isColdOverloaded {
+                    ColdEngineOverloadFlashOverlay(title: obd.coldOverloadMessage, detail: obd.coldOverloadDetail)
+                }
+            }
+        )
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             idleTimerDisabled = true
@@ -266,33 +273,76 @@ public struct HandyModusView: View {
     // ─────────────────────────────────────────────────────────────────────────
 
     private var footerControls: some View {
-        HStack(spacing: 12) {
-            Button {
-                motion.calibrate()
-            } label: {
-                Label("Nullpunkt", systemImage: "scope")
-                    .font(.system(size: 11, weight: .bold))
-            }
-            .buttonStyle(CockpitButtonStyle(color: Color(red: 0.68, green: 0.35, blue: 0.98)))
-
-            Button {
-                motion.resetPeak()
-            } label: {
-                Label("Peak Reset", systemImage: "arrow.counterclockwise")
-                    .font(.system(size: 11, weight: .bold))
-            }
-            .buttonStyle(CockpitButtonStyle(color: .orange))
-
-            Spacer()
-
+        Group {
             if obd.isEnabled && obd.connectionState != .connected {
-                Button {
-                    obd.reconnect()
-                } label: {
-                    Label("OBD Connect", systemImage: "cable.connector")
-                        .font(.system(size: 11, weight: .bold))
+                HStack {
+                    Spacer()
+                    Button {
+                        obd.reconnect()
+                    } label: {
+                        Label("OBD Connect", systemImage: "cable.connector")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .buttonStyle(CockpitButtonStyle(color: .green))
+                    Spacer()
                 }
-                .buttonStyle(CockpitButtonStyle(color: .green))
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Kaltstart-Überlastung Warn-Overlay (Rot blinkend)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct ColdEngineOverloadFlashOverlay: View {
+    public let title: String
+    public let detail: String
+    @State private var isBlinking = false
+
+    public init(title: String, detail: String) {
+        self.title = title
+        self.detail = detail
+    }
+
+    public var body: some View {
+        ZStack(alignment: .top) {
+            // Rot blinkende Rand-Vignette
+            Rectangle()
+                .strokeBorder(Color.red.opacity(isBlinking ? 0.95 : 0.25), lineWidth: 10)
+                .background(Color.red.opacity(isBlinking ? 0.20 : 0.04))
+                .ignoresSafeArea()
+
+            // Alarm-Banner oben
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 24, weight: .black))
+                    .foregroundStyle(.white)
+                    .symbolEffect(.bounce, value: isBlinking)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(detail)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.95))
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.red.opacity(0.95))
+                    .shadow(color: .red.opacity(0.8), radius: 20)
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+        }
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true)) {
+                isBlinking = true
             }
         }
     }

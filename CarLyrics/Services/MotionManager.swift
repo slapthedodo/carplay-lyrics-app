@@ -48,9 +48,14 @@ public final class MotionManager: ObservableObject {
     // MARK: Private state
     // ─────────────────────────────────────────────────────────────────────────
 
+    @Published public var isCalibrating: Bool = false
+
     private let motion          = CMMotionManager()
     private var calibrationOffsetX: Double = 0
     private var calibrationOffsetY: Double = 0
+    private var calibrationSamplesX: [Double] = []
+    private var calibrationSamplesY: [Double] = []
+    private var calibrationTimer: Timer? = nil
 
     private var rawX: Double = 0
     private var rawY: Double = 0
@@ -77,10 +82,10 @@ public final class MotionManager: ObservableObject {
             guard let self, let data else { return }
             Task { @MainActor in 
                 self.process(data)
-                // Automatische Nullpunkt-Kalibrierung nach den ersten 15 Messpunkten (ca. 0.6 Sekunden)
-                if self.rawSampleCount < 15 {
+                // Automatische Nullpunkt-Kalibrierung nach den ersten 25 Messpunkten (ca. 1.0 Sekunden)
+                if self.rawSampleCount < 25 {
                     self.rawSampleCount += 1
-                    if self.rawSampleCount == 15 {
+                    if self.rawSampleCount == 25 {
                         self.calibrate()
                     }
                 }
@@ -91,15 +96,38 @@ public final class MotionManager: ObservableObject {
 
     public func stop() {
         motion.stopDeviceMotionUpdates()
+        calibrationTimer?.invalidate()
+        calibrationTimer = nil
+        isCalibrating = false
         isActive = false
     }
 
-    /// Zero out the current reading as the new "straight & level" baseline.
-    /// Call this once the phone is mounted in the car holder.
-    public func calibrate() {
-        calibrationOffsetX = rawX
-        calibrationOffsetY = rawY
-        peakG = 0
+    /// Nullpunkt über 1.0 Sekunde abtasten und arithmetischen Mittelwert bilden
+    /// Filtert Vibrationen, Erschütterungen und Motorklopfen im Stand perfekt heraus.
+    public func calibrate(duration: TimeInterval = 1.0) {
+        guard !isCalibrating else { return }
+        isCalibrating = true
+        calibrationSamplesX.removeAll()
+        calibrationSamplesY.removeAll()
+
+        calibrationTimer?.invalidate()
+        calibrationTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if !self.calibrationSamplesX.isEmpty {
+                    let avgX = self.calibrationSamplesX.reduce(0.0, +) / Double(self.calibrationSamplesX.count)
+                    let avgY = self.calibrationSamplesY.reduce(0.0, +) / Double(self.calibrationSamplesY.count)
+                    self.calibrationOffsetX = avgX
+                    self.calibrationOffsetY = avgY
+                } else {
+                    self.calibrationOffsetX = self.rawX
+                    self.calibrationOffsetY = self.rawY
+                }
+                self.peakG = 0
+                self.isCalibrating = false
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
     }
 
     public func resetPeak() {
@@ -113,6 +141,11 @@ public final class MotionManager: ObservableObject {
     private func process(_ data: CMDeviceMotion) {
         rawX = data.userAcceleration.x
         rawY = data.userAcceleration.y
+
+        if isCalibrating {
+            calibrationSamplesX.append(rawX)
+            calibrationSamplesY.append(rawY)
+        }
 
         // Direkte G-Kräfte ohne Tiefpassfilter (Reagiert unverzögert auf jede Beschleunigung & Kurve)
         let calX = rawX - calibrationOffsetX

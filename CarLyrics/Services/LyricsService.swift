@@ -73,6 +73,10 @@ public actor LyricsService {
     // MARK: Public API
     // ─────────────────────────────────────────────────────────────────────────
 
+    public func clearFailedTracks() {
+        failedTracks.removeAll()
+    }
+
     /// Returns synced lyrics for the given track.
     /// Throws `LyricsServiceError` if nothing is found.
     public func fetchLyrics(title: String,
@@ -83,6 +87,20 @@ public actor LyricsService {
         if let cached = cache[cacheKey] { return cached }
         if failedTracks.contains(cacheKey) { throw LyricsServiceError.noSyncedLyrics }
 
+        do {
+            return try await performFetch(title: title, artist: artist, album: album, duration: duration, cacheKey: cacheKey)
+        } catch LyricsServiceError.networkError {
+            // Einmaliger automatischer Retry nach 1.2s bei kurzem Netzwerkaussetzer (z.B. Funkloch)
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            return try await performFetch(title: title, artist: artist, album: album, duration: duration, cacheKey: cacheKey)
+        }
+    }
+
+    private func performFetch(title: String,
+                              artist: String,
+                              album: String,
+                              duration: TimeInterval?,
+                              cacheKey: String) async throws -> ParsedLyrics {
         // 1. Precise lookup
         if let result = try? await fetchExact(title: title,
                                               artist: artist,
@@ -97,8 +115,11 @@ public actor LyricsService {
             let result = try await fetchSearch(title: title, artist: artist)
             cache[cacheKey] = result
             return result
-        } catch {
+        } catch LyricsServiceError.noSyncedLyrics {
+            // Nur echte 404 / leere Lyrics cachen, niemals temporäre Netzwerkfehler!
             failedTracks.insert(cacheKey)
+            throw LyricsServiceError.noSyncedLyrics
+        } catch {
             throw error
         }
     }

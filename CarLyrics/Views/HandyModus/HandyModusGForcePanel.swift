@@ -17,20 +17,59 @@ public struct HandyModusGForcePanel: View {
     public var body: some View {
         VStack(spacing: 8) {
             // Section header
-            HStack {
+            HStack(spacing: 8) {
                 Image(systemName: "scope")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(purple)
-                Text("G-KRÄFTE TELEMETRIE")
+                Text("G-KRÄFTE")
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .foregroundStyle(purple.opacity(0.8))
+
                 Spacer()
+
+                // Kalibrieren (1s Mittelwert)
+                Button {
+                    motion.calibrate()
+                } label: {
+                    if motion.isCalibrating {
+                        HStack(spacing: 3) {
+                            ProgressView()
+                                .scaleEffect(0.6)
+                                .tint(purple)
+                            Text("1s…")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundStyle(purple)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(purple.opacity(0.18), in: Capsule())
+                    } else {
+                        HStack(spacing: 3) {
+                            Image(systemName: "scope")
+                            Text("Nullpunkt")
+                        }
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(purple.opacity(0.9))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(purple.opacity(0.12), in: Capsule())
+                    }
+                }
+                .disabled(motion.isCalibrating)
+
+                // Peak Reset
                 Button {
                     motion.resetPeak()
                 } label: {
-                    Label("Peak", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(purple.opacity(0.7))
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("Peak")
+                    }
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.orange.opacity(0.85))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.12), in: Capsule())
                 }
             }
 

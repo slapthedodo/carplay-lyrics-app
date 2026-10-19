@@ -421,6 +421,14 @@ public final class MusicObserver: ObservableObject {
         }
     }
 
+    public func retryLyrics() {
+        guard !currentTrackTitle.isEmpty else { return }
+        Task {
+            await LyricsService.shared.clearFailedTracks()
+            await loadLyrics(title: currentTrackTitle, artist: currentArtist, album: currentAlbum, duration: duration)
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Test / Mock Injektor
     // ─────────────────────────────────────────────────────────────────────────

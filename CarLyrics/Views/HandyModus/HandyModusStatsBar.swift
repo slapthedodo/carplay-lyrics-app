@@ -56,17 +56,17 @@ struct StatTile: View {
 // ─────────────────────────────────────────────────────────────────────────────
 
 public extension OBDManager {
-    /// Geschätzte Abgastemperatur für EA113 2.0 TFSI ohne Direktmessung.
-    /// Formel: IAT + 180 + RPM/80 + Load*5.5 + BoostBar*110, clamped 200–900°C
+    /// Liefert die geglättete Abgastemperatur mit thermischer Trägheit (oder Direktschätzung als Fallback)
     var estimatedExhaustTemp: Int? {
+        if let smoothed = liveEGT { return smoothed }
         guard isEnabled, connectionState == .connected,
               let iat  = liveIAT,
               let load = liveEngineLoad else { return nil }
         let rpmFactor   = Double(liveRPM) / 80.0
-        let loadFactor  = Double(load) * 5.5
-        let boostFactor = (liveBoostBar ?? 0.0) * 110.0
+        let loadFactor  = Double(load) * 5.2
+        let boostFactor = (liveBoostBar ?? 0.0) * 120.0
         let est = Double(iat) + 180.0 + rpmFactor + loadFactor + boostFactor
-        return Int(min(900, max(200, est)))
+        return Int(min(920, max(220, est)))
     }
 }
 

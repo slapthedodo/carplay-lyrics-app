@@ -46,6 +46,13 @@ public struct HandyModusLandscapeView: View {
             .frame(width: w, height: h)
         }
         .ignoresSafeArea()
+        .overlay(
+            Group {
+                if obd.isColdOverloaded {
+                    ColdEngineOverloadFlashOverlay(title: obd.coldOverloadMessage, detail: obd.coldOverloadDetail)
+                }
+            }
+        )
     }
 
     // ── Top Bar ───────────────────────────────────────────────────────────────
@@ -166,13 +173,25 @@ public struct HandyModusLandscapeView: View {
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                     }
-                    Button { motion.resetPeak() } label: {
-                        Text("Reset")
-                            .font(.system(size: 7.5, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(Color.white.opacity(0.08), in: Capsule())
+                    HStack(spacing: 4) {
+                        Button { motion.calibrate() } label: {
+                            Text(motion.isCalibrating ? "1s…" : "Nullpunkt")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1.5)
+                                .background(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.12), in: Capsule())
+                        }
+                        .disabled(motion.isCalibrating)
+
+                        Button { motion.resetPeak() } label: {
+                            Text("Reset")
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1.5)
+                                .background(Color.orange.opacity(0.12), in: Capsule())
+                        }
                     }
                 }
 
@@ -212,21 +231,15 @@ public struct HandyModusLandscapeView: View {
                     quickStat(icon: "flame.fill",         label: "ABGAS",  val: obd.estimatedExhaustTemp != nil ? "\(obd.estimatedExhaustTemp!)°" : "--")
                 }
 
-                HStack(spacing: 8) {
-                    Button { motion.calibrate() } label: {
-                        Label("G-Nullpunkt", systemImage: "scope")
-                            .font(.system(size: 9.5, weight: .bold))
-                    }
-                    .buttonStyle(CockpitButtonStyle(color: Color(red: 0.68, green: 0.35, blue: 0.98)))
-
-                    Spacer()
-
-                    if obd.isEnabled && obd.connectionState != .connected {
+                if obd.isEnabled && obd.connectionState != .connected {
+                    HStack {
+                        Spacer()
                         Button { obd.reconnect() } label: {
                             Label("OBD Connect", systemImage: "cable.connector")
                                 .font(.system(size: 9.5, weight: .bold))
                         }
                         .buttonStyle(CockpitButtonStyle(color: .green))
+                        Spacer()
                     }
                 }
             }

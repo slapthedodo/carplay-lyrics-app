@@ -272,3 +272,36 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
    * Öffne **Einstellungen -> Allgemein -> CarPlay -> [Dein Auto] -> Widgets**.
    * Füge die **CarLyrics** Widgets (All-in-One Cockpit / Lyrics) zu deinen CarPlay-Widgets hinzu.
 
+---
+
+## 11. 🚀 Build #84: Ladedruck-Korrektur, Kaltstart-Schutz & 1s G-Kraft-Kalibrierung (19.10.2026)
+
+### A. Ursache für den starren 0.00 Ladedruck:
+* **Einheiten-Fehler in thermodynamischer Formel:**  
+  In `OBDDataParser.swift` berechnete `(RPM / 120.0) * 0.001984 * (101325 / (287.05 * T))` den Luftmassenstrom im Saugmotor in **kg/s** (`0.035 kg/s`), während der MAF-Sensor (PID `01 10`) Werte in **g/s** liefert (`35.0 g/s`). Durch den Abgleich `if baseAirflowNA > 1.0` schlug die Bedingung bei `0.035` permanent fehl und setzte den Ladedruck hart auf `0.0 bar`.
+* **Korrektur:** Multiplikation mit `1.984 L` (bzw. Faktor 1000) liefert den physikalischen Luftmassenstrom in g/s. Der Ladedruck reagiert nun linear und feinfühlig zwischen `0.00` und `1.60 bar`.
+
+### B. Abgastemperatur (EGT) – Modellierung & Trägheit:
+* **Warum sie vorher von 300 auf 500 sprang:**  
+  Bisher wurde EGT als statische Summe aus IAT, Drehzahl, Last und Ladedruck direkt an den Gaspedalwert gekoppelt. Beim Gasgeben schoss der Wert rechnerisch sofort hoch, beim Gaswegnehmen fiel er in Millisekunden ab.
+* **Neues thermisches Trägheitsmodell (PT1-Filter):**  
+  Der Abgaskrümmer aus Grauguss und das K03-Turbinengehäuse besitzen eine erhebliche thermische Masse. Die App glättet die Zieltemperatur nun asymmetrisch: Erwärmung erfolgt zügig mit Abgasstrom ($\alpha = 0.08$), Abkühlung erfolgt realistisch langsam ($\alpha = 0.035$), sodass die Temperaturanzeige wie eine echte EGT-Abgassonde arbeitet.
+
+### C. Kaltstart-Überlastungsschutz (Rot blinkender Alarm):
+* Über den OBD-Port kann die Motorlast nicht physisch begrenzt werden (nur Lesediagnose).
+* **Visuelle & haptische Schutzfunktion:**
+  * **Kaltphase (< 60°C Öl):** Schlägt Alarm bei RPM > 2.800, Last > 55% oder Ladedruck > 0.15 bar („WENIGER LAST! MOTOR NOCH KALT“).
+  * **Aufwärmphase (60°C – 79°C Öl):** Schlägt Alarm bei RPM > 3.800, Last > 75% oder Ladedruck > 0.65 bar.
+  * **Warnanzeige:** Der gesamte Bildschirmrand pulsiert intensiv rot mit Warndreieck-Banner und einmaligem haptischem Feedback. Sobald der Fahrer vom Gas geht, erlischt der Alarm sofort.
+
+### D. 1-Sekunden-Mittelwert für G-Kraft-Nullpunkt:
+* `MotionManager.calibrate(duration: 1.0)` sammelt über 1 Sekunde alle Beschleunigungswerte (25 Hz) und bildet den exakten arithmetischen Mittelwert. Motorvibrationen und Wackeln im Handyhalter verfälschen den Nullpunkt nicht mehr.
+* Die G-Kräfte-Kachel im Handy-Modus hat oben rechts nun sowohl den **Nullpunkt** (mit `1s…` Fortschrittsanzeige) als auch den **Peak** Reset Button.
+* Die doppelten Buttons im unteren Bildschirmbereich wurden vollständig entfernt.
+
+### E. Lyrics-Resilienz gegen Verbindungsabbrüche:
+* Transiente Netzwerkaussetzer (z.B. Funkloch im Auto) sperren Songs nicht mehr dauerhaft in `failedTracks`.
+* Automatischer 1-Shot Retry mit 1.2s Backoff bei Verbindungsfehlern.
+* Klickbarer **OFFLINE (RETRY)**-Chip im Songtext-Header zum manuellen Neuladen.
+
+

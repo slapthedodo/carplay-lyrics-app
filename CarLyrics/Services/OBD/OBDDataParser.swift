@@ -148,12 +148,13 @@ extension OBDManager {
                 // EA113 2.0 TFSI Ladedruck-Berechnung (Bosch MED9.1 hat kein PID 010B MAP)
                 if liveRPM > 500 {
                     let iatK = Double((liveIAT ?? 20) + 273)
-                    let baseAirflowNA = (Double(liveRPM) / 120.0) * 0.001984 * (101325.0 / (287.05 * iatK)) * 0.88
+                    // baseAirflowNA in g/s: (RPM/120) * 1.984 L * (101.325 / (0.287058 * iatK)) * 0.88
+                    let baseAirflowNA = (Double(liveRPM) / 120.0) * 1.984 * (101.325 / (0.287058 * iatK)) * 0.88
                     if baseAirflowNA > 1.0 {
                         let ratio = maf / baseAirflowNA
                         let boostEst = max(0.0, ratio - 1.0)
-                        liveBoostBar = Double(round(boostEst * 50) / 50)
-                        liveMAP = Int(101.3 * ratio)
+                        liveBoostBar = Double(round(boostEst * 100) / 100)
+                        liveMAP = Int(101.3 * max(0.2, ratio))
                     } else {
                         liveBoostBar = 0.0
                         liveMAP = 101
@@ -195,6 +196,124 @@ extension OBDManager {
                 throttlePosition = Int(Double(val) * 100.0 / 255.0)
             }
         }
+
+        // Thermische EGT-Glättung und Kaltstart-Überlastungsprüfung
+        updateThermalEGT()
+        checkColdEngineOverload()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: EGT Modell mit thermischer Trägheit (PT1-Glied)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public func updateThermalEGT() {
+        guard isEnabled, connectionState == .connected else {
+            liveEGT = nil
+            smoothedEGT = nil
+            return
+        }
+
+        let iat = Double(liveIAT ?? 20)
+        let rpmFactor = Double(liveRPM) / 80.0
+        let loadFactor = Double(liveEngineLoad ?? 20) * 5.2
+        let boostFactor = (liveBoostBar ?? 0.0) * 120.0
+        let targetEGT = min(920.0, max(220.0, iat + 180.0 + rpmFactor + loadFactor + boostFactor))
+
+        if let prev = smoothedEGT {
+            // Thermische Trägheit: Gusseisenkrümmer & K03 Gehäuse erwärmen sich schnell, kühlen langsam ab
+            let alpha = targetEGT > prev ? 0.08 : 0.035
+            let next = prev + alpha * (targetEGT - prev)
+            smoothedEGT = next
+            liveEGT = Int(next.rounded())
+        } else {
+            smoothedEGT = targetEGT
+            liveEGT = Int(targetEGT.rounded())
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Kaltstart-Überlastungsschutz (Visual / Haptic Alert)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public func checkColdEngineOverload() {
+        guard isEnabled, connectionState == .connected else {
+            if isColdOverloaded {
+                isColdOverloaded = false
+                coldOverloadMessage = ""
+                coldOverloadDetail = ""
+            }
+            return
+        }
+
+        let temp = effectiveOilTemp ?? liveCoolantTemp ?? 20
+        let rpm = liveRPM
+        let load = liveEngineLoad ?? 0
+        let boost = liveBoostBar ?? 0.0
+
+        // Stufe 1: MOTOR KALT (Öl < 60°C)
+        if temp < 60 {
+            if rpm > 2800 {
+                setColdOverload(
+                    title: "DREHZAHL ZU HOCH!",
+                    detail: "\(rpm) U/min bei kaltem Öl (\(temp)°C) • Bitte unter 2.500 U/min bleiben!"
+                )
+                return
+            }
+            if load > 55 {
+                setColdOverload(
+                    title: "ZU VIEL MOTORLAST!",
+                    detail: "\(load)% Last bei kaltem Öl (\(temp)°C) • Bitte sanfter beschleunigen!"
+                )
+                return
+            }
+            if boost > 0.15 {
+                setColdOverload(
+                    title: "KEIN LADEDRUCK BEI KALTSTART!",
+                    detail: String(format: "%.2f bar bei %d°C Öl • Turbolader schonen!", boost, temp)
+                )
+                return
+            }
+        }
+        // Stufe 2: WARMFAHREN (Öl 60°C – 79°C)
+        else if temp < 80 {
+            if rpm > 3800 {
+                setColdOverload(
+                    title: "MOTOR NOCH NICHT BETRIEBSWARM",
+                    detail: "\(rpm) U/min bei \(temp)°C Öl • Max. 3.500 U/min bis 80°C!"
+                )
+                return
+            }
+            if load > 75 {
+                setColdOverload(
+                    title: "HOHE MOTORLAST VOR 80°C",
+                    detail: "\(load)% Last bei \(temp)°C Öl • Noch etwas Geduld!"
+                )
+                return
+            }
+            if boost > 0.65 {
+                setColdOverload(
+                    title: "LADEDRUCK ÜBER 0.6 BAR",
+                    detail: String(format: "%.2f bar bei %d°C Öl • Vollen Ladedruck erst ab 80°C!", boost, temp)
+                )
+                return
+            }
+        }
+
+        // Entwarnung wenn Last und Drehzahl wieder im schonenden Bereich
+        if isColdOverloaded {
+            isColdOverloaded = false
+            coldOverloadMessage = ""
+            coldOverloadDetail = ""
+        }
+    }
+
+    private func setColdOverload(title: String, detail: String) {
+        if !isColdOverloaded {
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        }
+        isColdOverloaded = true
+        coldOverloadMessage = title
+        coldOverloadDetail = detail
     }
 
     private func decodeSupportedPIDs(_ hex8: String, offset: Int) {
