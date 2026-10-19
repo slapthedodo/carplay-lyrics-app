@@ -15,6 +15,7 @@
 import CoreMotion
 import Foundation
 import Combine
+import UIKit
 
 @MainActor
 public final class MotionManager: ObservableObject {
