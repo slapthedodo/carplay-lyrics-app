@@ -428,6 +428,33 @@ Auf Basis des Nutzerfeedbacks wurden alle isolierten Karten-Container (`RoundedR
 * **Vergrößertes G-Radar:** Durchmesser in `WidescreenPowertrainPod` um über 50% vergrößert (auf bis zu 125pt), fette 22pt Monospace-Typografie für die Live-G-Messung.
 * **Reduzierte Modi:** Der Modus `Race` wurde vollständig entfernt. Im Header-Capsule-Switcher stehen nun fokussiert **`Cockpit`** und **`Lyrics`** zur Verfügung.
 
+---
+
+## 18. 🎯 Build #93: Dynamic Island Hardware Clearance & Scaled G-Scope (19.10.2026)
+
+### A. Dynamic Island Hardware-Clearance für iPhone 14 Pro Max (932×430 pt):
+* **Problem:** In Build #92 war durch `ignoresSafeArea()` auf übergeordneten Containern `geo.safeAreaInsets` auf 0 gesetzt, sodass das automatische Padding auf 10pt zurückfiel und die Dynamic Island (59pt) in den Inhalt ragte.
+* **Lösung:** Direkte Abfrage der echten Hardware-Insets und Geräteausrichtung über `UIWindowScene.windows.safeAreaInsets` und `interfaceOrientation`:
+  * Bei `landscapeLeft` (Kamera/Island links): `leadPad = max(hwInsets.left, 59) + 4` = **63pt** vollständige Dynamic Island Clearance.
+  * Gegenseite (Ladebuchse): **14pt** Randabstand – nutzt den gesamten rechten Bildschirmbereich ohne toten Rand.
+  * Bei `landscapeRight` (Kamera/Island rechts): `trailPad = 63pt`, `leadPad = 14pt`.
+  * Unten: `max(hwInsets.bottom, 16)` = **21pt** für saubere Home-Bar-Freiheit.
+
+### B. Platzierung des Nullpunkt-Buttons direkt am Text:
+* **Feedback:** „Mach den nullpunkt button nicht nach komplett rechts sondern eher rechts vom text wo er ist dran.“
+* **Umsetzung:**
+  * In `WidescreenPowertrainPod` (Querformat): `HStack(spacing: 6) { Text("G-KRAFT") ... ; Button { motion.calibrate() } ... ; Spacer(minLength: 0) }` — Der Nullpunkt-Kalibrierungs-Button sitzt unmittelbar rechts neben dem Label `"G-KRAFT"`.
+  * In `HandyModusGForcePanel` (Hochkant): Nullpunkt-Button direkt neben `"G-KRÄFTE"`, gefolgt von `Spacer()` und Peak-Reset rechts.
+  * In `WidescreenGForcePod`: Ebenfalls direkt neben dem Label platziert.
+
+### C. Maximal ausgenutzte Box-Skalierung für das G-Kräfte Radar Scope:
+* **Feedback:** „Die gkräfte kannst du auch größer machen wenn du sie richtig im kasten scalen würdest.“
+* **Umsetzung:** Die starre Obergrenze (zuvor 125pt bzw. 155pt) wurde entfernt. Der Durchmesser skaliert dynamisch mit `min(maxRadarW, maxRadarH)`:
+  * Auf dem iPhone 14 Pro Max wächst das G-Force Radar auf bis zu **191–195pt Durchmesser** (~56% mehr Fläche).
+  * Die Twin Pillars (Ladedruck & Öltemperatur) stehen links mit 82pt Breite kompakt und hoch (Balkenhöhe bis 195pt), getrennt durch eine 1pt Hairline.
+  * Optimierte Cockpit-Proportionen: Powertrain & G-Pod 33.5% | Tacho 34.0% | Lyrics 32.5%.
+
+
 
 
 

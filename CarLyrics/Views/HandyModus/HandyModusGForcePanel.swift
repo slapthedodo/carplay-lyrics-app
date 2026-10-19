@@ -25,9 +25,7 @@ public struct HandyModusGForcePanel: View {
                     .font(.system(size: 10, weight: .black, design: .rounded))
                     .foregroundStyle(purple.opacity(0.8))
 
-                Spacer()
-
-                // Kalibrieren (1s Mittelwert)
+                // Kalibrieren (1s Mittelwert) direkt rechts neben dem Text
                 Button {
                     motion.calibrate()
                 } label: {
@@ -56,6 +54,8 @@ public struct HandyModusGForcePanel: View {
                     }
                 }
                 .disabled(motion.isCalibrating)
+
+                Spacer()
 
                 // Peak Reset
                 Button {
@@ -171,12 +171,14 @@ public struct WidescreenPowertrainPod: View {
     }
 
     public var body: some View {
-        let pillarH = max(55, height * 0.36)
-        let radarSize = min(125, height * 0.56)
+        // Volle Ausnutzung des Kastens für maximale Größe des G-Force Radars (bis zu ~195pt)
+        let maxRadarW = max(90, width - 92)
+        let maxRadarH = max(90, height - 50)
+        let radarSize = min(maxRadarW, maxRadarH)
 
-        return VStack(spacing: 4) {
-            // ── Section 1: Twin Precision Pillars (Boost & Oil) ───────────────
-            HStack(spacing: 8) {
+        return HStack(spacing: 6) {
+            // ── 1. Linke Säulen: Twin Precision Pillars (Ladedruck & Öl) ─────
+            HStack(spacing: 5) {
                 // Boost Pillar
                 telemetryPillar(
                     title: "LADEDRUCK",
@@ -186,7 +188,7 @@ public struct WidescreenPowertrainPod: View {
                     unit: "BAR",
                     ratio: boostRatio,
                     color: boostColor,
-                    barHeight: pillarH
+                    barHeight: max(75, height * 0.58)
                 )
 
                 // Oil Temp Pillar
@@ -196,13 +198,48 @@ public struct WidescreenPowertrainPod: View {
                     unit: "°C",
                     ratio: oilRatio,
                     color: oilColor,
-                    barHeight: pillarH
+                    barHeight: max(75, height * 0.58)
                 )
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: 82)
 
-            // ── Section 2: Prominent 2D G-Force Friction Radar (Enlarged) ───
-            HStack(spacing: 10) {
+            // Feine vertikale Trennlinie
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(width: 1, height: height * 0.78)
+
+            // ── 2. Rechte Seite: Großes G-Force Radar & Nullpunkt-Button ─────
+            VStack(spacing: 3) {
+                // Header: Text + Nullpunkt-Button direkt daneben (nicht ganz rechts!)
+                HStack(spacing: 6) {
+                    Text("G-KRAFT")
+                        .font(.system(size: 8.5, weight: .black, design: .rounded))
+                        .foregroundStyle(purple)
+
+                    // Nullpunkt Button DIREKT rechts neben dem Text
+                    Button {
+                        motion.calibrate()
+                    } label: {
+                        HStack(spacing: 2.5) {
+                            if motion.isCalibrating {
+                                ProgressView().scaleEffect(0.5).tint(purple)
+                                Text("1s…").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundStyle(purple)
+                            } else {
+                                Image(systemName: "scope").font(.system(size: 7.5, weight: .bold)).foregroundStyle(purple)
+                                Text("Nullpunkt").font(.system(size: 7.5, weight: .black, design: .rounded)).foregroundStyle(purple)
+                            }
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(purple.opacity(0.18), in: Capsule())
+                    }
+                    .disabled(motion.isCalibrating)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 4)
+
+                // Riesiges G-Force Radar Scope (bis zu 155pt)
                 GBallView(
                     x: motion.normalizedX,
                     y: motion.normalizedY,
@@ -213,33 +250,19 @@ public struct WidescreenPowertrainPod: View {
                 .background(Circle().fill(Color.black.opacity(0.50)))
                 .overlay(Circle().stroke(purple.opacity(0.35), lineWidth: 1.5))
 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack {
-                        Text("G-KRAFT")
-                            .font(.system(size: 8, weight: .black, design: .rounded))
-                            .foregroundStyle(purple)
-                        Spacer()
-                        // Nullpunkt Quick Touch
-                        Button { motion.calibrate() } label: {
-                            Image(systemName: "scope")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(purple)
-                                .padding(3.5)
-                                .background(purple.opacity(0.20), in: Circle())
-                        }
-                    }
-
+                // Werte-Leiste unter dem Radar
+                HStack(spacing: 6) {
                     Text(motion.currentGFormatted)
-                        .font(.system(size: min(22, height * 0.12), weight: .black, design: .monospaced))
+                        .font(.system(size: min(18, height * 0.09), weight: .black, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
 
-                    HStack(spacing: 4) {
-                        Text("PEAK: \(motion.peakGFormatted)")
-                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                    HStack(spacing: 2) {
+                        Text("P: \(motion.peakGFormatted)")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                         Button { motion.resetPeak() } label: {
                             Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 7.5, weight: .bold))
+                                .font(.system(size: 7, weight: .bold))
                                 .foregroundStyle(.orange.opacity(0.85))
                         }
                     }
@@ -249,7 +272,7 @@ public struct WidescreenPowertrainPod: View {
                         .foregroundStyle(purple.opacity(0.80))
                 }
             }
-            .padding(.top, 2)
+            .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -283,7 +306,7 @@ public struct WidescreenPowertrainPod: View {
             }
 
             Text(valueStr)
-                .font(.system(size: 12, weight: .black, design: .monospaced))
+                .font(.system(size: 11, weight: .black, design: .monospaced))
                 .foregroundStyle(color)
 
             Text(unit)
@@ -326,11 +349,10 @@ public struct WidescreenGForcePod: View {
             .overlay(Circle().stroke(purple.opacity(0.3), lineWidth: 1))
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 6) {
                     Text("G-KRÄFTE")
                         .font(.system(size: 8.5, weight: .black, design: .rounded))
                         .foregroundStyle(purple)
-                    Spacer()
                     Button { motion.calibrate() } label: {
                         Text(motion.isCalibrating ? "1s…" : "Nullpunkt")
                             .font(.system(size: 7.5, weight: .bold))
@@ -338,6 +360,7 @@ public struct WidescreenGForcePod: View {
                             .padding(.horizontal, 5).padding(.vertical, 2)
                             .background(purple.opacity(0.18), in: Capsule())
                     }
+                    Spacer()
                 }
 
                 Text(motion.currentGFormatted)

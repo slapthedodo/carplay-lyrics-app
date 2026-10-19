@@ -29,18 +29,51 @@ public struct HandyModusLandscapeView: View {
         self.warmup   = warmup
     }
 
+    private var safeHardwareInsets: UIEdgeInsets {
+        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene ?? UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first {
+            return window.safeAreaInsets
+        }
+        return UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 0)
+    }
+
+    private var currentInterfaceOrientation: UIInterfaceOrientation {
+        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene ?? UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            return scene.interfaceOrientation
+        }
+        return .landscapeLeft
+    }
+
     public var body: some View {
         GeometryReader { geo in
-            let insets = geo.safeAreaInsets
-            // Dynamic Island Erkennung (Leading oder Trailing je nach Halterungsausrichtung)
-            let isIslandLeading = insets.leading > 20
-            let isIslandTrailing = insets.trailing > 20
+            let hwInsets = safeHardwareInsets
+            let orientation = currentInterfaceOrientation
 
-            // Nutzt 100% des Bildschirms aus: Nur an der Kamera-Insel wird geschützt, die andere Seite geht bis 10pt an den Rand
-            let leadPad: CGFloat = isIslandLeading ? max(insets.leading, 46) : 10
-            let trailPad: CGFloat = isIslandTrailing ? max(insets.trailing, 46) : 10
-            let bottomPad: CGFloat = max(insets.bottom, 6)
-            let topPad: CGFloat = max(insets.top, 2)
+            // Dynamic Island Erkennung:
+            // Bei landscapeLeft (Oberseite/Island links): Island ist leading
+            // Bei landscapeRight (Oberseite/Island rechts): Island ist trailing
+            let isIslandLeading: Bool = {
+                if orientation == .landscapeLeft { return true }
+                if orientation == .landscapeRight { return false }
+                return hwInsets.left > 20
+            }()
+
+            let isIslandTrailing: Bool = {
+                if orientation == .landscapeRight { return true }
+                if orientation == .landscapeLeft { return false }
+                return hwInsets.right > 20
+            }()
+
+            // iPhone 14 Pro Max / 15 Pro / 16 Pro Dynamic Island Hardware Clearance:
+            // Die Dynamic Island ragt 59pt von der Kante hinein. Mit 4pt Puffer = 63pt.
+            // Die Gegenseite ohne Island geht bis auf 14pt bündig an den Rand (kein toter Bereich!).
+            let islandPad: CGFloat = max(hwInsets.left > 20 ? hwInsets.left : 0, hwInsets.right > 20 ? hwInsets.right : 0, 59) + 4
+            let edgePad: CGFloat = 14
+
+            let leadPad: CGFloat = isIslandLeading ? islandPad : edgePad
+            let trailPad: CGFloat = isIslandTrailing ? islandPad : edgePad
+            let bottomPad: CGFloat = max(hwInsets.bottom, 16)
+            let topPad: CGFloat = max(hwInsets.top, 4)
 
             let usableW = geo.size.width - leadPad - trailPad
             let usableH = geo.size.height - topPad - bottomPad
@@ -151,13 +184,13 @@ public struct HandyModusLandscapeView: View {
         Group {
             switch layoutMode {
             case .cockpit:
-                // Tri-Zone: Left Powertrain & G-Radar (32%) | Center Speed/RPM (35.5%) | Right Lyrics (32.5%)
+                // Tri-Zone: Left Powertrain & G-Radar (33.5%) | Center Speed/RPM (34%) | Right Lyrics (32.5%)
                 HStack(spacing: 0) {
-                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.320, height: height)
+                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
 
                     divider(height: height)
 
-                    WidescreenTachoConsole(obd: obd, width: width * 0.355, height: height)
+                    WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
 
                     divider(height: height)
 
