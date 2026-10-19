@@ -270,12 +270,12 @@ public final class SpotifyManager: ObservableObject {
         guard isAuthenticated, !accessToken.isEmpty else { return }
         guard let url = URL(string: "https://api.spotify.com/v1/me/player/queue") else { return }
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.timeoutInterval = 4
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        req.timeoutInterval = 4
+        let request = req
 
-        Task.detached(priority: .utility) { [weak self, session = self.session] in
-            guard let self else { return }
+        Task.detached(priority: .utility) { [session = self.session] in
             guard let (data, response) = try? await session.data(for: request),
                   let http = response as? HTTPURLResponse, http.statusCode == 200,
                   let queueResp = try? JSONDecoder().decode(SpotifyQueueResponse.self, from: data),
