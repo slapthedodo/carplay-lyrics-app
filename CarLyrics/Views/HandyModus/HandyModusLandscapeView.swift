@@ -1,5 +1,6 @@
 // MARK: - HandyModusLandscapeView.swift
 // Widescreen Racing Cockpit für den Querformat-Einsatz im Handy-Halter
+// Inspiriert vom Hochkantformat: Gauges, G-Kräfte, Lyrics & 8-Tile Stats Matrix
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -9,6 +10,8 @@ public struct HandyModusLandscapeView: View {
     @ObservedObject public var obd      : OBDManager
     @ObservedObject public var motion   : MotionManager
     @ObservedObject public var warmup   : WarmupManager
+
+    internal let purple = Color(red: 0.68, green: 0.35, blue: 0.98)
 
     public init(observer: MusicObserver,
                 obd:      OBDManager,
@@ -22,30 +25,57 @@ public struct HandyModusLandscapeView: View {
 
     public var body: some View {
         GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
-            let leftW  = w * 0.45
-            let rightW = w * 0.55
-            let topBarH: CGFloat = 26
+            let insets = geo.safeAreaInsets
+            let leadPad = max(insets.leading, 12)
+            let trailPad = max(insets.trailing, 12)
+            let bottomPad = max(insets.bottom, 6)
+            let topPad = max(insets.top, 4)
 
-            VStack(spacing: 0) {
-                // ── Top Bar ───────────────────────────────────────────────────
+            let usableW = geo.size.width - leadPad - trailPad
+            let usableH = geo.size.height - topPad - bottomPad
+
+            let topBarH: CGFloat = 24
+            let vSpacing: CGFloat = 6
+            let hSpacing: CGFloat = 10
+            let availableH = max(260, usableH - topBarH - vSpacing)
+
+            let leftW = (usableW - hSpacing) * 0.48
+            let rightW = (usableW - hSpacing) * 0.52
+
+            let gaugesCardH = availableH * 0.54
+            let gForceCardH = availableH * 0.46 - vSpacing
+            let lyricsCardH = availableH * 0.58
+            let statsCardH  = availableH * 0.42 - vSpacing
+
+            VStack(spacing: vSpacing) {
+                // ── Top Bar (CarPlay & OBD Status) ───────────────────────────
                 topBar
-                    .frame(width: w, height: topBarH)
-                    .padding(.horizontal, 12)
+                    .frame(width: usableW, height: topBarH)
 
-                // ── Main Two-Column Area ──────────────────────────────────────
-                HStack(alignment: .top, spacing: 0) {
-                    leftPanel(width: leftW, height: h - topBarH)
-                        .frame(width: leftW, height: h - topBarH)
+                // ── Two-Column Cockpit Layout ─────────────────────────────────
+                HStack(alignment: .top, spacing: hSpacing) {
+                    // Linke Spalte: Gauges (oben) + G-Kräfte (unten)
+                    VStack(spacing: vSpacing) {
+                        landscapeGaugesCard(width: leftW, height: gaugesCardH)
+                        landscapeGForceCard(width: leftW, height: gForceCardH)
+                    }
+                    .frame(width: leftW, height: availableH)
 
-                    rightPanel(width: rightW, height: h - topBarH)
-                        .frame(width: rightW, height: h - topBarH)
+                    // Rechte Spalte: Lyrics (oben) + Stats Grid (unten)
+                    VStack(spacing: vSpacing) {
+                        landscapeLyricsCard(width: rightW, height: lyricsCardH)
+                        landscapeStatsMatrix(width: rightW, height: statsCardH)
+                    }
+                    .frame(width: rightW, height: availableH)
                 }
+                .frame(width: usableW, height: availableH)
             }
-            .frame(width: w, height: h)
+            .padding(.leading, leadPad)
+            .padding(.trailing, trailPad)
+            .padding(.top, topPad)
+            .padding(.bottom, bottomPad)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .ignoresSafeArea()
         .overlay(
             Group {
                 if obd.isColdOverloaded {
@@ -55,7 +85,9 @@ public struct HandyModusLandscapeView: View {
         )
     }
 
-    // ── Top Bar ───────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: 1. Top Status Bar
+    // ─────────────────────────────────────────────────────────────────────────
 
     private var topBar: some View {
         HStack(spacing: 8) {
@@ -70,15 +102,15 @@ public struct HandyModusLandscapeView: View {
             if !observer.currentTrackTitle.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "music.note")
-                        .font(.system(size: 8.5))
+                        .font(.system(size: 8))
                         .foregroundStyle(.cyan)
                     Text("\(observer.currentTrackTitle) • \(observer.currentArtist)")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.8))
                         .lineLimit(1)
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 2)
+                .padding(.vertical, 2.5)
                 .background(Color.white.opacity(0.06), in: Capsule())
             }
 
@@ -93,60 +125,132 @@ public struct HandyModusLandscapeView: View {
                     .foregroundStyle(.yellow.opacity(0.85))
             }
             .padding(.horizontal, 7)
-            .padding(.vertical, 2)
+            .padding(.vertical, 2.5)
             .background(Color.yellow.opacity(0.12), in: Capsule())
         }
     }
 
-    // ── Left Panel: Gauges + G-Ball ───────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: 2. Left Column: Main Gauges Card (Öl + RPM + Boost)
+    // ─────────────────────────────────────────────────────────────────────────
 
-    private func leftPanel(width: CGFloat, height: CGFloat) -> some View {
-        let rpmSize   = height * 0.42
-        let smallSize = height * 0.30
-        let gBallSize = height * 0.22
+    private func landscapeGaugesCard(width: CGFloat, height: CGFloat) -> some View {
+        let rpmSize   = min(118, height * 0.70)
+        let ringSize  = min(86, height * 0.54)
 
-        return VStack(spacing: height * 0.04) {
-            // Gauge row
-            HStack(alignment: .center, spacing: width * 0.04) {
-                // Öltemperatur
-                VStack(spacing: 2) {
-                    OilTempRingView(tempC: obd.effectiveOilTemp, size: smallSize)
-                    Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL")
-                        .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.35))
+        return HStack(alignment: .center, spacing: 0) {
+            // Öltemperatur links
+            VStack(spacing: 2) {
+                OilTempRingView(tempC: obd.effectiveOilTemp, size: ringSize)
+                Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL")
+                    .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+
+            // RPM Tacho Mitte (Hero)
+            VStack(spacing: 2) {
+                RPMTachometerView(rpm: obd.liveRPM, size: rpmSize)
+                Text(obd.isEnabled && obd.connectionState == .connected ? "LIVE OBD" : "SIMULATION")
+                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+
+            // Ladedruck rechts
+            VStack(spacing: 2) {
+                BoostArcView(
+                    boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil,
+                    size: ringSize
+                )
+                Text(obd.liveMAP != nil ? "MAP DIREKT" : "MAF BERECHN.")
+                    .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 6)
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: 3. Left Column: G-Kräfte Scope Card (GBall + Badge + Readouts)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private func landscapeGForceCard(width: CGFloat, height: CGFloat) -> some View {
+        let gBallSize = min(72, height * 0.56)
+        let badgeSize = min(66, height * 0.52)
+
+        return VStack(spacing: 4) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "scope")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundStyle(purple)
+                Text("G-KRÄFTE")
+                    .font(.system(size: 9, weight: .black, design: .rounded))
+                    .foregroundStyle(purple.opacity(0.85))
+
+                Spacer()
+
+                // Kalibrieren Button (1s Mittelwert)
+                Button {
+                    motion.calibrate()
+                } label: {
+                    if motion.isCalibrating {
+                        HStack(spacing: 2.5) {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .tint(purple)
+                            Text("1s…")
+                                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(purple)
+                        }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(purple.opacity(0.2), in: Capsule())
+                    } else {
+                        HStack(spacing: 2.5) {
+                            Image(systemName: "scope")
+                            Text("Nullpunkt")
+                        }
+                        .font(.system(size: 7.5, weight: .bold))
+                        .foregroundStyle(purple.opacity(0.95))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(purple.opacity(0.14), in: Capsule())
+                    }
                 }
+                .disabled(motion.isCalibrating)
 
-                // RPM
-                VStack(spacing: 2) {
-                    RPMTachometerView(rpm: obd.liveRPM, size: rpmSize)
-                    Text(obd.isEnabled && obd.connectionState == .connected ? "LIVE OBD" : "SIMULATION")
-                        .font(.system(size: 7, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.35))
-                }
-
-                // Boost
-                VStack(spacing: 2) {
-                    BoostArcView(
-                        boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil,
-                        size: smallSize
-                    )
-                    Text(obd.liveMAP != nil ? "MAP DIREKT" : "MAF BERECHN.")
-                        .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.35))
+                // Peak Reset
+                Button {
+                    motion.resetPeak()
+                } label: {
+                    HStack(spacing: 2.5) {
+                        Image(systemName: "arrow.counterclockwise")
+                        Text("Peak")
+                    }
+                    .font(.system(size: 7.5, weight: .bold))
+                    .foregroundStyle(.orange.opacity(0.9))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color.orange.opacity(0.14), in: Capsule())
                 }
             }
-            .padding(.vertical, height * 0.025)
-            .padding(.horizontal, width * 0.04)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-                    .overlay(RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1))
-            )
 
-            // G-Ball row
-            HStack(spacing: 10) {
+            // Scope & Readouts Row
+            HStack(alignment: .center, spacing: 8) {
+                // GBall View
                 GBallView(
                     x: motion.normalizedX,
                     y: motion.normalizedY,
@@ -154,171 +258,35 @@ public struct HandyModusLandscapeView: View {
                     maxG: motion.maxG
                 )
                 .frame(width: gBallSize, height: gBallSize)
-                .background(Circle().fill(Color.black.opacity(0.4)))
+                .background(Circle().fill(Color.black.opacity(0.45)))
 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 4) {
-                        Text("G")
-                            .font(.system(size: 8, weight: .black, design: .rounded))
-                            .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                        Text(motion.currentGFormatted)
-                            .font(.system(size: 13, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
+                // 2x2 Numeric Readouts
+                VStack(spacing: 3) {
+                    HStack(spacing: 6) {
+                        LandscapeGValueItem(label: "AKTUELL", val: motion.currentGFormatted, color: gColor(motion.currentG, maxG: motion.maxG))
+                        LandscapeGValueItem(label: "PEAK", val: motion.peakGFormatted, color: .orange)
                     }
-                    HStack(spacing: 4) {
-                        Text("PK")
-                            .font(.system(size: 7.5, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                        Text(motion.peakGFormatted)
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.orange)
-                    }
-                    HStack(spacing: 4) {
-                        Button { motion.calibrate() } label: {
-                            Text(motion.isCalibrating ? "1s…" : "Nullpunkt")
-                                .font(.system(size: 7.5, weight: .bold))
-                                .foregroundStyle(Color(red: 0.68, green: 0.35, blue: 0.98))
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1.5)
-                                .background(Color(red: 0.68, green: 0.35, blue: 0.98).opacity(0.12), in: Capsule())
-                        }
-                        .disabled(motion.isCalibrating)
-
-                        Button { motion.resetPeak() } label: {
-                            Text("Reset")
-                                .font(.system(size: 7.5, weight: .bold))
-                                .foregroundStyle(.orange)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1.5)
-                                .background(Color.orange.opacity(0.12), in: Capsule())
-                        }
+                    HStack(spacing: 6) {
+                        LandscapeGValueItem(label: "LATERAL", val: String(format: "%.2fG", abs(motion.gX)), color: purple.opacity(0.85))
+                        LandscapeGValueItem(label: "LÄNGS", val: String(format: "%.2fG", abs(motion.gY)), color: purple.opacity(0.85))
                     }
                 }
+                .frame(maxWidth: .infinity)
 
-                Spacer()
+                // G-Badge Gauge
+                GForceGaugeBadge(currentG: motion.currentG, maxG: motion.maxG, size: badgeSize)
             }
-            .padding(8)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.ultraThinMaterial)
-                    .overlay(RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1))
-            )
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
-    }
-
-    // ── Right Panel: Lyrics + Quick Stats ────────────────────────────────────
-
-    private func rightPanel(width: CGFloat, height: CGFloat) -> some View {
-        let lyricsH  = height * 0.65
-        let statsH   = height * 0.35
-
-        return VStack(spacing: 0) {
-            // Lyrics panel — top 65%
-            HandyModusLyricsPanel(observer: observer, isCompact: true)
-                .frame(maxWidth: .infinity)
-                .frame(height: lyricsH)
-
-            // Quick stats grid + controls — bottom 35%
-            VStack(spacing: 6) {
-                HStack(spacing: 6) {
-                    quickStat(icon: "speedometer",        label: "KM/H",   val: "\(obd.liveSpeed)")
-                    quickStat(icon: "thermometer.medium", label: "WASSER", val: obd.liveCoolantTemp != nil ? "\(obd.liveCoolantTemp!)°" : "--")
-                    quickStat(icon: "bolt.fill",          label: "VOLT",   val: obd.batteryVoltage != nil ? String(format: "%.1f", obd.batteryVoltage!) : "--")
-                    quickStat(icon: "flame.fill",         label: "ABGAS",  val: obd.estimatedExhaustTemp != nil ? "\(obd.estimatedExhaustTemp!)°" : "--")
-                }
-
-                if obd.isEnabled && obd.connectionState != .connected {
-                    HStack {
-                        Spacer()
-                        Button { obd.reconnect() } label: {
-                            Label("OBD Connect", systemImage: "cable.connector")
-                                .font(.system(size: 9.5, weight: .bold))
-                        }
-                        .buttonStyle(CockpitButtonStyle(color: .green))
-                        Spacer()
-                    }
-                }
-            }
-            .padding(8)
-            .frame(maxWidth: .infinity)
-            .frame(height: statsH)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-                    .overlay(RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1))
-            )
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-    }
-
-    // ── Helper Views ──────────────────────────────────────────────────────────
-
-    private func quickStat(icon: String, label: String, val: String) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-                .font(.system(size: 7.5, weight: .bold))
-                .foregroundStyle(.cyan)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(val)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.white)
-                Text(label)
-                    .font(.system(size: 6, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2.5)
-        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
-    }
-
-    private func connectionPill(label: String, color: Color, icon: String) -> some View {
-        HStack(spacing: 3) {
-            Circle().fill(color).frame(width: 5, height: 5)
-            Image(systemName: icon)
-                .font(.system(size: 7.5, weight: .bold))
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 7.5, weight: .black, design: .rounded))
-                .foregroundStyle(color)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(color.opacity(0.12), in: Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.2), lineWidth: 1))
-    }
-
-    private var obdLabel: String {
-        guard obd.isEnabled else { return "OBD AUS" }
-        switch obd.connectionState {
-        case .connected:   return "OBD LIVE"
-        case .scanning:    return "SUCHE…"
-        case .connecting:  return "VERBINDET…"
-        default:           return "OBD GETRENNT"
-        }
-    }
-
-    private var obdPillColor: Color {
-        guard obd.isEnabled else { return .secondary }
-        switch obd.connectionState {
-        case .connected:                              return .green
-        case .scanning, .connecting, .initializing:  return .orange
-        default:                                      return .red
-        }
-    }
-
-    private func gColor(_ g: Double, maxG: Double) -> Color {
-        let ratio = maxG > 0 ? g / maxG : 0
-        switch ratio {
-        case ..<0.5: return .green
-        case 0.5..<0.75: return .yellow
-        default: return .red
-        }
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(purple.opacity(0.22), lineWidth: 1)
+                )
+        )
     }
 }

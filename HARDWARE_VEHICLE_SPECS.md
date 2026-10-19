@@ -376,6 +376,46 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 * **Datei-Aufteilung:**  
   Terminal-Logging-Hilfsfunktionen wurden nach `OBDManager+Logging.swift` ausgelagert, damit alle Swift-Dateien strikt unter 485 Zeilen bleiben.
 
+---
+
+## 15. 🏎️ Build #88: Widescreen Racing Cockpit (Querformat-Redesign) (19.10.2026)
+
+### A. Warum das Querformat vorher nicht passte:
+* **Feste Pixel-Multiplikatoren & Spalten-Kollision:**  
+  Vorher versuchte `HandyModusLandscapeView`, drei Rundinstrumente mit `height * 0.42` (~160 pt) und zweimal `height * 0.30` (~115 pt) in eine linke Spalte von nur 380 pt Breite zu quetschen ($115 + 160 + 115 = 390\,\text{pt}$). Dadurch überlappten die Instrumente oder wurden abgeschnitten.
+* **Fehlender Safe-Area-Schutz:**  
+  `.ignoresSafeArea()` führte dazu, dass auf iPhones mit Dynamic Island oder Notch die linke oder rechte Spalte unter der Kamera-Aussparung bzw. unter dem Home-Balken verschwand.
+* **Gekürztes Stats-Panel:**  
+  Im Querformat wurden bisher nur 4 magere Textzeilen angezeigt, während das Hochkantformat 8 farbenfrohe Kacheln mit Warnstufen bot.
+
+### B. Das neue 2-Säulen Pro-Cockpit Layout:
+1. **Safe-Area Insets & Adaptive Geometrie:**  
+   Dynamische Berechnung von `usableW` und `usableH` unter Abzug von Notch, Dynamic Island und Home Indicator (`leadPad = max(insets.leading, 12)`, etc.). Kein Element wird je verdeckt.
+2. **Linke Spalte (48% Breite):**
+   * **Obere Karte: Main Gauges Row (`landscapeGaugesCard`):**  
+     * Öl-Temperatur Ring (`ringSize = min(86, gaugesCardH * 0.54)`) + Typ-Badge
+     * RPM-Tachometer Hero (`rpmSize = min(118, gaugesCardH * 0.70)`) + Live-OBD Badge
+     * Ladedruck Arc (`ringSize = 86`) + MAP/MAF Badge
+     * Perfekt austariertes Breitenverhältnis, null Clipping, frosted Glass mit 16pt CornerRadius.
+   * **Untere Karte: G-Kräfte Scope Card (`landscapeGForceCard`):**  
+     * Header mit Scope-Icon, "G-KRÄFTE", Nullpunkt 1s-Kalibrierung & Peak-Reset-Knopf
+     * Interaktiver GBall Scope ($72 \times 72\,\text{pt}$)
+     * 2×2 Telemetrie-Matrix: AKTUELL (dynamische G-Farbe), PEAK (orange), LATERAL (purple), LÄNGS (purple)
+     * GForceGaugeBadge Kreisinstrument ($66 \times 66\,\text{pt}$)
+3. **Rechte Spalte (52% Breite):**
+   * **Obere Karte: Widescreen Lyrics Stage (`landscapeLyricsCard`):**  
+     * Song-Header mit springendem Equalizer-Icon, Titel, Interpret & Sync/Retry-Badge
+     * Cyan-Farbverlauf Progress Bar (2.5 pt)
+     * 3-Zeilen-Textbühne: Vorherige Zeile (subtil), Aktive Zeile (15.5pt Fett, leuchtender Cyan-Glow, sanfte Spring-Animation), Nächste Zeile.
+   * **Untere Karte: 8-Tile Performance Matrix (`landscapeStatsMatrix`):**  
+     * Volles 2×4 Kachelraster wie im geliebten Hochkantformat:
+       * Reihe 1: SPEED (km/h), KÜHLWASSER (°C), BATTERIE (Volt), LUFTMASSE (g/s)
+       * Reihe 2: ANSAUGLUFT (°C), LAST (%), ABGAS (EGT °C), G-PEAK (G)
+     * Individuelle Farbkodierung, Monospace-Ziffern und Warnfarben bei Überhitzung (z.B. Kühlwasser > 105°C oder EGT > 780°C).
+4. **Entwickler-Regeln:**  
+   Aufgeteilt in [`HandyModusLandscapeView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeView.swift) (292 Zeilen) und [`HandyModusLandscapeComponents.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeComponents.swift) (344 Zeilen) – beide weit unter der 500-Zeilen-Grenze.
+
+
 
 
 
