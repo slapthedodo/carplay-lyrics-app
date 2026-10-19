@@ -62,6 +62,13 @@ public actor LyricsService {
     private var cache: [String: ParsedLyrics] = [:]
     private var failedTracks: Set<String> = []
 
+    private let diskCacheDirectory: URL = {
+        let urls = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+        let dir = urls[0].appendingPathComponent("LyricsCache", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
@@ -77,6 +84,28 @@ public actor LyricsService {
         failedTracks.removeAll()
     }
 
+    /// Lädt Lyrics vorab in den Cache & auf die Festplatte (Prefetch für Playlist / nächsten Song)
+    public func prefetchLyrics(title: String,
+                               artist: String,
+                               album: String = "",
+                               duration: TimeInterval? = nil) async {
+        let cleanTitle = title.trimmingCharacters(in: .whitespaces)
+        let cleanArtist = artist.trimmingCharacters(in: .whitespaces)
+        guard !cleanTitle.isEmpty, !cleanArtist.isEmpty else { return }
+        let cacheKey = "\(cleanArtist)|\(cleanTitle)".lowercased()
+
+        // Bereits im RAM?
+        if cache[cacheKey] != nil { return }
+        // Bereits auf Festplatte?
+        if let onDisk = loadFromDisk(cacheKey: cacheKey, title: cleanTitle, artist: cleanArtist) {
+            cache[cacheKey] = onDisk
+            return
+        }
+
+        // Im Hintergrund herunterladen und persistent cachen
+        _ = try? await fetchLyrics(title: cleanTitle, artist: cleanArtist, album: album, duration: duration)
+    }
+
     /// Returns synced lyrics for the given track.
     /// Throws `LyricsServiceError` if nothing is found.
     public func fetchLyrics(title: String,
@@ -84,7 +113,16 @@ public actor LyricsService {
                             album: String = "",
                             duration: TimeInterval? = nil) async throws -> ParsedLyrics {
         let cacheKey = "\(artist)|\(title)".lowercased().trimmingCharacters(in: .whitespaces)
+
+        // 1. RAM-Cache prüfen
         if let cached = cache[cacheKey] { return cached }
+
+        // 2. Permanenter Offline-Festplattencache (lädt in < 1ms ohne Internet)
+        if let onDisk = loadFromDisk(cacheKey: cacheKey, title: title, artist: artist) {
+            cache[cacheKey] = onDisk
+            return onDisk
+        }
+
         if failedTracks.contains(cacheKey) { throw LyricsServiceError.noSyncedLyrics }
 
         do {
@@ -105,14 +143,15 @@ public actor LyricsService {
         if let result = try? await fetchExact(title: title,
                                               artist: artist,
                                               album: album,
-                                              duration: duration) {
+                                              duration: duration,
+                                              cacheKey: cacheKey) {
             cache[cacheKey] = result
             return result
         }
 
         // 2. Fuzzy search fallback
         do {
-            let result = try await fetchSearch(title: title, artist: artist)
+            let result = try await fetchSearch(title: title, artist: artist, cacheKey: cacheKey)
             cache[cacheKey] = result
             return result
         } catch LyricsServiceError.noSyncedLyrics {
@@ -125,13 +164,40 @@ public actor LyricsService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MARK: - Offline Disk Cache
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private func diskFileURL(for cacheKey: String) -> URL {
+        let safe = cacheKey.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : "_" }
+        let hash = abs(cacheKey.hashValue)
+        let filename = "\(String(safe).prefix(40))_\(hash).lrc"
+        return diskCacheDirectory.appendingPathComponent(filename)
+    }
+
+    private func loadFromDisk(cacheKey: String, title: String, artist: String) -> ParsedLyrics? {
+        let url = diskFileURL(for: cacheKey)
+        guard FileManager.default.fileExists(atPath: url.path),
+              let raw = try? String(contentsOf: url, encoding: .utf8),
+              !raw.isEmpty else { return nil }
+        let parsed = LRCParser.parse(raw, title: title, artist: artist)
+        return parsed.lines.isEmpty ? nil : parsed
+    }
+
+    private func saveToDisk(cacheKey: String, rawLRC: String) {
+        guard !rawLRC.isEmpty else { return }
+        let url = diskFileURL(for: cacheKey)
+        try? rawLRC.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MARK: Private helpers
     // ─────────────────────────────────────────────────────────────────────────
 
     private func fetchExact(title: String,
                             artist: String,
                             album: String,
-                            duration: TimeInterval?) async throws -> ParsedLyrics {
+                            duration: TimeInterval?,
+                            cacheKey: String) async throws -> ParsedLyrics {
         var components = URLComponents(string: "https://lrclib.net/api/get")!
         var items: [URLQueryItem] = [
             URLQueryItem(name: "track_name",  value: title),
@@ -180,10 +246,11 @@ public actor LyricsService {
         guard let lrc = resp.syncedLyrics, !lrc.isEmpty else {
             throw LyricsServiceError.noSyncedLyrics
         }
+        saveToDisk(cacheKey: cacheKey, rawLRC: lrc)
         return LRCParser.parse(lrc, title: title, artist: artist)
     }
 
-    private func fetchSearch(title: String, artist: String) async throws -> ParsedLyrics {
+    private func fetchSearch(title: String, artist: String, cacheKey: String) async throws -> ParsedLyrics {
         let query = "\(artist) \(title)"
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         guard let url = URL(string: "https://lrclib.net/api/search?q=\(query)") else {
@@ -225,6 +292,7 @@ public actor LyricsService {
             throw LyricsServiceError.noSyncedLyrics
         }
 
+        saveToDisk(cacheKey: cacheKey, rawLRC: lrc)
         return LRCParser.parse(lrc,
                                title: first.trackName ?? title,
                                artist: first.artistName ?? artist)

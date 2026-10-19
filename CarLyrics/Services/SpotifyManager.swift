@@ -42,6 +42,11 @@ public struct SpotifyAlbum: Decodable {
     public let name: String?
 }
 
+public struct SpotifyQueueResponse: Decodable {
+    public let currently_playing: SpotifyTrack?
+    public let queue: [SpotifyTrack]?
+}
+
 @MainActor
 public final class SpotifyManager: ObservableObject {
 
@@ -239,15 +244,51 @@ public final class SpotifyManager: ObservableObject {
                 }
 
                 if let track = current.item {
-                    self.trackTitle = track.name ?? ""
-                    self.artistName = track.artists?.first?.name ?? ""
+                    let newTitle = track.name ?? ""
+                    let newArtist = track.artists?.first?.name ?? ""
+                    let trackChanged = (newTitle != self.trackTitle || newArtist != self.artistName)
+
+                    self.trackTitle = newTitle
+                    self.artistName = newArtist
                     self.albumName  = track.album?.name ?? ""
                     if let durMs = track.duration_ms {
                         self.durationSeconds = Double(durMs) / 1000.0
                     }
+
+                    if trackChanged {
+                        self.prefetchUpcomingQueue()
+                    }
                 }
             } catch {
                 self.lastSyncError = error.localizedDescription
+            }
+        }
+    }
+
+    /// Lädt die nächsten 3 Songs aus der Spotify-Warteschlange vorab herunter (Prefetch)
+    private func prefetchUpcomingQueue() {
+        guard isAuthenticated, !accessToken.isEmpty else { return }
+        guard let url = URL(string: "https://api.spotify.com/v1/me/player/queue") else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 4
+
+        Task.detached(priority: .utility) { [weak self, session = self.session] in
+            guard let self else { return }
+            guard let (data, response) = try? await session.data(for: request),
+                  let http = response as? HTTPURLResponse, http.statusCode == 200,
+                  let queueResp = try? JSONDecoder().decode(SpotifyQueueResponse.self, from: data),
+                  let queue = queueResp.queue else { return }
+
+            for track in queue.prefix(3) {
+                let title = track.name ?? ""
+                let artist = track.artists?.first?.name ?? ""
+                let album = track.album?.name ?? ""
+                let dur = track.duration_ms.map { Double($0) / 1000.0 }
+                if !title.isEmpty && !artist.isEmpty {
+                    await LyricsService.shared.prefetchLyrics(title: title, artist: artist, album: album, duration: dur)
+                }
             }
         }
     }

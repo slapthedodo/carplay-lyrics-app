@@ -44,7 +44,12 @@ public final class MusicObserver: ObservableObject {
     public var isCarPlayConnected: Bool {
         let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
         let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains {
-            $0.portType == .carAudio || $0.portType == .bluetoothA2DP || $0.portType == .bluetoothHFP
+            $0.portType == .carAudio ||
+            $0.portType == .airPlay ||
+            $0.portType == .usbAudio ||
+            $0.portType == .bluetoothA2DP ||
+            $0.portType == .bluetoothHFP ||
+            $0.portType == .bluetoothLE
         }
         return hasCarPlayScreen || hasCarAudio
     }

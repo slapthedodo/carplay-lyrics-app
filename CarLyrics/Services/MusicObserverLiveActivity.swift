@@ -98,9 +98,12 @@ extension MusicObserver {
                     self.scheduleWidgetReload(force: false)
                 } else {
                     self.disconnectedSeconds += 1
-                    if self.autoDismissEnabled && self.disconnectedSeconds >= 30 {
+                    if self.autoDismissEnabled && self.disconnectedSeconds >= 900 {
                         await self.endAllLiveActivities()
                         BackgroundKeepAliveManager.shared.stop()
+                    } else if self.hasActiveLiveActivity {
+                        // Solange die Live Activity sichtbar ist, Keep-Alive aufrechterhalten
+                        BackgroundKeepAliveManager.shared.ensureActive()
                     }
                     _ = self.makeState()
                 }
