@@ -451,8 +451,26 @@ Auf Basis des Nutzerfeedbacks wurden alle isolierten Karten-Container (`RoundedR
 * **Feedback:** „Die gkräfte kannst du auch größer machen wenn du sie richtig im kasten scalen würdest.“
 * **Umsetzung:** Die starre Obergrenze (zuvor 125pt bzw. 155pt) wurde entfernt. Der Durchmesser skaliert dynamisch mit `min(maxRadarW, maxRadarH)`:
   * Auf dem iPhone 14 Pro Max wächst das G-Force Radar auf bis zu **191–195pt Durchmesser** (~56% mehr Fläche).
-  * Die Twin Pillars (Ladedruck & Öltemperatur) stehen links mit 82pt Breite kompakt und hoch (Balkenhöhe bis 195pt), getrennt durch eine 1pt Hairline.
-  * Optimierte Cockpit-Proportionen: Powertrain & G-Pod 33.5% | Tacho 34.0% | Lyrics 32.5%.
+---
+
+## 19. 🎯 Build #94: Dynamic Island Orientation Inversion Fix & Classic Powertrain Layout (19.10.2026)
+
+### A. Dynamic Island Orientierungs-Korrektur (Inversions-Bug behoben):
+* **Problem:** In UIKit ist `UIInterfaceOrientation` invertiert zu `UIDeviceOrientation`: `UIInterfaceOrientation.landscapeLeft` bedeutet, dass die Oberseite (Dynamic Island) **rechts** liegt, und `landscapeRight` bedeutet, dass sie **links** liegt. Durch eine umgekehrte Abfrage landete die Dynamic-Island-Freistellung fälschlicherweise auf der leeren Seite (Trailing), während die Seite mit der physischen Dynamic Island (Leading) nur 14pt Padding erhielt und verdeckt wurde!
+* **Lösung:** `islandOnLeadingEdge` priorisiert:
+  1. `safeHardwareInsets.left > 20` (physische Window-Insets von iOS).
+  2. `UIDevice.current.orientation == .landscapeLeft` (Sensor 90° gegen Uhrzeigersinn).
+  3. `UIInterfaceOrientation.landscapeRight` (Kopf des Geräts links).
+* **Clearance:** Auf der Island-Seite gilt garantiert **65pt** (`max(insets, 59) + 6pt`). Die Gegenseite schließt bündig mit 14pt ab.
+* **Portrait:** `HandyModusView` hat nun ebenfalls `max(safeHardwareInsets.top, 56)` Padding oben erhalten.
+
+### B. Wiederherstellung des klassischen Powertrain-Layouts („mach dass so wie davor“):
+* **Feedback:** „die gkräfte hast du jetzt komplett anderst angeotdnet mach dass so wie davor und fixe das island problem“
+* **Umsetzung:**
+  * Das side-by-side Layout wurde rückgängig gemacht.
+  * **Oben:** Twin Precision Pillars (Ladedruck links, Öltemperatur rechts nebeneinander) mit bis zu 85pt Balkenhöhe.
+  * **Unten:** G-Force Radar (112pt Durchmesser) mit den Messwerten und Peak-Hold rechts daneben.
+  * **Nullpunkt-Button:** Sitzt direkt rechts neben dem Label `"G-KRAFT"` (`spacing: 5`).
 
 
 

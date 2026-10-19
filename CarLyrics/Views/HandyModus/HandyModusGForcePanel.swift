@@ -171,14 +171,12 @@ public struct WidescreenPowertrainPod: View {
     }
 
     public var body: some View {
-        // Volle Ausnutzung des Kastens für maximale Größe des G-Force Radars (bis zu ~195pt)
-        let maxRadarW = max(90, width - 92)
-        let maxRadarH = max(90, height - 50)
-        let radarSize = min(maxRadarW, maxRadarH)
+        let pillarH = max(55, min(85, height * 0.32))
+        let radarSize = min(112, height * 0.44)
 
-        return HStack(spacing: 6) {
-            // ── 1. Linke Säulen: Twin Precision Pillars (Ladedruck & Öl) ─────
-            HStack(spacing: 5) {
+        return VStack(spacing: 6) {
+            // ── Section 1: Twin Precision Pillars (Boost & Oil) ───────────────
+            HStack(spacing: 12) {
                 // Boost Pillar
                 telemetryPillar(
                     title: "LADEDRUCK",
@@ -188,7 +186,7 @@ public struct WidescreenPowertrainPod: View {
                     unit: "BAR",
                     ratio: boostRatio,
                     color: boostColor,
-                    barHeight: max(75, height * 0.58)
+                    barHeight: pillarH
                 )
 
                 // Oil Temp Pillar
@@ -198,48 +196,19 @@ public struct WidescreenPowertrainPod: View {
                     unit: "°C",
                     ratio: oilRatio,
                     color: oilColor,
-                    barHeight: max(75, height * 0.58)
+                    barHeight: pillarH
                 )
             }
-            .frame(width: 82)
+            .frame(maxWidth: .infinity)
 
-            // Feine vertikale Trennlinie
+            // Feine horizontale Trennlinie
             Rectangle()
                 .fill(Color.white.opacity(0.08))
-                .frame(width: 1, height: height * 0.78)
-
-            // ── 2. Rechte Seite: Großes G-Force Radar & Nullpunkt-Button ─────
-            VStack(spacing: 3) {
-                // Header: Text + Nullpunkt-Button direkt daneben (nicht ganz rechts!)
-                HStack(spacing: 6) {
-                    Text("G-KRAFT")
-                        .font(.system(size: 8.5, weight: .black, design: .rounded))
-                        .foregroundStyle(purple)
-
-                    // Nullpunkt Button DIREKT rechts neben dem Text
-                    Button {
-                        motion.calibrate()
-                    } label: {
-                        HStack(spacing: 2.5) {
-                            if motion.isCalibrating {
-                                ProgressView().scaleEffect(0.5).tint(purple)
-                                Text("1s…").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundStyle(purple)
-                            } else {
-                                Image(systemName: "scope").font(.system(size: 7.5, weight: .bold)).foregroundStyle(purple)
-                                Text("Nullpunkt").font(.system(size: 7.5, weight: .black, design: .rounded)).foregroundStyle(purple)
-                            }
-                        }
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(purple.opacity(0.18), in: Capsule())
-                    }
-                    .disabled(motion.isCalibrating)
-
-                    Spacer(minLength: 0)
-                }
+                .frame(height: 1)
                 .padding(.horizontal, 4)
 
-                // Riesiges G-Force Radar Scope (bis zu 155pt)
+            // ── Section 2: G-Force Friction Radar & Values ───────────────────
+            HStack(spacing: 10) {
                 GBallView(
                     x: motion.normalizedX,
                     y: motion.normalizedY,
@@ -250,29 +219,61 @@ public struct WidescreenPowertrainPod: View {
                 .background(Circle().fill(Color.black.opacity(0.50)))
                 .overlay(Circle().stroke(purple.opacity(0.35), lineWidth: 1.5))
 
-                // Werte-Leiste unter dem Radar
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
+                    // Header: Text + Nullpunkt-Button direkt rechts daneben
+                    HStack(spacing: 5) {
+                        Text("G-KRAFT")
+                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .foregroundStyle(purple)
+
+                        Button {
+                            motion.calibrate()
+                        } label: {
+                            HStack(spacing: 2) {
+                                if motion.isCalibrating {
+                                    ProgressView().scaleEffect(0.5).tint(purple)
+                                    Text("1s…").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundStyle(purple)
+                                } else {
+                                    Image(systemName: "scope").font(.system(size: 7.5, weight: .bold)).foregroundStyle(purple)
+                                    Text("Nullpunkt").font(.system(size: 7.5, weight: .bold, design: .rounded)).foregroundStyle(purple)
+                                }
+                            }
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(purple.opacity(0.18), in: Capsule())
+                        }
+                        .disabled(motion.isCalibrating)
+
+                        Spacer(minLength: 0)
+                    }
+
                     Text(motion.currentGFormatted)
-                        .font(.system(size: min(18, height * 0.09), weight: .black, design: .monospaced))
+                        .font(.system(size: min(22, height * 0.11), weight: .black, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
 
-                    HStack(spacing: 2) {
-                        Text("P: \(motion.peakGFormatted)")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    HStack(spacing: 4) {
+                        Text("PEAK: \(motion.peakGFormatted)")
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                         Button { motion.resetPeak() } label: {
                             Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 7, weight: .bold))
+                                .font(.system(size: 7.5, weight: .bold))
                                 .foregroundStyle(.orange.opacity(0.85))
                         }
                     }
 
-                    Text("LAT: \(String(format: "%.2fG", abs(motion.gX)))")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(purple.opacity(0.80))
+                    HStack(spacing: 6) {
+                        Text("LAT: \(String(format: "%.2fG", abs(motion.gX)))")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundStyle(purple.opacity(0.80))
+
+                        Text("MAX \(String(format: "%.1f", motion.maxG))G")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.35))
+                    }
                 }
             }
-            .frame(maxWidth: .infinity)
+            .padding(.top, 2)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)

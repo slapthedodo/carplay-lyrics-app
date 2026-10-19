@@ -30,8 +30,10 @@ public struct HandyModusLandscapeView: View {
     }
 
     private var safeHardwareInsets: UIEdgeInsets {
-        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene ?? UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let window = scenes.first(where: { $0.activationState == .foregroundActive })?.windows.first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first {
             return window.safeAreaInsets
         }
         return UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 0)
@@ -41,38 +43,43 @@ public struct HandyModusLandscapeView: View {
         if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene ?? UIApplication.shared.connectedScenes.first as? UIWindowScene {
             return scene.interfaceOrientation
         }
-        return .landscapeLeft
+        return .landscapeRight
+    }
+
+    private var islandOnLeadingEdge: Bool {
+        let insets = safeHardwareInsets
+        // 1. Echte Hardware Insets: Wenn links > 20 und rechts < 20, ist die Island links
+        if insets.left > 20 && insets.right < 20 { return true }
+        if insets.right > 20 && insets.left < 20 { return false }
+
+        // 2. UIDeviceOrientation: landscapeLeft = 90° gegen Uhrzeigersinn -> Island links
+        let devOri = UIDevice.current.orientation
+        if devOri == .landscapeLeft { return true }
+        if devOri == .landscapeRight { return false }
+
+        // 3. UIInterfaceOrientation: landscapeRight = Content nach rechts gedreht -> Top/Island links
+        if currentInterfaceOrientation == .landscapeRight { return true }
+        if currentInterfaceOrientation == .landscapeLeft { return false }
+
+        // Standard Halterungsausrichtung: Island links
+        return true
     }
 
     public var body: some View {
         GeometryReader { geo in
             let hwInsets = safeHardwareInsets
-            let orientation = currentInterfaceOrientation
-
-            // Dynamic Island Erkennung:
-            // Bei landscapeLeft (Oberseite/Island links): Island ist leading
-            // Bei landscapeRight (Oberseite/Island rechts): Island ist trailing
-            let isIslandLeading: Bool = {
-                if orientation == .landscapeLeft { return true }
-                if orientation == .landscapeRight { return false }
-                return hwInsets.left > 20
-            }()
-
-            let isIslandTrailing: Bool = {
-                if orientation == .landscapeRight { return true }
-                if orientation == .landscapeLeft { return false }
-                return hwInsets.right > 20
-            }()
+            let isLeading = islandOnLeadingEdge
 
             // iPhone 14 Pro Max / 15 Pro / 16 Pro Dynamic Island Hardware Clearance:
-            // Die Dynamic Island ragt 59pt von der Kante hinein. Mit 4pt Puffer = 63pt.
-            // Die Gegenseite ohne Island geht bis auf 14pt bündig an den Rand (kein toter Bereich!).
-            let islandPad: CGFloat = max(hwInsets.left > 20 ? hwInsets.left : 0, hwInsets.right > 20 ? hwInsets.right : 0, 59) + 4
+            // Die Dynamic Island ragt 59pt von der Kante hinein.
+            // Mit 6pt Puffer = 65pt absolute Freistellung!
+            // Die Gegenseite (Ladebuchse) schließt bis auf 14pt bündig ab.
+            let islandPad: CGFloat = max(hwInsets.left > 20 ? hwInsets.left : 0, hwInsets.right > 20 ? hwInsets.right : 0, 59) + 6
             let edgePad: CGFloat = 14
 
-            let leadPad: CGFloat = isIslandLeading ? islandPad : edgePad
-            let trailPad: CGFloat = isIslandTrailing ? islandPad : edgePad
-            let bottomPad: CGFloat = max(hwInsets.bottom, 16)
+            let leadPad: CGFloat = isLeading ? islandPad : edgePad
+            let trailPad: CGFloat = isLeading ? edgePad : islandPad
+            let bottomPad: CGFloat = max(hwInsets.bottom, 21)
             let topPad: CGFloat = max(hwInsets.top, 4)
 
             let usableW = geo.size.width - leadPad - trailPad

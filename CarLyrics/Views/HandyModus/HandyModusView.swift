@@ -37,6 +37,16 @@ public struct HandyModusView: View {
     // MARK: Body
     // ─────────────────────────────────────────────────────────────────────────
 
+    private var safeHardwareInsets: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let window = scenes.first(where: { $0.activationState == .foregroundActive })?.windows.first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first {
+            return window.safeAreaInsets
+        }
+        return UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)
+    }
+
     public var body: some View {
         ZStack {
             HandyModusBackground()
@@ -58,7 +68,7 @@ public struct HandyModusView: View {
                         VStack(spacing: 14) {
                             // ── 1. Status-Streifen ──────────────────────────────────
                             statusStrip
-                                .padding(.top, max(geo.safeAreaInsets.top, 8))
+                                .padding(.top, max(safeHardwareInsets.top, geo.safeAreaInsets.top, 56))
 
                             // ── 2. Lyrics Panel ─────────────────────────────────────
                             HandyModusLyricsPanel(observer: observer)
@@ -77,7 +87,7 @@ public struct HandyModusView: View {
 
                             // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
                             footerControls
-                                .padding(.bottom, max(geo.safeAreaInsets.bottom, 30))
+                                .padding(.bottom, max(safeHardwareInsets.bottom, geo.safeAreaInsets.bottom, 34))
                         }
                         .padding(.horizontal, 14)
                     }
