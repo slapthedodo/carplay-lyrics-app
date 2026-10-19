@@ -304,4 +304,20 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 * Automatischer 1-Shot Retry mit 1.2s Backoff bei Verbindungsfehlern.
 * Klickbarer **OFFLINE (RETRY)**-Chip im Songtext-Header zum manuellen Neuladen.
 
+---
+
+## 12. 📦 Build #85: Offline Lyrics Disk Cache, Queue Pre-Fetching & CarPlay Keep-Alive (19.10.2026)
+
+### A. Warum "alles direkt am Anfang laden" im Auto überlegen ist:
+* **Permanenter Offline-Festplattencache:** Alle heruntergeladenen Songtexte werden dauerhaft im Dateisystem (`Caches/LyricsCache/*.lrc`) gespeichert. Wird ein Song erneut abgespielt (oder offline im Tunnel/Funkloch), lädt der Text in 0 ms ohne jede Internetverbindung.
+* **Warteschlangen-Preloading (Queue Pre-fetching):**
+  * Bei Spotify holt die App über `/v1/me/player/queue` die nächsten 3 Songs der aktuellen Playlist und lädt deren Lyrics asynchron im Hintergrund herunter, solange noch Netzempfang besteht.
+  * Auch bei Trackstart oder App-Start werden Lyrics sofort im Voraus abgefragt.
+
+### B. Wireless CarPlay & Keep-Alive Optimierung:
+* **Audio-Routing:** `isCarPlayConnected` erkennt nun explizit auch `.airPlay` (Wireless CarPlay Audio), `.usbAudio` (Kabel-CarPlay) und `.bluetoothLE`.
+* **AVAudioSession:** `BackgroundKeepAliveManager` bindet `.allowAirPlay` ein, damit der stumme Hintergrundton bei Wireless CarPlay nicht vom iOS-Audio-Router pausiert wird.
+* **Verbindungs-Timeout:** Die Live Activity und der Hintergrund-Task werden bei Musikpause oder Motorstillstand nicht mehr nach 30 Sekunden getötet, sondern bleiben 15 Minuten lang (900s) aktiv im Hintergrund betriebsbereit.
+
+
 
