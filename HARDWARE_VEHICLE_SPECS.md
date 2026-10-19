@@ -378,42 +378,35 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 
 ---
 
-## 15. 🏎️ Build #88: Widescreen Racing Cockpit (Querformat-Redesign) (19.10.2026)
+---
 
-### A. Warum das Querformat vorher nicht passte:
-* **Feste Pixel-Multiplikatoren & Spalten-Kollision:**  
-  Vorher versuchte `HandyModusLandscapeView`, drei Rundinstrumente mit `height * 0.42` (~160 pt) und zweimal `height * 0.30` (~115 pt) in eine linke Spalte von nur 380 pt Breite zu quetschen ($115 + 160 + 115 = 390\,\text{pt}$). Dadurch überlappten die Instrumente oder wurden abgeschnitten.
-* **Fehlender Safe-Area-Schutz:**  
-  `.ignoresSafeArea()` führte dazu, dass auf iPhones mit Dynamic Island oder Notch die linke oder rechte Spalte unter der Kamera-Aussparung bzw. unter dem Home-Balken verschwand.
-* **Gekürztes Stats-Panel:**  
-  Im Querformat wurden bisher nur 4 magere Textzeilen angezeigt, während das Hochkantformat 8 farbenfrohe Kacheln mit Warnstufen bot.
+## 15. 🏎️ Build #90: Native Widescreen Cockpit & 3 Layout Modes (19.10.2026)
 
-### B. Das neue 2-Säulen Pro-Cockpit Layout:
-1. **Safe-Area Insets & Adaptive Geometrie:**  
-   Dynamische Berechnung von `usableW` und `usableH` unter Abzug von Notch, Dynamic Island und Home Indicator (`leadPad = max(insets.leading, 12)`, etc.). Kein Element wird je verdeckt.
-2. **Linke Spalte (48% Breite):**
-   * **Obere Karte: Main Gauges Row (`landscapeGaugesCard`):**  
-     * Öl-Temperatur Ring (`ringSize = min(86, gaugesCardH * 0.54)`) + Typ-Badge
-     * RPM-Tachometer Hero (`rpmSize = min(118, gaugesCardH * 0.70)`) + Live-OBD Badge
-     * Ladedruck Arc (`ringSize = 86`) + MAP/MAF Badge
-     * Perfekt austariertes Breitenverhältnis, null Clipping, frosted Glass mit 16pt CornerRadius.
-   * **Untere Karte: G-Kräfte Scope Card (`landscapeGForceCard`):**  
-     * Header mit Scope-Icon, "G-KRÄFTE", Nullpunkt 1s-Kalibrierung & Peak-Reset-Knopf
-     * Interaktiver GBall Scope ($72 \times 72\,\text{pt}$)
-     * 2×2 Telemetrie-Matrix: AKTUELL (dynamische G-Farbe), PEAK (orange), LATERAL (purple), LÄNGS (purple)
-     * GForceGaugeBadge Kreisinstrument ($66 \times 66\,\text{pt}$)
-3. **Rechte Spalte (52% Breite):**
-   * **Obere Karte: Widescreen Lyrics Stage (`landscapeLyricsCard`):**  
-     * Song-Header mit springendem Equalizer-Icon, Titel, Interpret & Sync/Retry-Badge
-     * Cyan-Farbverlauf Progress Bar (2.5 pt)
-     * 3-Zeilen-Textbühne: Vorherige Zeile (subtil), Aktive Zeile (15.5pt Fett, leuchtender Cyan-Glow, sanfte Spring-Animation), Nächste Zeile.
-   * **Untere Karte: 8-Tile Performance Matrix (`landscapeStatsMatrix`):**  
-     * Volles 2×4 Kachelraster wie im geliebten Hochkantformat:
-       * Reihe 1: SPEED (km/h), KÜHLWASSER (°C), BATTERIE (Volt), LUFTMASSE (g/s)
-       * Reihe 2: ANSAUGLUFT (°C), LAST (%), ABGAS (EGT °C), G-PEAK (G)
-     * Individuelle Farbkodierung, Monospace-Ziffern und Warnfarben bei Überhitzung (z.B. Kühlwasser > 105°C oder EGT > 780°C).
-4. **Entwickler-Regeln:**  
-   Aufgeteilt in [`HandyModusLandscapeView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeView.swift) (292 Zeilen) und [`HandyModusLandscapeComponents.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeComponents.swift) (344 Zeilen) – beide weit unter der 500-Zeilen-Grenze.
+### A. Vollständige Neukonzeption für Querformat (Widescreen-Native):
+Statt Hochkant-Karten verkleinert in Spalten zu zwängen, wurde jedes Modul von Grund auf für ein horizontales 19.5:9 Cockpit-Display neu entwickelt:
+1. **`WidescreenTachoConsole` ([`HandyModusGaugesView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusGaugesView.swift)):**
+   * **14-Segment LED Shift-Light Bar (F1 / GT3 Motorsport-Style):** 6 Grüne, 4 Gelbe, 2 Orange und 2 blinkende Rote Schalt-LEDs leuchten synchron zur Drehzahl auf.
+   * **Center-Hero Pod:** Fette digitale `KM/H` Geschwindigkeitsanzeige über dem kompakten RPM-Bogen.
+   * **Öl- & Boost-Pods:** Beidseitig austarierte Rundinstrumente mit Modell-/Direkt-Erkennung.
+2. **`WidescreenGForcePod` ([`HandyModusGForcePanel.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusGForcePanel.swift)):**
+   * **Radar Crosshair Scope:** Konzentrische G-Ringe ($0.4\text{G}$, $0.8\text{G}$, $1.2\text{G}$) mit Live-G-Punkt und Peak-G-Kreis.
+   * **Dualer G-Vektorbalken:** Horizontale Kurvenkraft-Skala $\leftarrow$ [LAT] $\rightarrow$ mit Live-G-Messung.
+   * **GForceGaugeBadge & Aktionen:** 1s-Nullpunkt-Kalibrierung & Peak-Reset direkt integriert.
+3. **`WidescreenLyricsConsole` ([`HandyModusLyricsPanel.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLyricsPanel.swift)):**
+   * **Kino-Bühne:** Aktive Songzeile in **20pt fettem Text mit starkem Cyan-Glow**, Vorherige/Nächste Zeile dezent schwebend.
+   * Animierte Equalizer-Balken, Track-Info, Cyan-Fortschrittsbalken und Sync-Status.
+4. **`WidescreenTelemetryRibbon` ([`HandyModusStatsBar.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusStatsBar.swift)):**
+   * 8 aerodynamische Telemetrie-Zellen in 2×4-Anordnung mit Überhitzungs-Warnfarben (Speed, Kühlwasser, Volt, MAF, IAT, Last, Abgas, Peak-G).
+
+### B. 3 Umschaltbare Querformat-Modi (Top Bar Picker):
+* **`Cockpit` (Standard):** Ausgewogener Split-Screen – Links Tacho & G-Kräfte, Rechts Lyrics & Telemetrie.
+* **`Lyrics` (Karaoke / Drive Focus):** Maximierte Songtext-Bühne über die volle Breite mit Telemetrie-Leiste darunter.
+* **`Race` (Motorsport Track Display):** Breiter Tacho mit Shift-Lights & KM/H oben, G-Force Scope und Telemetrie-Ribbon unten.
+
+### C. Architektur & Entwicklerregeln:
+* Alle Komponenten leben in den bereits in `project.pbxproj` registrierten Dateien.
+* Alle Dateien liegen strikt unter 360 Zeilen ([`HandyModusLandscapeView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeView.swift) hat nur 234 Zeilen).
+
 
 
 

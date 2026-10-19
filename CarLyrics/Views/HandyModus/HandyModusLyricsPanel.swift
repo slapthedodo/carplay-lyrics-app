@@ -198,3 +198,136 @@ public struct HandyModusLyricsPanel: View {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Widescreen Cinematic Lyrics Console (Landscape-Native)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct WidescreenLyricsConsole: View {
+    @ObservedObject public var observer: MusicObserver
+    public var width: CGFloat
+    public var height: CGFloat
+
+    public init(observer: MusicObserver, width: CGFloat, height: CGFloat) {
+        self.observer = observer
+        self.width = width
+        self.height = height
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            // ── Track Header Row ─────────────────────────────────────────────
+            HStack(spacing: 8) {
+                // Mini Equalizer Animation Icon
+                HStack(spacing: 2) {
+                    ForEach(0..<4, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(observer.isPlaying ? Color.cyan : Color.secondary)
+                            .frame(width: 2.5, height: observer.isPlaying ? (i % 2 == 0 ? 12 : 8) : 4)
+                            .animation(.easeInOut(duration: 0.3).repeatForever().delay(Double(i) * 0.1), value: observer.isPlaying)
+                    }
+                }
+                .frame(width: 14, height: 14)
+
+                VStack(alignment: .leading, spacing: 0.5) {
+                    Text(observer.currentTrackTitle.isEmpty ? "Kein Titel" : observer.currentTrackTitle)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text(observer.currentArtist.isEmpty ? "–" : observer.currentArtist)
+                        .font(.system(size: 9.5, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 4)
+
+                // Sync status badge
+                widescreenStatusBadge
+            }
+            .padding(.bottom, 5)
+
+            // ── Cyan Gradient Progress Bar ───────────────────────────────────
+            GeometryReader { pGeo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.1)).frame(height: 3)
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [.cyan, Color(red: 0.3, green: 0.9, blue: 1.0)],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .frame(width: pGeo.size.width * CGFloat(observer.progress), height: 3)
+                }
+            }
+            .frame(height: 3)
+            .padding(.bottom, 6)
+
+            // ── 3-Line Widescreen Lyrics Stage ───────────────────────────────
+            VStack(spacing: 3) {
+                if !observer.previousLine.isEmpty {
+                    Text(observer.previousLine)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.32))
+                        .lineLimit(1)
+                }
+
+                Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
+                    .font(.system(size: min(20, height * 0.16), weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .shadow(color: .cyan.opacity(0.70), radius: 10)
+                    .lineLimit(2)
+                    .id(observer.currentLine)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                    .animation(.easeInOut(duration: 0.22), value: observer.currentLine)
+
+                if !observer.nextLine.isEmpty {
+                    Text(observer.nextLine)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.32))
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.cyan.opacity(0.18), lineWidth: 1)
+                )
+        )
+    }
+
+    @ViewBuilder
+    private var widescreenStatusBadge: some View {
+        switch observer.lyricsStatus {
+        case .loading:
+            HStack(spacing: 3) {
+                ProgressView().scaleEffect(0.5).tint(.cyan)
+                Text("Lyrics…").font(.system(size: 8, weight: .bold)).foregroundStyle(.cyan)
+            }
+        case .loaded:
+            Label("SYNC", systemImage: "waveform")
+                .font(.system(size: 8, weight: .black))
+                .foregroundStyle(.green)
+        case .error:
+            Button { observer.retryLyrics() } label: {
+                HStack(spacing: 2) { Image(systemName: "wifi.slash"); Text("RETRY") }
+                    .font(.system(size: 7.5, weight: .bold)).foregroundStyle(.orange)
+                    .padding(.horizontal, 4).padding(.vertical, 1.5).background(Color.orange.opacity(0.15), in: Capsule())
+            }
+        case .idle:
+            EmptyView()
+        }
+    }
+}

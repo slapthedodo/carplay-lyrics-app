@@ -235,3 +235,123 @@ public struct OilTempRingView: View {
         .frame(width: size, height: size)
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Widescreen Racing Tacho Console (Landscape-Native)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct WidescreenTachoConsole: View {
+    @ObservedObject public var obd: OBDManager
+    public var width: CGFloat
+    public var height: CGFloat
+
+    public init(obd: OBDManager, width: CGFloat, height: CGFloat) {
+        self.obd = obd
+        self.width = width
+        self.height = height
+    }
+
+    private var rpmRatio: Double {
+        min(1.0, max(0.0, Double(obd.liveRPM) / 7000.0))
+    }
+
+    public var body: some View {
+        VStack(spacing: 3) {
+            // ── 1. Shift-Light LED Bar (F1 / GT3 Style) ──────────────────────
+            shiftLightBar
+                .padding(.horizontal, 10)
+                .padding(.top, 4)
+
+            // ── 2. Triple Cluster (Öl links | Speed & RPM Mitte | Boost rechts) ─
+            HStack(alignment: .center, spacing: 4) {
+                // Links: Öl-Pod
+                oilPod
+                    .frame(maxWidth: .infinity)
+
+                // Mitte: Digital Speedometer & Hero RPM
+                centerHeroPod
+                    .frame(maxWidth: .infinity * 1.35)
+
+                // Rechts: Ladedruck Pod
+                boostPod
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, 6)
+            .padding(.bottom, 4)
+        }
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
+                )
+        )
+    }
+
+    // ── LED Shift-Light Bar ───────────────────────────────────────────────────
+
+    private var shiftLightBar: some View {
+        HStack(spacing: 3.5) {
+            ForEach(0..<14, id: \.self) { idx in
+                let threshold = Double(idx + 1) / 14.0
+                let isLit = rpmRatio >= threshold
+                let color: Color = idx < 6 ? .green : (idx < 10 ? .yellow : (idx < 12 ? .orange : .red))
+
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(isLit ? color : Color.white.opacity(0.08))
+                    .frame(height: 5.5)
+                    .shadow(color: isLit ? color.opacity(0.8) : .clear, radius: 4)
+            }
+        }
+    }
+
+    // ── Center Hero Pod: Speed & RPM ──────────────────────────────────────────
+
+    private var centerHeroPod: some View {
+        VStack(spacing: 0) {
+            // KM/H Digit Display
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(obd.isEnabled && obd.connectionState == .connected ? "\(obd.liveSpeed)" : "--")
+                    .font(.system(size: min(34, height * 0.28), weight: .black, design: .monospaced))
+                    .foregroundStyle(.white)
+                Text("KM/H")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            // RPM Mini Tachometer Arc (Compact)
+            RPMTachometerView(rpm: obd.liveRPM, size: min(92, height * 0.52))
+
+            Text(obd.isEnabled && obd.connectionState == .connected ? "LIVE OBD" : "SIMULATION")
+                .font(.system(size: 6.5, weight: .black, design: .rounded))
+                .foregroundStyle(obd.isEnabled && obd.connectionState == .connected ? .green.opacity(0.8) : .cyan.opacity(0.8))
+        }
+    }
+
+    // ── Left Pod: Oil Temperature ─────────────────────────────────────────────
+
+    private var oilPod: some View {
+        VStack(spacing: 2) {
+            OilTempRingView(tempC: obd.effectiveOilTemp, size: min(78, height * 0.48))
+            Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL")
+                .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.35))
+        }
+    }
+
+    // ── Right Pod: Boost Pressure ─────────────────────────────────────────────
+
+    private var boostPod: some View {
+        VStack(spacing: 2) {
+            BoostArcView(
+                boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil,
+                size: min(78, height * 0.48)
+            )
+            Text(obd.liveMAP != nil ? "MAP DIREKT" : "MAF BERECHN.")
+                .font(.system(size: 6.5, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.35))
+        }
+    }
+}
