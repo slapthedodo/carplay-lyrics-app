@@ -162,7 +162,7 @@ public struct HandyModusStatsBar: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Widescreen Telemetry Ribbon (Landscape-Native 2x4 Aerodynamic Grid)
+// MARK: Widescreen Telemetry Flight-Bar (MoTeC-Style Continuous Strip)
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct WidescreenTelemetryRibbon: View {
@@ -180,70 +180,113 @@ public struct WidescreenTelemetryRibbon: View {
         self.height = height
     }
 
-    private var speedStr: String   { obd.isEnabled && obd.connectionState == .connected ? "\(obd.liveSpeed)" : "--" }
-    private var coolantStr: String { obd.liveCoolantTemp != nil ? "\(obd.liveCoolantTemp!)" : "--" }
-    private var battStr: String    { obd.batteryVoltage != nil ? String(format: "%.1f", obd.batteryVoltage!) : "--" }
-    private var mafStr: String     { obd.liveMAF != nil ? String(format: "%.1f", obd.liveMAF!) : "--" }
-    private var iatStr: String     { obd.liveIAT != nil ? "\(obd.liveIAT!)" : "--" }
-    private var loadStr: String    { obd.liveEngineLoad != nil ? "\(obd.liveEngineLoad!)" : "--" }
-    private var exhaustStr: String { obd.estimatedExhaustTemp != nil ? "\(obd.estimatedExhaustTemp!)" : "--" }
-    private var battWarning: Bool  { guard let v = obd.batteryVoltage else { return false }; return v < 12.2 || v > 15.2 }
-    private var exhaustWarning: Bool { guard let e = obd.estimatedExhaustTemp else { return false }; return e > 780 }
     private var coolantWarning: Bool { guard let c = obd.liveCoolantTemp else { return false }; return c > 105 }
+    private var battWarning: Bool    { guard let v = obd.batteryVoltage else { return false }; return v < 12.2 || v > 15.2 }
+    private var exhaustWarning: Bool { guard let e = obd.estimatedExhaustTemp else { return false }; return e > 780 }
 
     public var body: some View {
-        VStack(spacing: 4) {
-            // Row 1 (4 Cells)
-            HStack(spacing: 5) {
-                ribbonCell(icon: "speedometer", label: "SPEED", value: speedStr, unit: "KM/H", color: .cyan)
-                ribbonCell(icon: "thermometer.medium", label: "WASSER", value: coolantStr, unit: "°C", color: .cyan, warning: coolantWarning)
-                ribbonCell(icon: "bolt.fill", label: "BATTERIE", value: battStr, unit: "VOLT", color: .yellow, warning: battWarning)
-                ribbonCell(icon: "waveform.path", label: "LUFTMASSE", value: mafStr, unit: "G/S", color: Color(red: 0.4, green: 0.8, blue: 1.0))
-            }
-            // Row 2 (4 Cells)
-            HStack(spacing: 5) {
-                ribbonCell(icon: "wind", label: "ANSAUGLUFT", value: iatStr, unit: "°C", color: Color(red: 0.3, green: 0.9, blue: 0.8))
-                ribbonCell(icon: "gauge.open.with.lines.needle.33percent", label: "LAST", value: loadStr, unit: "%", color: .orange)
-                ribbonCell(icon: "flame.fill", label: "ABGAS", value: exhaustStr, unit: "°C", color: Color(red: 1.0, green: 0.45, blue: 0.1), warning: exhaustWarning)
-                ribbonCell(icon: "scope", label: "G-PEAK", value: String(format: "%.2f", motion.peakG), unit: "G", color: purple)
-            }
+        HStack(spacing: 0) {
+            flightMetric(
+                label: "ANSAUGLUFT",
+                val: obd.liveIAT != nil ? "\(obd.liveIAT!)°C" : "--",
+                icon: "wind",
+                color: Color(red: 0.3, green: 0.9, blue: 0.8),
+                warning: false
+            )
+            divider
+            flightMetric(
+                label: "LUFTMASSE",
+                val: obd.liveMAF != nil ? String(format: "%.1f g/s", obd.liveMAF!) : "--",
+                icon: "waveform.path",
+                color: Color(red: 0.4, green: 0.8, blue: 1.0),
+                warning: false
+            )
+            divider
+            flightMetric(
+                label: "MOTORLAST",
+                val: obd.liveEngineLoad != nil ? "\(obd.liveEngineLoad!)%" : "--",
+                icon: "gauge.medium",
+                color: .orange,
+                warning: false
+            )
+            divider
+            flightMetric(
+                label: "ABGAS (EST)",
+                val: obd.estimatedExhaustTemp != nil ? "\(obd.estimatedExhaustTemp!)°C" : "--",
+                icon: "flame.fill",
+                color: exhaustWarning ? .red : Color(red: 1.0, green: 0.45, blue: 0.1),
+                warning: exhaustWarning
+            )
+            divider
+            flightMetric(
+                label: "KÜHLWASSER",
+                val: obd.liveCoolantTemp != nil ? "\(obd.liveCoolantTemp!)°C" : "--",
+                icon: "thermometer.medium",
+                color: coolantWarning ? .red : .green,
+                warning: coolantWarning
+            )
+            divider
+            flightMetric(
+                label: "BORDNETZ",
+                val: obd.batteryVoltage != nil ? String(format: "%.1f V", obd.batteryVoltage!) : "--",
+                icon: "bolt.fill",
+                color: battWarning ? .red : .yellow,
+                warning: battWarning
+            )
+            divider
+            flightMetric(
+                label: "LATERAL-G",
+                val: String(format: "%.2f G", abs(motion.gX)),
+                icon: "arrow.left.and.right",
+                color: purple,
+                warning: false
+            )
+            divider
+            flightMetric(
+                label: "G-PEAK",
+                val: String(format: "%.2f G", motion.peakG),
+                icon: "scope",
+                color: purple,
+                warning: false
+            )
         }
         .frame(width: width, height: height)
-    }
-
-    private func ribbonCell(icon: String, label: String, value: String, unit: String, color: Color, warning: Bool = false) -> some View {
-        VStack(spacing: 1) {
-            HStack(spacing: 2) {
-                Image(systemName: icon)
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(warning ? .red : color)
-                Spacer(minLength: 0)
-                Text(unit)
-                    .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.4))
-            }
-
-            Text(value)
-                .font(.system(size: 13, weight: .black, design: .monospaced))
-                .foregroundStyle(warning ? .red : color)
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
-
-            Text(label)
-                .font(.system(size: 6, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.35))
-                .lineLimit(1)
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 3.5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(color.opacity(warning ? 0.20 : 0.08))
+                .fill(Color.white.opacity(0.04))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .stroke(color.opacity(warning ? 0.45 : 0.14), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
                 )
         )
     }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.08))
+            .frame(width: 1, height: height * 0.50)
+    }
+
+    private func flightMetric(label: String, val: String, icon: String, color: Color, warning: Bool) -> some View {
+        VStack(spacing: 1.5) {
+            HStack(spacing: 2.5) {
+                Image(systemName: icon)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(warning ? .red : color)
+                Text(label)
+                    .font(.system(size: 6.5, weight: .black, design: .rounded))
+                    .foregroundStyle(warning ? .red : .white.opacity(0.40))
+                    .lineLimit(1)
+            }
+
+            Text(val)
+                .font(.system(size: 11.5, weight: .black, design: .monospaced))
+                .foregroundStyle(warning ? .red : color)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
+    }
 }
+

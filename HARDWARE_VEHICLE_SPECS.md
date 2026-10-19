@@ -378,34 +378,43 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 
 ---
 
+
 ---
 
-## 15. 🏎️ Build #90: Native Widescreen Cockpit & 3 Layout Modes (19.10.2026)
+## 16. 🏁 Build #91: Unibody Panoramic Glass Cockpit (19.10.2026)
 
-### A. Vollständige Neukonzeption für Querformat (Widescreen-Native):
-Statt Hochkant-Karten verkleinert in Spalten zu zwängen, wurde jedes Modul von Grund auf für ein horizontales 19.5:9 Cockpit-Display neu entwickelt:
-1. **`WidescreenTachoConsole` ([`HandyModusGaugesView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusGaugesView.swift)):**
-   * **14-Segment LED Shift-Light Bar (F1 / GT3 Motorsport-Style):** 6 Grüne, 4 Gelbe, 2 Orange und 2 blinkende Rote Schalt-LEDs leuchten synchron zur Drehzahl auf.
-   * **Center-Hero Pod:** Fette digitale `KM/H` Geschwindigkeitsanzeige über dem kompakten RPM-Bogen.
-   * **Öl- & Boost-Pods:** Beidseitig austarierte Rundinstrumente mit Modell-/Direkt-Erkennung.
-2. **`WidescreenGForcePod` ([`HandyModusGForcePanel.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusGForcePanel.swift)):**
-   * **Radar Crosshair Scope:** Konzentrische G-Ringe ($0.4\text{G}$, $0.8\text{G}$, $1.2\text{G}$) mit Live-G-Punkt und Peak-G-Kreis.
-   * **Dualer G-Vektorbalken:** Horizontale Kurvenkraft-Skala $\leftarrow$ [LAT] $\rightarrow$ mit Live-G-Messung.
-   * **GForceGaugeBadge & Aktionen:** 1s-Nullpunkt-Kalibrierung & Peak-Reset direkt integriert.
-3. **`WidescreenLyricsConsole` ([`HandyModusLyricsPanel.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLyricsPanel.swift)):**
-   * **Kino-Bühne:** Aktive Songzeile in **20pt fettem Text mit starkem Cyan-Glow**, Vorherige/Nächste Zeile dezent schwebend.
-   * Animierte Equalizer-Balken, Track-Info, Cyan-Fortschrittsbalken und Sync-Status.
-4. **`WidescreenTelemetryRibbon` ([`HandyModusStatsBar.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusStatsBar.swift)):**
-   * 8 aerodynamische Telemetrie-Zellen in 2×4-Anordnung mit Überhitzungs-Warnfarben (Speed, Kühlwasser, Volt, MAF, IAT, Last, Abgas, Peak-G).
+### A. Vollständige Neukonzeption — Keine Kacheln/Boxen mehr:
+Auf Basis des Nutzerfeedbacks wurden alle isolierten Karten-Container (`RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)`) und das 2×4-Kachel-Raster im Querformat eliminiert und durch ein durchgängiges **Unibody Panoramic Glass Cockpit** (Audi RS Virtual Cockpit / Porsche GT3 Track Screen) ersetzt:
 
-### B. 3 Umschaltbare Querformat-Modi (Top Bar Picker):
-* **`Cockpit` (Standard):** Ausgewogener Split-Screen – Links Tacho & G-Kräfte, Rechts Lyrics & Telemetrie.
-* **`Lyrics` (Karaoke / Drive Focus):** Maximierte Songtext-Bühne über die volle Breite mit Telemetrie-Leiste darunter.
-* **`Race` (Motorsport Track Display):** Breiter Tacho mit Shift-Lights & KM/H oben, G-Force Scope und Telemetrie-Ribbon unten.
+1. **Top Runway (18-Segment F1 / GT3 Shift-Lights):**
+   * Durchgehende LED-Leiste über die gesamte Bildschirmbreite (6x Grün 4.000–5.200 RPM, 6x Gelb 5.200–6.000 RPM, 4x Orange 6.000–6.500 RPM, 2x Rot pulsierend > 6.500 RPM).
+   * Flankiert von `OBD LIVE`-Pill links, `AWAKE`-Status rechts und dem integrierten Modus-Switcher (`Cockpit` | `Lyrics` | `Race`).
 
-### C. Architektur & Entwicklerregeln:
-* Alle Komponenten leben in den bereits in `project.pbxproj` registrierten Dateien.
-* Alle Dateien liegen strikt unter 360 Zeilen ([`HandyModusLandscapeView.swift`](file:///C:/Users/nigger/.gemini/antigravity/scratch/CarLyrics/CarLyrics/Views/HandyModus/HandyModusLandscapeView.swift) hat nur 234 Zeilen).
+2. **Unified Tri-Zone Glass Cockpit (Einheitliches Gehäuse mit 1pt Laser-Dividers):**
+   * **Left Wing — Powertrain & G-Radar (`WidescreenPowertrainPod`):**
+     * **Vertikale Twin Precision Pillars:** Vertikaler Ladedruck-Balken (-0.5 bis +1.5 bar) und Öltemperatur-Säule (40 bis 130°C) mit dynamischen Farbgradienten und Ticks.
+     * **Integriertes 2D G-Force Friction Radar:** Konzentrische Ringe, Live-G-Punkt mit Vektorschweif, Peak-Hold, 1s-Nullpunkt-Kalibrierung und Peak-Reset.
+   * **Center Stage — Hero Tacho & Sweeping RPM Arc (`WidescreenTachoConsole`):**
+     * Gewaltiger 56pt Monospace Hero Speedometer (`KM/H`).
+     * Dynamisch geschwungener GT3-Drehzahl-Bogen mit Redline-Warnzone ab 6.500 RPM.
+     * Virtuelle Ganganzeige (`GEAR 1` ... `GEAR 6` / `GEAR P`) abgestimmt auf EA113 PQ35 Übersetzungen.
+   * **Right Wing — Holographic HUD Lyrics Stage (`WidescreenLyricsConsole`):**
+     * Rahmenlose Head-Up-Projektion mit dynamischem 4-Balken Live-Equalizer.
+     * Aktive Songzeile mit intensivem Cyan-Ambient-Glow, schwebende Vor-/Folgezeilen.
+     * Laser-dünner Gradient-Fortschrittsbalken mit SYNC-Badge.
+
+3. **MoTeC Telemetry Flight-Bar (`WidescreenTelemetryRibbon`):**
+   * Ein einziges, durchgehendes horizontales Datenband am unteren Bildschirmrand.
+   * Keine Kacheln/Boxen mehr: 8 Telemetrie-Werte (IAT, MAF, Last, Abgas, Kühlmittel, Bordnetz, Lateral-G, Peak-G) getrennt durch feine 1pt vertikale Hairlines.
+   * Automatische Farbwarnung nur bei kritischen Schwellenwerten (Kühlwasser >105°C rot, Bordnetz <12.2V rot/orange, Abgas >780°C rot).
+
+### B. Dateigrößen-Check (Strikte < 500-Zeilen-Regel):
+* `HandyModusLandscapeView.swift`: 227 Zeilen
+* `HandyModusGaugesView.swift`: 362 Zeilen
+* `HandyModusGForcePanel.swift`: 357 Zeilen
+* `HandyModusLyricsPanel.swift`: 336 Zeilen
+* `HandyModusStatsBar.swift`: 292 Zeilen
+
 
 
 

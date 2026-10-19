@@ -1,6 +1,6 @@
 // MARK: - HandyModusLandscapeView.swift
-// Widescreen Racing Cockpit für den Querformat-Einsatz im Handy-Halter
-// Native Widescreen-Layouts: Cockpit Split, Lyrics Focus & Race Cluster
+// Widescreen Racing Cockpit: Unibody Panoramic Glass Cockpit für den Querformat-Einsatz
+// Keine isolierten Kacheln mehr: Nahtlose Tri-Zone Architektur + MoTeC Flight-Bar + 18-LED Shift Runway
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -33,35 +33,28 @@ public struct HandyModusLandscapeView: View {
     public var body: some View {
         GeometryReader { geo in
             let insets = geo.safeAreaInsets
-            let leadPad = max(insets.leading, 12)
-            let trailPad = max(insets.trailing, 12)
-            let bottomPad = max(insets.bottom, 6)
-            let topPad = max(insets.top, 4)
+            let leadPad = max(insets.leading, 14)
+            let trailPad = max(insets.trailing, 14)
+            let bottomPad = max(insets.bottom, 4)
+            let topPad: CGFloat = 2
 
             let usableW = geo.size.width - leadPad - trailPad
             let usableH = geo.size.height - topPad - bottomPad
 
-            let topBarH: CGFloat = 26
-            let vSpacing: CGFloat = 6
-            let hSpacing: CGFloat = 10
-            let availableH = max(260, usableH - topBarH - vSpacing)
+            let topBarH: CGFloat = 24
+            let flightBarH: CGFloat = 36
+            let vSpacing: CGFloat = 5
+            let mainStageH = max(200, usableH - topBarH - flightBarH - (vSpacing * 2))
 
             VStack(spacing: vSpacing) {
-                // ── Top Status Bar & Layout Switcher ──────────────────────────
-                topBar(width: usableW, height: topBarH)
+                // ── 1. Top F1/GT3 Shift-Light Runway & Horizon Bar ────────────
+                topShiftLightRunway(width: usableW, height: topBarH)
 
-                // ── Active Layout Mode ────────────────────────────────────────
-                Group {
-                    switch layoutMode {
-                    case .cockpit:
-                        cockpitSplitLayout(width: usableW, height: availableH, spacing: hSpacing, vSpacing: vSpacing)
-                    case .lyrics:
-                        lyricsFocusLayout(width: usableW, height: availableH, vSpacing: vSpacing)
-                    case .race:
-                        raceClusterLayout(width: usableW, height: availableH, spacing: hSpacing, vSpacing: vSpacing)
-                    }
-                }
-                .frame(width: usableW, height: availableH)
+                // ── 2. Unified Unibody Glass Cockpit Main Stage ───────────────
+                mainCockpitStage(width: usableW, height: mainStageH)
+
+                // ── 3. Bottom MoTeC Telemetry Flight-Bar ──────────────────────
+                WidescreenTelemetryRibbon(obd: obd, motion: motion, width: usableW, height: flightBarH)
             }
             .padding(.leading, leadPad)
             .padding(.trailing, trailPad)
@@ -79,22 +72,40 @@ public struct HandyModusLandscapeView: View {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: 1. Top Status Bar with Layout Switcher
+    // MARK: 1. Top Shift-Light Runway (18 LEDs + OBD Status + Mode Switcher)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func topBar(width: CGFloat, height: CGFloat) -> some View {
-        HStack(spacing: 8) {
-            // OBD Status Pill
-            connectionPill(label: obdLabel, color: obdPillColor, icon: "cable.connector")
+    private func topShiftLightRunway(width: CGFloat, height: CGFloat) -> some View {
+        let rpmRatio = min(1.0, max(0.0, Double(obd.liveRPM) / 7000.0))
 
-            if !obd.isEnabled {
-                connectionPill(label: "SIMULATION", color: .cyan, icon: "waveform")
+        return HStack(spacing: 8) {
+            // Left: OBD Status Pill
+            HStack(spacing: 3) {
+                Circle().fill(obdPillColor).frame(width: 5, height: 5)
+                Text(obdLabel)
+                    .font(.system(size: 7.5, weight: .black, design: .rounded))
+                    .foregroundStyle(obdPillColor)
             }
+            .padding(.horizontal, 6).padding(.vertical, 2.5)
+            .background(obdPillColor.opacity(0.12), in: Capsule())
 
-            Spacer()
+            // Center: 18-Segment GT3 / F1 Shift-Lights
+            HStack(spacing: 3) {
+                ForEach(0..<18, id: \.self) { idx in
+                    let threshold = Double(idx + 1) / 18.0
+                    let isLit = rpmRatio >= threshold
+                    let color: Color = idx < 6 ? .green : (idx < 12 ? .yellow : (idx < 16 ? .orange : .red))
+
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(isLit ? color : Color.white.opacity(0.08))
+                        .frame(height: 5.5)
+                        .shadow(color: isLit ? color.opacity(0.85) : .clear, radius: 4)
+                }
+            }
+            .frame(maxWidth: .infinity)
 
             // Mode Picker Capsule
-            HStack(spacing: 2) {
+            HStack(spacing: 1.5) {
                 ForEach(LandscapeLayoutMode.allCases, id: \.self) { mode in
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -102,12 +113,12 @@ public struct HandyModusLandscapeView: View {
                         }
                     } label: {
                         Text(mode.rawValue)
-                            .font(.system(size: 8.5, weight: layoutMode == mode ? .black : .bold))
+                            .font(.system(size: 8, weight: layoutMode == mode ? .black : .bold))
                             .foregroundStyle(layoutMode == mode ? .white : .white.opacity(0.45))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
                             .background(
-                                layoutMode == mode ? Color.cyan.opacity(0.28) : Color.clear,
+                                layoutMode == mode ? Color.cyan.opacity(0.30) : Color.clear,
                                 in: Capsule()
                             )
                     }
@@ -117,102 +128,83 @@ public struct HandyModusLandscapeView: View {
             .background(Color.white.opacity(0.06), in: Capsule())
             .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
 
-            Spacer()
-
-            // Keep Screen Awake Pill
-            HStack(spacing: 4) {
-                Image(systemName: "moon.zzz.fill").font(.system(size: 8, weight: .bold)).foregroundStyle(.yellow)
-                Text("Kein Standby").font(.system(size: 8.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
+            // Right: Keep Screen Awake
+            HStack(spacing: 3) {
+                Image(systemName: "moon.zzz.fill").font(.system(size: 7.5)).foregroundStyle(.yellow)
+                Text("AWAKE").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
             }
-            .padding(.horizontal, 7).padding(.vertical, 2.5)
+            .padding(.horizontal, 6).padding(.vertical, 2.5)
             .background(Color.yellow.opacity(0.12), in: Capsule())
         }
         .frame(width: width, height: height)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Layout 1: Cockpit Split Mode (Balanced Left/Right)
+    // MARK: 2. Main Cockpit Stage (Unified Unibody Glass Housing)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private func cockpitSplitLayout(width: CGFloat, height: CGFloat, spacing: CGFloat, vSpacing: CGFloat) -> some View {
-        let leftW = (width - spacing) * 0.48
-        let rightW = (width - spacing) * 0.52
+    private func mainCockpitStage(width: CGFloat, height: CGFloat) -> some View {
+        Group {
+            switch layoutMode {
+            case .cockpit:
+                // Tri-Zone: Left Powertrain/G (29.5%) | Center Speed/RPM (36%) | Right Lyrics (34.5%)
+                HStack(spacing: 0) {
+                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.295, height: height)
 
-        let gaugesCardH = height * 0.55
-        let gForceCardH = height * 0.45 - vSpacing
-        let lyricsCardH = height * 0.58
-        let statsCardH  = height * 0.42 - vSpacing
+                    divider(height: height)
 
-        return HStack(alignment: .top, spacing: spacing) {
-            // Linke Spalte: Widescreen Tacho Console + Widescreen G-Force Pod
-            VStack(spacing: vSpacing) {
-                WidescreenTachoConsole(obd: obd, width: leftW, height: gaugesCardH)
-                WidescreenGForcePod(motion: motion, width: leftW, height: gForceCardH)
+                    WidescreenTachoConsole(obd: obd, width: width * 0.360, height: height)
+
+                    divider(height: height)
+
+                    WidescreenLyricsConsole(observer: observer, width: width * 0.345, height: height)
+                }
+
+            case .lyrics:
+                // Music-First: Left Expansive Cinema Lyrics (63%) | Right Speed & RPM Console (37%)
+                HStack(spacing: 0) {
+                    WidescreenLyricsConsole(observer: observer, width: width * 0.630, height: height)
+
+                    divider(height: height)
+
+                    WidescreenTachoConsole(obd: obd, width: width * 0.370, height: height)
+                }
+
+            case .race:
+                // Motorsport-First: Left Powertrain (32%) | Center Tacho Hero (36%) | Right G-Force Scope (32%)
+                HStack(spacing: 0) {
+                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.320, height: height)
+
+                    divider(height: height)
+
+                    WidescreenTachoConsole(obd: obd, width: width * 0.360, height: height)
+
+                    divider(height: height)
+
+                    WidescreenGForcePod(motion: motion, width: width * 0.320, height: height)
+                }
             }
-            .frame(width: leftW, height: height)
-
-            // Rechte Spalte: Widescreen Lyrics Stage + Widescreen Telemetry Ribbon
-            VStack(spacing: vSpacing) {
-                WidescreenLyricsConsole(observer: observer, width: rightW, height: lyricsCardH)
-                WidescreenTelemetryRibbon(obd: obd, motion: motion, width: rightW, height: statsCardH)
-            }
-            .frame(width: rightW, height: height)
         }
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.black.opacity(0.40))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Layout 2: Lyrics Focus Mode (Kino-Songtext Bühne + Telemetrie)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private func lyricsFocusLayout(width: CGFloat, height: CGFloat, vSpacing: CGFloat) -> some View {
-        let lyricsH = height * 0.68
-        let statsH  = height * 0.32 - vSpacing
-
-        return VStack(spacing: vSpacing) {
-            // Große Widescreen Lyrics Bühne über die volle Breite
-            WidescreenLyricsConsole(observer: observer, width: width, height: lyricsH)
-
-            // Telemetrie Ribbon über die volle Breite darunter
-            WidescreenTelemetryRibbon(obd: obd, motion: motion, width: width, height: statsH)
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Layout 3: Race Cluster Mode (Motorsport Track Display)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private func raceClusterLayout(width: CGFloat, height: CGFloat, spacing: CGFloat, vSpacing: CGFloat) -> some View {
-        let topTachoH = height * 0.56
-        let bottomH   = height * 0.44 - vSpacing
-        let bottomColW = (width - spacing) * 0.50
-
-        return VStack(spacing: vSpacing) {
-            // Volle Breite: Widescreen Tacho Console mit LED Shift-Lights & Hero Speed
-            WidescreenTachoConsole(obd: obd, width: width, height: topTachoH)
-
-            // Unten: G-Kräfte Scope links & Telemetrie Ribbon rechts
-            HStack(spacing: spacing) {
-                WidescreenGForcePod(motion: motion, width: bottomColW, height: bottomH)
-                WidescreenTelemetryRibbon(obd: obd, motion: motion, width: bottomColW, height: bottomH)
-            }
-            .frame(width: width, height: bottomH)
-        }
+    private func divider(height: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.white.opacity(0.08))
+            .frame(width: 1, height: height * 0.82)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: Pill Helpers
     // ─────────────────────────────────────────────────────────────────────────
-
-    private func connectionPill(label: String, color: Color, icon: String) -> some View {
-        HStack(spacing: 3) {
-            Circle().fill(color).frame(width: 5, height: 5)
-            Image(systemName: icon).font(.system(size: 7.5, weight: .bold)).foregroundStyle(color)
-            Text(label).font(.system(size: 7.5, weight: .black, design: .rounded)).foregroundStyle(color)
-        }
-        .padding(.horizontal, 6).padding(.vertical, 2.5)
-        .background(color.opacity(0.12), in: Capsule())
-        .overlay(Capsule().stroke(color.opacity(0.2), lineWidth: 1))
-    }
 
     private var obdLabel: String {
         guard obd.isEnabled else { return "OBD AUS" }
@@ -232,3 +224,4 @@ public struct HandyModusLandscapeView: View {
         }
     }
 }
+

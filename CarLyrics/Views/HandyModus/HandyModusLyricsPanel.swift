@@ -200,7 +200,7 @@ public struct HandyModusLyricsPanel: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Widescreen Cinematic Lyrics Console (Landscape-Native)
+// MARK: Widescreen Cinematic Lyrics Console (Landscape-Native Holographic HUD)
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct WidescreenLyricsConsole: View {
@@ -215,28 +215,28 @@ public struct WidescreenLyricsConsole: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            // ── Track Header Row ─────────────────────────────────────────────
+        VStack(alignment: .leading, spacing: 4) {
+            // ── 1. Track Metadata Bar ─────────────────────────────────────────
             HStack(spacing: 8) {
-                // Mini Equalizer Animation Icon
+                // Live Dynamic Audio Equalizer
                 HStack(spacing: 2) {
                     ForEach(0..<4, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 1)
                             .fill(observer.isPlaying ? Color.cyan : Color.secondary)
-                            .frame(width: 2.5, height: observer.isPlaying ? (i % 2 == 0 ? 12 : 8) : 4)
-                            .animation(.easeInOut(duration: 0.3).repeatForever().delay(Double(i) * 0.1), value: observer.isPlaying)
+                            .frame(width: 2.5, height: observer.isPlaying ? (i % 2 == 0 ? 12 : 7) : 4)
+                            .animation(.easeInOut(duration: 0.3).repeatForever().delay(Double(i) * 0.08), value: observer.isPlaying)
                     }
                 }
                 .frame(width: 14, height: 14)
 
-                VStack(alignment: .leading, spacing: 0.5) {
-                    Text(observer.currentTrackTitle.isEmpty ? "Kein Titel" : observer.currentTrackTitle)
-                        .font(.system(size: 13, weight: .bold))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(observer.currentTrackTitle.isEmpty ? "Keine Wiedergabe" : observer.currentTrackTitle)
+                        .font(.system(size: min(13, height * 0.09), weight: .bold))
                         .foregroundStyle(.white)
                         .lineLimit(1)
-                    Text(observer.currentArtist.isEmpty ? "–" : observer.currentArtist)
-                        .font(.system(size: 9.5, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.55))
+                    Text(observer.currentArtist.isEmpty ? "CarLyrics Cockpit" : observer.currentArtist)
+                        .font(.system(size: min(9.5, height * 0.065), weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
                         .lineLimit(1)
                 }
 
@@ -245,12 +245,12 @@ public struct WidescreenLyricsConsole: View {
                 // Sync status badge
                 widescreenStatusBadge
             }
-            .padding(.bottom, 5)
+            .padding(.horizontal, 4)
 
-            // ── Cyan Gradient Progress Bar ───────────────────────────────────
+            // ── 2. Laser Thin Progress Bar ────────────────────────────────────
             GeometryReader { pGeo in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Color.white.opacity(0.1)).frame(height: 3)
+                    Capsule().fill(Color.white.opacity(0.08)).frame(height: 2)
                     Capsule()
                         .fill(
                             LinearGradient(
@@ -258,26 +258,30 @@ public struct WidescreenLyricsConsole: View {
                                 startPoint: .leading, endPoint: .trailing
                             )
                         )
-                        .frame(width: pGeo.size.width * CGFloat(observer.progress), height: 3)
+                        .frame(width: pGeo.size.width * CGFloat(observer.progress), height: 2)
                 }
             }
-            .frame(height: 3)
-            .padding(.bottom, 6)
+            .frame(height: 2)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
 
-            // ── 3-Line Widescreen Lyrics Stage ───────────────────────────────
-            VStack(spacing: 3) {
+            Spacer(minLength: 2)
+
+            // ── 3. 3-Line Cinematic Lyrics Teleprompter ───────────────────────
+            VStack(alignment: .leading, spacing: 4) {
+                // Previous Line (Past)
                 if !observer.previousLine.isEmpty {
                     Text(observer.previousLine)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.32))
+                        .font(.system(size: min(11, height * 0.075), weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.28))
                         .lineLimit(1)
                 }
 
+                // Active Current Line (Hero Glow)
                 Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
-                    .font(.system(size: min(20, height * 0.16), weight: .black, design: .rounded))
+                    .font(.system(size: min(19, height * 0.14), weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .shadow(color: .cyan.opacity(0.70), radius: 10)
+                    .shadow(color: .cyan.opacity(0.80), radius: 12)
                     .lineLimit(2)
                     .id(observer.currentLine)
                     .transition(.asymmetric(
@@ -286,26 +290,22 @@ public struct WidescreenLyricsConsole: View {
                     ))
                     .animation(.easeInOut(duration: 0.22), value: observer.currentLine)
 
+                // Next Line (Upcoming)
                 if !observer.nextLine.isEmpty {
                     Text(observer.nextLine)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.32))
+                        .font(.system(size: min(11, height * 0.075), weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.35))
                         .lineLimit(1)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+
+            Spacer(minLength: 2)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .frame(width: width, height: height)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.cyan.opacity(0.18), lineWidth: 1)
-                )
-        )
     }
 
     @ViewBuilder
@@ -314,16 +314,18 @@ public struct WidescreenLyricsConsole: View {
         case .loading:
             HStack(spacing: 3) {
                 ProgressView().scaleEffect(0.5).tint(.cyan)
-                Text("Lyrics…").font(.system(size: 8, weight: .bold)).foregroundStyle(.cyan)
+                Text("Lyrics…").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.cyan)
             }
         case .loaded:
             Label("SYNC", systemImage: "waveform")
-                .font(.system(size: 8, weight: .black))
+                .font(.system(size: 7.5, weight: .black))
                 .foregroundStyle(.green)
+                .padding(.horizontal, 5).padding(.vertical, 2)
+                .background(Color.green.opacity(0.12), in: Capsule())
         case .error:
             Button { observer.retryLyrics() } label: {
                 HStack(spacing: 2) { Image(systemName: "wifi.slash"); Text("RETRY") }
-                    .font(.system(size: 7.5, weight: .bold)).foregroundStyle(.orange)
+                    .font(.system(size: 7, weight: .bold)).foregroundStyle(.orange)
                     .padding(.horizontal, 4).padding(.vertical, 1.5).background(Color.orange.opacity(0.15), in: Capsule())
             }
         case .idle:
@@ -331,3 +333,4 @@ public struct WidescreenLyricsConsole: View {
         }
     }
 }
+

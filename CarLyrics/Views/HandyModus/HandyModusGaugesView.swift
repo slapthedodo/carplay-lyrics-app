@@ -255,103 +255,108 @@ public struct WidescreenTachoConsole: View {
         min(1.0, max(0.0, Double(obd.liveRPM) / 7000.0))
     }
 
+    private var rpmColor: Color {
+        if rpmRatio < 0.60 { return .cyan }
+        if rpmRatio < 0.82 { return Color(red: 0.3, green: 0.95, blue: 0.4) }
+        if rpmRatio < 0.93 { return .orange }
+        return .red
+    }
+
+    private var arcSize: CGFloat {
+        min(width * 0.92, height * 0.90)
+    }
+
     public var body: some View {
-        VStack(spacing: 3) {
-            // ── 1. Shift-Light LED Bar (F1 / GT3 Style) ──────────────────────
-            shiftLightBar
-                .padding(.horizontal, 10)
-                .padding(.top, 4)
+        ZStack {
+            // ── 1. Sweeping Porsche GT3 / Audi RS Runway Arc ─────────────────
+            ZStack {
+                // Background Track Arc
+                Circle()
+                    .trim(from: 0.16, to: 0.84)
+                    .stroke(Color.white.opacity(0.07), style: StrokeStyle(lineWidth: arcSize * 0.055, lineCap: .round))
+                    .rotationEffect(.degrees(90))
+                    .frame(width: arcSize, height: arcSize)
 
-            // ── 2. Triple Cluster (Öl links | Speed & RPM Mitte | Boost rechts) ─
-            HStack(alignment: .center, spacing: 4) {
-                // Links: Öl-Pod
-                oilPod
-                    .frame(maxWidth: .infinity)
+                // Redline Track Zone (> 6500 RPM)
+                Circle()
+                    .trim(from: 0.16 + 0.68 * (6500.0 / 7000.0), to: 0.84)
+                    .stroke(Color.red.opacity(0.30), style: StrokeStyle(lineWidth: arcSize * 0.055, lineCap: .round))
+                    .rotationEffect(.degrees(90))
+                    .frame(width: arcSize, height: arcSize)
 
-                // Mitte: Digital Speedometer & Hero RPM
-                centerHeroPod
-                    .frame(maxWidth: .infinity * 1.35)
-
-                // Rechts: Ladedruck Pod
-                boostPod
-                    .frame(maxWidth: .infinity)
+                // Active Sweeping RPM Neon Arc
+                Circle()
+                    .trim(from: 0.16, to: 0.16 + CGFloat(rpmRatio) * 0.68)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.cyan, rpmColor],
+                            startPoint: .leading, endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: arcSize * 0.055, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(90))
+                    .frame(width: arcSize, height: arcSize)
+                    .shadow(color: rpmColor.opacity(0.8), radius: 10)
+                    .animation(.interactiveSpring(response: 0.15), value: rpmRatio)
             }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 4)
+
+            // ── 2. Hero Center Telemetry (RPM Readout + Speed + Gear) ─────────
+            VStack(spacing: 1) {
+                // Digital RPM Readout
+                HStack(spacing: 3) {
+                    Text("\(obd.liveRPM)")
+                        .font(.system(size: min(17, height * 0.11), weight: .black, design: .monospaced))
+                        .foregroundStyle(rpmColor)
+                    Text("RPM")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+
+                // Massive Hero Digital Speed Readout
+                Text(obd.isEnabled && obd.connectionState == .connected ? "\(obd.liveSpeed)" : "--")
+                    .font(.system(size: min(56, height * 0.36), weight: .black, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .shadow(color: .white.opacity(0.25), radius: 8)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text("KM / H")
+                    .font(.system(size: 9.5, weight: .black, design: .rounded))
+                    .tracking(2)
+                    .foregroundStyle(.white.opacity(0.45))
+                    .offset(y: -2)
+
+                // Virtual Gear Indicator Pill
+                HStack(spacing: 6) {
+                    Text(currentGearString)
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(.cyan)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color.cyan.opacity(0.18), in: Capsule())
+                        .overlay(Capsule().stroke(Color.cyan.opacity(0.35), lineWidth: 1))
+
+                    Text(obd.isEnabled && obd.connectionState == .connected ? "OBD SYNC" : "SIMULATION")
+                        .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(obd.isEnabled && obd.connectionState == .connected ? .green : .cyan)
+                }
+                .padding(.top, 2)
+            }
         }
         .frame(width: width, height: height)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.09), lineWidth: 1)
-                )
-        )
     }
 
-    // ── LED Shift-Light Bar ───────────────────────────────────────────────────
-
-    private var shiftLightBar: some View {
-        HStack(spacing: 3.5) {
-            ForEach(0..<14, id: \.self) { idx in
-                let threshold = Double(idx + 1) / 14.0
-                let isLit = rpmRatio >= threshold
-                let color: Color = idx < 6 ? .green : (idx < 10 ? .yellow : (idx < 12 ? .orange : .red))
-
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(isLit ? color : Color.white.opacity(0.08))
-                    .frame(height: 5.5)
-                    .shadow(color: isLit ? color.opacity(0.8) : .clear, radius: 4)
-            }
+    private var currentGearString: String {
+        guard obd.isEnabled && obd.connectionState == .connected && obd.liveSpeed > 3 else {
+            return "GEAR P"
         }
-    }
-
-    // ── Center Hero Pod: Speed & RPM ──────────────────────────────────────────
-
-    private var centerHeroPod: some View {
-        VStack(spacing: 0) {
-            // KM/H Digit Display
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(obd.isEnabled && obd.connectionState == .connected ? "\(obd.liveSpeed)" : "--")
-                    .font(.system(size: min(34, height * 0.28), weight: .black, design: .monospaced))
-                    .foregroundStyle(.white)
-                Text("KM/H")
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.5))
-            }
-
-            // RPM Mini Tachometer Arc (Compact)
-            RPMTachometerView(rpm: obd.liveRPM, size: min(92, height * 0.52))
-
-            Text(obd.isEnabled && obd.connectionState == .connected ? "LIVE OBD" : "SIMULATION")
-                .font(.system(size: 6.5, weight: .black, design: .rounded))
-                .foregroundStyle(obd.isEnabled && obd.connectionState == .connected ? .green.opacity(0.8) : .cyan.opacity(0.8))
-        }
-    }
-
-    // ── Left Pod: Oil Temperature ─────────────────────────────────────────────
-
-    private var oilPod: some View {
-        VStack(spacing: 2) {
-            OilTempRingView(tempC: obd.effectiveOilTemp, size: min(78, height * 0.48))
-            Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL")
-                .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.35))
-        }
-    }
-
-    // ── Right Pod: Boost Pressure ─────────────────────────────────────────────
-
-    private var boostPod: some View {
-        VStack(spacing: 2) {
-            BoostArcView(
-                boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil,
-                size: min(78, height * 0.48)
-            )
-            Text(obd.liveMAP != nil ? "MAP DIREKT" : "MAF BERECHN.")
-                .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.35))
-        }
+        let ratio = Double(obd.liveRPM) / Double(max(1, obd.liveSpeed))
+        if ratio > 65 { return "GEAR 1" }
+        if ratio > 42 { return "GEAR 2" }
+        if ratio > 28 { return "GEAR 3" }
+        if ratio > 20 { return "GEAR 4" }
+        if ratio > 15 { return "GEAR 5" }
+        return "GEAR 6"
     }
 }
+
