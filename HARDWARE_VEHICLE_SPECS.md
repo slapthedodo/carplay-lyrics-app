@@ -408,12 +408,26 @@ Auf Basis des Nutzerfeedbacks wurden alle isolierten Karten-Container (`RoundedR
    * Keine Kacheln/Boxen mehr: 8 Telemetrie-Werte (IAT, MAF, Last, Abgas, Kühlmittel, Bordnetz, Lateral-G, Peak-G) getrennt durch feine 1pt vertikale Hairlines.
    * Automatische Farbwarnung nur bei kritischen Schwellenwerten (Kühlwasser >105°C rot, Bordnetz <12.2V rot/orange, Abgas >780°C rot).
 
-### B. Dateigrößen-Check (Strikte < 500-Zeilen-Regel):
-* `HandyModusLandscapeView.swift`: 227 Zeilen
-* `HandyModusGaugesView.swift`: 362 Zeilen
-* `HandyModusGForcePanel.swift`: 357 Zeilen
-* `HandyModusLyricsPanel.swift`: 336 Zeilen
-* `HandyModusStatsBar.swift`: 292 Zeilen
+
+---
+
+## 17. 🚀 Build #92: iPhone 14 Pro Max Edge-to-Edge Scaling & Landscape G-Orientation (19.10.2026)
+
+### A. Edge-to-Edge Skalierung (10–20% Randflächen zurückgewonnen):
+* **Problem:** Auf dem iPhone 14 Pro Max (932×430 pt) entstand durch doppelte Safe-Area-Paddings ein ungenutzter schwarzer Rand von über 20%.
+* **Lösung:** `HandyModusLandscapeView` nutzt nun das gesamte OLED-Panel. Es wird nur gezielt die Seite gepuffert, auf der sich die Dynamic Island physisch befindet (Leading bzw. Trailing bei 180°-Drehung). Die Gegenseite schließt bis auf 10pt bündig mit dem Bildschirmrand ab.
+
+### B. Dynamische Orientierungs-Kompensation für G-Kräfte (`MotionManager`):
+* **Problem:** Beim Drehen des Handys in die Querformat-Autohalterung vertauschten sich die physischen Sensorachsen (Kurvenkräfte wirkten auf der Längsachse und Beschleunigung/Bremsen auf der Querachse).
+* **Lösung:** `MotionManager` erkennt die Geräteausrichtung (`landscapeLeft`, `landscapeRight`, `portrait`) und mappt die Vektoren dynamisch um:
+  * `landscapeLeft` (Dynamic Island links): Lateral $= -calY$, Längs $= +calX$.
+  * `landscapeRight` (Dynamic Island rechts): Lateral $= +calY$, Längs $= -calX$.
+  * Dadurch bewegen sich Kurven-G und Brems-/Beschleunigungs-G in jeder Halterungsausrichtung immer physikalisch korrekt auf dem Display.
+
+### C. Vergrößertes G-Force Radar & Tab-Bereinigung:
+* **Vergrößertes G-Radar:** Durchmesser in `WidescreenPowertrainPod` um über 50% vergrößert (auf bis zu 125pt), fette 22pt Monospace-Typografie für die Live-G-Messung.
+* **Reduzierte Modi:** Der Modus `Race` wurde vollständig entfernt. Im Header-Capsule-Switcher stehen nun fokussiert **`Cockpit`** und **`Lyrics`** zur Verfügung.
+
 
 
 

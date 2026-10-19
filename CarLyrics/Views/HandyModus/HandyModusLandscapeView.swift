@@ -1,6 +1,6 @@
 // MARK: - HandyModusLandscapeView.swift
 // Widescreen Racing Cockpit: Unibody Panoramic Glass Cockpit für den Querformat-Einsatz
-// Keine isolierten Kacheln mehr: Nahtlose Tri-Zone Architektur + MoTeC Flight-Bar + 18-LED Shift Runway
+// Edge-to-Edge Skalierung für iPhone 14 Pro Max + Tri-Zone Cockpit + MoTeC Flight-Bar + 18-LED Shift Runway
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -14,7 +14,6 @@ public struct HandyModusLandscapeView: View {
     public enum LandscapeLayoutMode: String, CaseIterable {
         case cockpit = "Cockpit"
         case lyrics  = "Lyrics"
-        case race    = "Race"
     }
 
     @AppStorage("carlyrics_landscape_layout_mode")
@@ -33,10 +32,15 @@ public struct HandyModusLandscapeView: View {
     public var body: some View {
         GeometryReader { geo in
             let insets = geo.safeAreaInsets
-            let leadPad = max(insets.leading, 14)
-            let trailPad = max(insets.trailing, 14)
-            let bottomPad = max(insets.bottom, 4)
-            let topPad: CGFloat = 2
+            // Dynamic Island Erkennung (Leading oder Trailing je nach Halterungsausrichtung)
+            let isIslandLeading = insets.leading > 20
+            let isIslandTrailing = insets.trailing > 20
+
+            // Nutzt 100% des Bildschirms aus: Nur an der Kamera-Insel wird geschützt, die andere Seite geht bis 10pt an den Rand
+            let leadPad: CGFloat = isIslandLeading ? max(insets.leading, 46) : 10
+            let trailPad: CGFloat = isIslandTrailing ? max(insets.trailing, 46) : 10
+            let bottomPad: CGFloat = max(insets.bottom, 6)
+            let topPad: CGFloat = max(insets.top, 2)
 
             let usableW = geo.size.width - leadPad - trailPad
             let usableH = geo.size.height - topPad - bottomPad
@@ -104,8 +108,8 @@ public struct HandyModusLandscapeView: View {
             }
             .frame(maxWidth: .infinity)
 
-            // Mode Picker Capsule
-            HStack(spacing: 1.5) {
+            // Mode Picker Capsule (Cockpit | Lyrics)
+            HStack(spacing: 2) {
                 ForEach(LandscapeLayoutMode.allCases, id: \.self) { mode in
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -113,9 +117,9 @@ public struct HandyModusLandscapeView: View {
                         }
                     } label: {
                         Text(mode.rawValue)
-                            .font(.system(size: 8, weight: layoutMode == mode ? .black : .bold))
+                            .font(.system(size: 8.5, weight: layoutMode == mode ? .black : .bold))
                             .foregroundStyle(layoutMode == mode ? .white : .white.opacity(0.45))
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 2.5)
                             .background(
                                 layoutMode == mode ? Color.cyan.opacity(0.30) : Color.clear,
@@ -147,41 +151,27 @@ public struct HandyModusLandscapeView: View {
         Group {
             switch layoutMode {
             case .cockpit:
-                // Tri-Zone: Left Powertrain/G (29.5%) | Center Speed/RPM (36%) | Right Lyrics (34.5%)
-                HStack(spacing: 0) {
-                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.295, height: height)
-
-                    divider(height: height)
-
-                    WidescreenTachoConsole(obd: obd, width: width * 0.360, height: height)
-
-                    divider(height: height)
-
-                    WidescreenLyricsConsole(observer: observer, width: width * 0.345, height: height)
-                }
-
-            case .lyrics:
-                // Music-First: Left Expansive Cinema Lyrics (63%) | Right Speed & RPM Console (37%)
-                HStack(spacing: 0) {
-                    WidescreenLyricsConsole(observer: observer, width: width * 0.630, height: height)
-
-                    divider(height: height)
-
-                    WidescreenTachoConsole(obd: obd, width: width * 0.370, height: height)
-                }
-
-            case .race:
-                // Motorsport-First: Left Powertrain (32%) | Center Tacho Hero (36%) | Right G-Force Scope (32%)
+                // Tri-Zone: Left Powertrain & G-Radar (32%) | Center Speed/RPM (35.5%) | Right Lyrics (32.5%)
                 HStack(spacing: 0) {
                     WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.320, height: height)
 
                     divider(height: height)
 
-                    WidescreenTachoConsole(obd: obd, width: width * 0.360, height: height)
+                    WidescreenTachoConsole(obd: obd, width: width * 0.355, height: height)
 
                     divider(height: height)
 
-                    WidescreenGForcePod(motion: motion, width: width * 0.320, height: height)
+                    WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
+                }
+
+            case .lyrics:
+                // Music-First: Left Expansive Cinema Lyrics (62%) | Right Speed & RPM Console (38%)
+                HStack(spacing: 0) {
+                    WidescreenLyricsConsole(observer: observer, width: width * 0.620, height: height)
+
+                    divider(height: height)
+
+                    WidescreenTachoConsole(obd: obd, width: width * 0.380, height: height)
                 }
             }
         }

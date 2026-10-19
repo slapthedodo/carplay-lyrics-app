@@ -51,13 +51,14 @@ public struct HandyModusView: View {
                         motion: motion,
                         warmup: warmup
                     )
+                    .frame(width: geo.size.width, height: geo.size.height)
                     .toolbar(.hidden, for: .tabBar)
                 } else {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 14) {
                             // ── 1. Status-Streifen ──────────────────────────────────
                             statusStrip
-                                .padding(.top, 8)
+                                .padding(.top, max(geo.safeAreaInsets.top, 8))
 
                             // ── 2. Lyrics Panel ─────────────────────────────────────
                             HandyModusLyricsPanel(observer: observer)
@@ -76,12 +77,13 @@ public struct HandyModusView: View {
 
                             // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
                             footerControls
-                                .padding(.bottom, 30)
+                                .padding(.bottom, max(geo.safeAreaInsets.bottom, 30))
                         }
                         .padding(.horizontal, 14)
                     }
                 }
             }
+            .ignoresSafeArea()
         }
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)

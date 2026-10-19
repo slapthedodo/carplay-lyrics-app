@@ -171,8 +171,8 @@ public struct WidescreenPowertrainPod: View {
     }
 
     public var body: some View {
-        let pillarH = max(60, height * 0.45)
-        let radarSize = min(80, height * 0.42)
+        let pillarH = max(55, height * 0.36)
+        let radarSize = min(125, height * 0.56)
 
         return VStack(spacing: 4) {
             // ── Section 1: Twin Precision Pillars (Boost & Oil) ───────────────
@@ -201,8 +201,8 @@ public struct WidescreenPowertrainPod: View {
             }
             .frame(maxWidth: .infinity)
 
-            // ── Section 2: Seamless 2D G-Force Friction Radar ────────────────
-            HStack(spacing: 8) {
+            // ── Section 2: Prominent 2D G-Force Friction Radar (Enlarged) ───
+            HStack(spacing: 10) {
                 GBallView(
                     x: motion.normalizedX,
                     y: motion.normalizedY,
@@ -210,39 +210,43 @@ public struct WidescreenPowertrainPod: View {
                     maxG: motion.maxG
                 )
                 .frame(width: radarSize, height: radarSize)
-                .background(Circle().fill(Color.black.opacity(0.45)))
-                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                .background(Circle().fill(Color.black.opacity(0.50)))
+                .overlay(Circle().stroke(purple.opacity(0.35), lineWidth: 1.5))
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Text("G-KRAFT")
-                            .font(.system(size: 7.5, weight: .black, design: .rounded))
+                            .font(.system(size: 8, weight: .black, design: .rounded))
                             .foregroundStyle(purple)
                         Spacer()
                         // Nullpunkt Quick Touch
                         Button { motion.calibrate() } label: {
                             Image(systemName: "scope")
-                                .font(.system(size: 8.5, weight: .bold))
+                                .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(purple)
-                                .padding(3)
-                                .background(purple.opacity(0.18), in: Circle())
+                                .padding(3.5)
+                                .background(purple.opacity(0.20), in: Circle())
                         }
                     }
 
                     Text(motion.currentGFormatted)
-                        .font(.system(size: 16, weight: .black, design: .monospaced))
+                        .font(.system(size: min(22, height * 0.12), weight: .black, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
 
                     HStack(spacing: 4) {
                         Text("PEAK: \(motion.peakGFormatted)")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .font(.system(size: 8.5, weight: .bold, design: .monospaced))
                             .foregroundStyle(.orange)
                         Button { motion.resetPeak() } label: {
                             Image(systemName: "arrow.counterclockwise")
-                                .font(.system(size: 7, weight: .bold))
-                                .foregroundStyle(.orange.opacity(0.8))
+                                .font(.system(size: 7.5, weight: .bold))
+                                .foregroundStyle(.orange.opacity(0.85))
                         }
                     }
+
+                    Text("LAT: \(String(format: "%.2fG", abs(motion.gX)))")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundStyle(purple.opacity(0.80))
                 }
             }
             .padding(.top, 2)

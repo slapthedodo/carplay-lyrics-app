@@ -74,6 +74,7 @@ public final class MotionManager: ObservableObject {
 
     public func start() {
         guard motion.isDeviceMotionAvailable, !isActive else { return }
+        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
         motion.deviceMotionUpdateInterval = 0.04   // 25 Hz – ultraschnelle Reaktion
         rawSampleCount = 0
         motion.startDeviceMotionUpdates(
@@ -97,6 +98,7 @@ public final class MotionManager: ObservableObject {
 
     public func stop() {
         motion.stopDeviceMotionUpdates()
+        UIDevice.current.endGeneratingDeviceOrientationNotifications()
         calibrationTimer?.invalidate()
         calibrationTimer = nil
         isCalibrating = false
@@ -136,7 +138,7 @@ public final class MotionManager: ObservableObject {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Private processing (Direkte, ungefilterte G-Kräfte)
+    // MARK: Private processing (Direkte, ungefilterte G-Kräfte mit Orientierungskompensation)
     // ─────────────────────────────────────────────────────────────────────────
 
     private func process(_ data: CMDeviceMotion) {
@@ -152,15 +154,58 @@ public final class MotionManager: ObservableObject {
         let calX = rawX - calibrationOffsetX
         let calY = rawY - calibrationOffsetY
 
+        // Orientierungs-Kompensation für KFZ-Halterung im Querformat:
+        // Im Querformat tauschen die physischen Achsen ihre Rolle, sodass
+        // Querbeschleunigung (Kurven-G) immer auf der horizontalen Bildschirmskala
+        // und Längsbeschleunigung (Bremsen/Gas) immer auf der vertikalen Skala liegt.
+        var orientation = UIDevice.current.orientation
+        if orientation.isFlat || !orientation.isValidInterfaceOrientation {
+            if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+                switch scene.interfaceOrientation {
+                case .landscapeLeft: orientation = .landscapeLeft
+                case .landscapeRight: orientation = .landscapeRight
+                case .portraitUpsideDown: orientation = .portraitUpsideDown
+                default: orientation = .portrait
+                }
+            }
+        }
+
+        let mappedX: Double
+        let mappedY: Double
+
+        switch orientation {
+        case .landscapeLeft:
+            // iPhone 90° gegen Uhrzeigersinn (Dynamic Island / Oberseite links, Ladeanschluss rechts):
+            // Lateral (Kurve rechts +): -calY
+            // Längs (Beschleunigung vorwärts +): +calX
+            mappedX = -calY
+            mappedY = calX
+
+        case .landscapeRight:
+            // iPhone 90° im Uhrzeigersinn (Dynamic Island / Oberseite rechts, Ladeanschluss links):
+            // Lateral (Kurve rechts +): +calY
+            // Längs (Beschleunigung vorwärts +): -calX
+            mappedX = calY
+            mappedY = -calX
+
+        case .portraitUpsideDown:
+            mappedX = -calX
+            mappedY = -calY
+
+        default: // Standard Hochkant (Portrait)
+            mappedX = calX
+            mappedY = calY
+        }
+
         // Kombinierte G-Kraft im 2D-Fahrzeugvektor
-        let combined = sqrt(calX * calX + calY * calY)
+        let combined = sqrt(mappedX * mappedX + mappedY * mappedY)
 
         let limit = max(0.3, maxG)
         // Begrenzung auf das konfigurierte Maximum (fängt unrealistische Stoß- und Schlaglochspitzen ab)
         let clampedCombined = min(limit, combined)
 
-        gX = min(limit, max(-limit, calX))
-        gY = min(limit, max(-limit, calY))
+        gX = min(limit, max(-limit, mappedX))
+        gY = min(limit, max(-limit, mappedY))
         currentG = clampedCombined
 
         let prevPeak = peakG
