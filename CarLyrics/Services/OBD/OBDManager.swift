@@ -6,6 +6,7 @@ import Foundation
 import CoreBluetooth
 import Combine
 import UIKit
+import AVFoundation
 
 public final class OBDManager: NSObject, ObservableObject {
 
@@ -19,6 +20,9 @@ public final class OBDManager: NSObject, ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Published public var isEnabled            : Bool = true
+    /// CarPlay-Gating: Wenn true (Standard), verbindet OBD NUR wenn echtes CarPlay aktiv ist.
+    /// Im Diagnose-Workbench (manuelle Scan-Taste) wird das Gate explizit deaktiviert.
+    @Published public var carPlayGatingEnabled : Bool = true
     @Published public var connectionState      : OBDConnectionState = .disconnected
 
     // Fokus-Modus für gezielte Sensorabfrage ohne Ruckeln
@@ -188,7 +192,7 @@ public final class OBDManager: NSObject, ObservableObject {
     public func enableOBD() {
         isEnabled = true
         resetTelemetryValues()
-        startScan()
+        carPlayGatedScan()
     }
 
     public func disableOBD() {
@@ -220,7 +224,58 @@ public final class OBDManager: NSObject, ObservableObject {
         rxChar = nil
         resetTelemetryValues()
         if isEnabled {
+            carPlayGatedScan()
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: CarPlay Battery-Guard: Gated Scan & Safe Disconnect
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Startet Bluetooth-Scan NUR wenn CarPlay aktiv ist – oder Gating explizit deaktiviert (Diagnose).
+    /// Verhindert, dass die App das Auto-Steuergerät zuhause im Hintergrund aufweckt.
+    public func carPlayGatedScan() {
+        guard carPlayGatingEnabled else {
+            // Diagnose-Workbench: immer erlaubt (manueller Modus)
             startScan()
+            return
+        }
+        let hasCarPlayScreen = UIScreen.screens.contains {
+            $0.traitCollection.userInterfaceIdiom == .carPlay
+        }
+        let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+            $0.portType == .carAudio
+        }
+        guard hasCarPlayScreen || hasCarAudio else {
+            logSystem("🔒 OBD-Scan blockiert: Kein CarPlay aktiv (Batterieschutz)")
+            detailedStatus = "Wartet auf CarPlay…"
+            return
+        }
+        startScan()
+    }
+
+    /// Wird aufgerufen wenn CarPlay getrennt wird oder Zündung aus ist.
+    /// Sendet ATLP (ELM327 Low-Power Standby) und kappt die BLE-Verbindung sofort.
+    @MainActor public func carPlayDidDisconnect() {
+        guard isEnabled, connectionState != .disconnected else { return }
+        logSystem("⚡ CarPlay/Zündung aus – ATLP + BT-Trennung (Batterieschutz aktiv)")
+        // ELM327 schläft: < 2mA statt 45mA an Klemme 30
+        sendCommandRaw("ATLP")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            guard let self else { return }
+            self.stopPolling()
+            self.initStepTimer?.invalidate()
+            self.connectionWatchdogTimer?.invalidate()
+            if let p = self.peripheral {
+                self.centralManager.cancelPeripheralConnection(p)
+            }
+            self.peripheral = nil
+            self.txChar = nil
+            self.rxChar = nil
+            self.isInitializingUART = false
+            self.connectionState = .disconnected
+            self.detailedStatus = "Getrennt – Batterieschutz aktiv"
+            self.resetTelemetryValues()
         }
     }
 
@@ -379,63 +434,5 @@ public final class OBDManager: NSObject, ObservableObject {
                 self.pollNextPID()
             }
         }
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // MARK: Terminal Logging Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    public func sendManualCommand(_ cmd: String) {
-        let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        logTx(trimmed)
-        sendCommandRaw(trimmed)
-    }
-
-    public func copyTerminalLogToClipboard() {
-        let lines = terminalEntries.map { entry in
-            let dir = entry.direction == .tx ? "TX > " : (entry.direction == .rx ? "RX < " : "SYS: ")
-            return "[\(entry.timestamp)] \(dir)\(entry.text)"
-        }.joined(separator: "\n")
-        UIPasteboard.general.string = lines
-        logSystem("✔ Log in die Zwischenablage kopiert (\(terminalEntries.count) Zeilen).")
-    }
-
-    public func clearTerminalLogs() {
-        terminalEntries.removeAll()
-        debugLogs.removeAll()
-    }
-
-    internal func logTx(_ text: String) {
-        appendTerminal(direction: .tx, text: text, style: .normal)
-    }
-
-    internal func logRx(_ text: String) {
-        let style: OBDTerminalEntry.EntryStyle
-        if text.contains("41") || text.contains("OK") {
-            style = .success
-        } else if text.contains("ERROR") || text.contains("UNABLE") || text.contains("STOPPED") {
-            style = .error
-        } else if text.contains("SEARCHING") || text.contains("NODATA") {
-            style = .warning
-        } else {
-            style = .normal
-        }
-        appendTerminal(direction: .rx, text: text, style: style)
-    }
-
-    internal func logSystem(_ text: String) {
-        appendTerminal(direction: .system, text: text, style: .normal)
-    }
-
-    private func appendTerminal(direction: OBDTerminalEntry.Direction, text: String, style: OBDTerminalEntry.EntryStyle) {
-        let time = Date().formatted(date: .omitted, time: .standard)
-        let entry = OBDTerminalEntry(timestamp: time, direction: direction, text: text, style: style)
-        terminalEntries.insert(entry, at: 0)
-        if terminalEntries.count > 300 { terminalEntries.removeLast() }
-
-        let prefix = direction == .tx ? "TX: " : (direction == .rx ? "RX: " : "")
-        debugLogs.insert("[\(time)] \(prefix)\(text)", at: 0)
-        if debugLogs.count > 60 { debugLogs.removeLast() }
     }
 }

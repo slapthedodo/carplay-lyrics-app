@@ -347,10 +347,35 @@ Damit die Songtexte und Telemetriedaten wie bei „Dynamic Lyrics“ auf dem Car
 * **Fahrzeug-Fakt Golf 5 GTI (PQ35 Plattform):**  
   Am OBD-2 Port liegt Pin 16 direkt an **Klemme 30 (Dauerplus)** der 12V-Autobatterie. Der OBD-Port schaltet sich beim Abziehen des Zündschlüssels **NICHT** stromlos!
 * Ein eingesteckter ELM327 BLE Adapter zieht dauerhaft Ruhestrom (~20–45 mA). Wenn das iPhone im Hintergrund permanent per Bluetooth scannt oder die Verbindung hält, kann das CAN-Gateway nicht in den Tiefschlaf (Busruhe) gehen. Folge: Nach wenigen Tagen Standzeit ist die Starterbatterie entladen!
-* **Vorgeschlagenes Schutzkonzept (Vor Umsetzung zur Freigabe vorgelegt):**
-  1. **CarPlay-Gated Scan & Connect:** Bluetooth-Scan und Verbindungsaufbau starten erst, wenn CarPlay aktiv ist (`isRealCarPlayActive`).
-  2. **Auto-Disconnect bei CarPlay-Trennung:** Sobald der Motor abgestellt wird und CarPlay trennt, sendet die App den ELM-Sleep-Befehl (`ATLP` Low Power) und kappt die BLE-Verbindung sofort (`centralManager.cancelPeripheralConnection`).
-  3. **Bordspannungs-Sicherheitsnetz (`ATRV`):** Fällt die Spannung unter 12.0V (Zündung aus), trennt die App die Verbindung sofort, selbst wenn CarPlay noch nachläuft.
+
+---
+
+## 14. 🔋 Build #87: CarPlay-Gated Bluetooth OBD & ATLP Standby Sleep (19.10.2026)
+
+### A. Vollständige CarPlay-Kopplung von Bluetooth:
+* **`carPlayGatedScan()`:**  
+  Startet den BLE-Scan und Verbindungsaufbau **nur**, wenn echtes CarPlay aktiv ist (`isRealCarPlayActive`: CarPlay-Display oder CarPlay-Audioausgang).
+* **Automatischer Hintergrund-Schutz:**  
+  Weder beim Starten von CoreBluetooth noch bei versehentlichen Reconnects wird im Hintergrund oder in der Wohnung gescannt.
+* **Diagnose-Workbench:**  
+  Der manuelle „Scan“-Button in den Einstellungen (`obd.startScan()`) bleibt uneingeschränkt nutzbar für Standdiagnosen ohne CarPlay.
+
+### B. ATLP Tiefschlaf & Sofort-Trennung bei CarPlay-Aus:
+* **`carPlayDidDisconnect()`:**  
+  Sobald CarPlay trennt (z.B. Zündung aus, USB-Kabel gezogen, Wireless CarPlay beendet):
+  1. Sendet sofort den ELM327-Befehl `ATLP` (*Low Power Mode*), der den Ruhestrom an Klemme 30 von 45 mA auf unter 2 mA senkt.
+  2. Trennt die BLE-Verbindung via `centralManager.cancelPeripheralConnection`.
+  3. Setzt alle Timer zurück und stoppt das Sensor-Polling sofort.
+* **Auto-Reconnect Gating:**  
+  In `didDisconnectPeripheral` wird kein Reconnect eingeplant, wenn CarPlay nicht aktiv ist (`guard !carPlayGatingEnabled || carPlayActive`).
+
+### C. Zündungs- und Unterspannungs-Wächter:
+* In `OBDDataParser.swift`:  
+  * Reagiert auf `UNABLETOCONNECT` und bricht die Verbindung ab, wenn CarPlay inaktiv ist.
+  * Trennt bei kritischer Unterspannung ($< 11.6\,\text{V}$) automatisch zum Schutz vor Tiefentladung.
+* **Datei-Aufteilung:**  
+  Terminal-Logging-Hilfsfunktionen wurden nach `OBDManager+Logging.swift` ausgelagert, damit alle Swift-Dateien strikt unter 485 Zeilen bleiben.
+
 
 
 

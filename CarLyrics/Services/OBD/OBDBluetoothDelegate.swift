@@ -4,6 +4,8 @@
 
 import Foundation
 import CoreBluetooth
+import UIKit
+import AVFoundation
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: CBCentralManagerDelegate
@@ -46,7 +48,7 @@ extension OBDManager: CBCentralManagerDelegate {
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn && isEnabled {
             resetTelemetryValues()
-            startScan()
+            carPlayGatedScan()
         } else if central.state != .poweredOn {
             connectionState = .disconnected
             resetTelemetryValues()
@@ -132,8 +134,20 @@ extension OBDManager: CBCentralManagerDelegate {
         isInitializingUART = false
         stopPolling()
         if isEnabled && !isManualTerminalMode {
+            let hasCarPlayScreen = UIScreen.screens.contains {
+                $0.traitCollection.userInterfaceIdiom == .carPlay
+            }
+            let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains {
+                $0.portType == .carAudio
+            }
+            let carPlayActive = hasCarPlayScreen || hasCarAudio
+            guard !carPlayGatingEnabled || carPlayActive else {
+                logSystem("🔒 Auto-Reconnect blockiert: CarPlay nicht aktiv (Batterieschutz)")
+                detailedStatus = "Wartet auf CarPlay…"
+                return
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                self?.startScan()
+                self?.carPlayGatedScan()
             }
         }
     }

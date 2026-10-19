@@ -4,6 +4,7 @@
 
 import Foundation
 import UIKit
+import AVFoundation
 
 extension OBDManager {
 
@@ -39,6 +40,11 @@ extension OBDManager {
                 isIgnitionOn = ign
                 if !ign && connectionState == .connected {
                     detailedStatus = "Zündung AUS (Batterie \(String(format: "%.1f", v))V)"
+                    if carPlayGatingEnabled && v < 11.6 {
+                        Task { @MainActor in
+                            self.carPlayDidDisconnect()
+                        }
+                    }
                 }
             }
         }
@@ -53,6 +59,15 @@ extension OBDManager {
         // 3. Fehler-Meldungen des ELM327
         if compact.contains("UNABLETOCONNECT") {
             detailedStatus = "Keine Verbindung zum Steuergerät (Zündung an?)"
+            if carPlayGatingEnabled {
+                let hasCarPlayScreen = UIScreen.screens.contains { $0.traitCollection.userInterfaceIdiom == .carPlay }
+                let hasCarAudio = AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .carAudio }
+                if !hasCarPlayScreen && !hasCarAudio {
+                    Task { @MainActor in
+                        self.carPlayDidDisconnect()
+                    }
+                }
+            }
             return
         }
         if compact.contains("BUSINIT:ERROR") || compact.contains("BUSINITERROR") {

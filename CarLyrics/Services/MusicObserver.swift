@@ -327,6 +327,13 @@ public final class MusicObserver: ObservableObject {
                     await self.endAllLiveActivities()
                 }
             }
+
+            // CarPlay-Gating für OBD Bluetooth (Batterieschutz Golf 5 Kl. 30):
+            if !self.isRealCarPlayActive {
+                self.obd.carPlayDidDisconnect()
+            } else if self.obd.isEnabled && self.obd.connectionState == .disconnected {
+                self.obd.carPlayGatedScan()
+            }
         }
     }
 
