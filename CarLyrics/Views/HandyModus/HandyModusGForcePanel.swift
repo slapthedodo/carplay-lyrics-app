@@ -171,34 +171,37 @@ public struct WidescreenPowertrainPod: View {
     }
 
     public var body: some View {
-        let pillarH = max(65, min(108, height * 0.32))
-        let radarSize = min(136, height * 0.44)
+        let cardH = max(112, min(136, height * 0.39))
+        let barH = cardH - 46
+        let radarSize = min(126, height * 0.43)
 
         return VStack(spacing: 6) {
-            // ── Section 1: Twin Precision Pillars (Boost & Oil) ───────────────
-            HStack(spacing: 12) {
-                // Boost Pillar
-                telemetryPillar(
+            // ── Section 1: Twin Precision Instrument Cards (Boost & Oil) ─────
+            HStack(spacing: 8) {
+                // Boost Card
+                telemetryCard(
                     title: "LADEDRUCK",
+                    icon: "gauge.with.needle.fill",
                     valueStr: obd.isEnabled && obd.connectionState == .connected && obd.liveBoostBar != nil
                         ? String(format: "%+.2f", obd.liveBoostBar!)
                         : "--",
-                    unit: "BAR",
+                    unit: "BAR RELATIV",
                     ratio: boostRatio,
                     color: boostColor,
-                    barHeight: pillarH
+                    barHeight: barH
                 )
 
-                // Oil Temp Pillar
-                telemetryPillar(
+                // Oil Temp Card
+                telemetryCard(
                     title: obd.hasOilTempPID ? "ÖLTEMPERATUR" : "ÖLTEMP (EST)",
+                    icon: "drop.fill",
                     valueStr: obd.effectiveOilTemp != nil
                         ? (obd.hasOilTempPID ? "\(obd.effectiveOilTemp!)°" : "~\(obd.effectiveOilTemp!)°")
                         : "--°",
-                    unit: "°C",
+                    unit: "CELSIUS",
                     ratio: oilRatio,
                     color: oilColor,
-                    barHeight: pillarH
+                    barHeight: barH
                 )
             }
             .frame(maxWidth: .infinity)
@@ -282,40 +285,78 @@ public struct WidescreenPowertrainPod: View {
         .frame(width: width, height: height)
     }
 
-    private func telemetryPillar(title: String, valueStr: String, unit: String, ratio: Double, color: Color, barHeight: CGFloat) -> some View {
-        VStack(spacing: 2) {
-            Text(title)
-                .font(.system(size: 7, weight: .black, design: .rounded))
-                .foregroundStyle(.white.opacity(0.40))
-                .lineLimit(1)
-
-            ZStack(alignment: .bottom) {
-                // Background Track
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.08))
-                    .frame(width: 14, height: barHeight)
-
-                // Fill Level with Gradient
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(
-                        LinearGradient(
-                            colors: [color.opacity(0.65), color],
-                            startPoint: .bottom, endPoint: .top
-                        )
-                    )
-                    .frame(width: 14, height: max(4, barHeight * CGFloat(ratio)))
-                    .shadow(color: color.opacity(0.85), radius: 6)
-                    .animation(.interactiveSpring(response: 0.16), value: ratio)
+    private func telemetryCard(title: String, icon: String, valueStr: String, unit: String, ratio: Double, color: Color, barHeight: CGFloat) -> some View {
+        VStack(spacing: 4) {
+            // Header
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
             }
 
-            Text(valueStr)
-                .font(.system(size: 11, weight: .black, design: .monospaced))
-                .foregroundStyle(color)
+            // Body: Bar + Digital Display
+            HStack(spacing: 8) {
+                // Precision Bar with scale ticks
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 3.5)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 18, height: barHeight)
+                        .overlay(
+                            VStack(spacing: 0) {
+                                ForEach(0..<4) { _ in
+                                    Rectangle().fill(Color.white.opacity(0.14)).frame(height: 1)
+                                    Spacer()
+                                }
+                            }
+                            .padding(.vertical, 3)
+                        )
 
-            Text(unit)
-                .font(.system(size: 6.5, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.35))
+                    RoundedRectangle(cornerRadius: 3.5)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.60), color],
+                                startPoint: .bottom, endPoint: .top
+                            )
+                        )
+                        .frame(width: 18, height: max(5, barHeight * CGFloat(ratio)))
+                        .shadow(color: color.opacity(0.80), radius: 6)
+                        .animation(.interactiveSpring(response: 0.16), value: ratio)
+                }
+
+                // Digital Readout
+                VStack(alignment: .leading, spacing: 2) {
+                    Spacer(minLength: 0)
+                    Text(valueStr)
+                        .font(.system(size: 15, weight: .black, design: .monospaced))
+                        .foregroundStyle(color)
+                        .minimumScaleFactor(0.75)
+                        .lineLimit(1)
+
+                    Text(unit)
+                        .font(.system(size: 6.5, weight: .black, design: .rounded))
+                        .tracking(0.5)
+                        .foregroundStyle(.white.opacity(0.35))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                Spacer(minLength: 0)
+            }
         }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
         .frame(maxWidth: .infinity)
     }
 }
