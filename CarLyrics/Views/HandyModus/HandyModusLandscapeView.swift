@@ -29,27 +29,54 @@ public struct HandyModusLandscapeView: View {
         self.warmup   = warmup
     }
 
+    @State private var orientationID: UUID = UUID()
+
+    private var windowSafeAreaInsets: UIEdgeInsets {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let window = scenes.first(where: { $0.activationState == .foregroundActive })?.windows.first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
+            ?? scenes.flatMap({ $0.windows }).first {
+            return window.safeAreaInsets
+        }
+        return UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 0)
+    }
+
+    private var islandOnLeft: Bool {
+        let insets = windowSafeAreaInsets
+        if insets.left > 20 && insets.right < 20 { return true }
+        if insets.right > 20 && insets.left < 20 { return false }
+
+        let dev = UIDevice.current.orientation
+        if dev == .landscapeLeft { return true }
+        if dev == .landscapeRight { return false }
+
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first {
+            if scene.interfaceOrientation == .landscapeRight { return true }
+            if scene.interfaceOrientation == .landscapeLeft { return false }
+        }
+        return true
+    }
+
     public var body: some View {
-        // Zwei-Lagen-Ansatz:
-        // Äußerer GeometryReader liest die ECHTEN safe area insets (kein ignoresSafeArea auf dieser Ebene)
-        // Innerer Content wird edge-to-edge gezeichnet (background etc.) aber Content ist safe-area-aware
-        GeometryReader { safeGeo in
-            // safeGeo.safeAreaInsets sind hier korrekt, da dieser GeometryReader nicht unter ignoresSafeArea läuft
-            let insets = safeGeo.safeAreaInsets
+        GeometryReader { geo in
+            let isLeft = islandOnLeft
+            // 60pt hält exakt 1pt Abstand von der 59pt Dynamic Island – maximal mögliche Ausnutzung!
+            let islandPad: CGFloat = 60
+            let edgePad: CGFloat = 8
 
-            // Der eigentliche Content
-            let topPad: CGFloat = max(insets.top, 4)
-            let bottomPad: CGFloat = max(insets.bottom, 4)
-            let leadPad: CGFloat = max(insets.leading, 4)
-            let trailPad: CGFloat = max(insets.trailing, 4)
+            let leadPad: CGFloat = isLeft ? islandPad : edgePad
+            let trailPad: CGFloat = isLeft ? edgePad : islandPad
+            let topPad: CGFloat = 2
+            let bottomPad: CGFloat = 16
 
-            let usableW = safeGeo.size.width - leadPad - trailPad
-            let usableH = safeGeo.size.height - topPad - bottomPad
+            let usableW = geo.size.width - leadPad - trailPad
+            let usableH = geo.size.height - topPad - bottomPad
 
-            let topBarH: CGFloat = 24
-            let flightBarH: CGFloat = 36
-            let vSpacing: CGFloat = 5
-            let mainStageH = max(200, usableH - topBarH - flightBarH - (vSpacing * 2))
+            let topBarH: CGFloat = 22
+            let flightBarH: CGFloat = 34
+            let vSpacing: CGFloat = 4
+            let mainStageH = max(240, usableH - topBarH - flightBarH - (vSpacing * 2))
 
             VStack(spacing: vSpacing) {
                 // ── 1. Top F1/GT3 Shift-Light Runway & Horizon Bar ────────────
@@ -65,7 +92,13 @@ public struct HandyModusLandscapeView: View {
             .padding(.trailing, trailPad)
             .padding(.top, topPad)
             .padding(.bottom, bottomPad)
-            .frame(width: safeGeo.size.width, height: safeGeo.size.height)
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .id(orientationID)
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                orientationID = UUID()
+            }
         }
         .overlay(
             Group {

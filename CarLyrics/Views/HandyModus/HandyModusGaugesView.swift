@@ -263,7 +263,7 @@ public struct WidescreenTachoConsole: View {
     }
 
     private var arcSize: CGFloat {
-        min(width * 0.92, height * 0.90)
+        min(width * 0.94, height * 0.90)
     }
 
     public var body: some View {
@@ -305,16 +305,16 @@ public struct WidescreenTachoConsole: View {
                 // Digital RPM Readout
                 HStack(spacing: 3) {
                     Text("\(obd.liveRPM)")
-                        .font(.system(size: min(17, height * 0.11), weight: .black, design: .monospaced))
+                        .font(.system(size: min(20, height * 0.11), weight: .black, design: .monospaced))
                         .foregroundStyle(rpmColor)
                     Text("RPM")
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .font(.system(size: 8.5, weight: .bold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.45))
                 }
 
                 // Massive Hero Digital Speed Readout
                 Text(obd.isEnabled && obd.connectionState == .connected ? "\(obd.liveSpeed)" : "--")
-                    .font(.system(size: min(56, height * 0.36), weight: .black, design: .monospaced))
+                    .font(.system(size: min(66, height * 0.36), weight: .black, design: .monospaced))
                     .foregroundStyle(.white)
                     .shadow(color: .white.opacity(0.25), radius: 8)
                     .lineLimit(1)

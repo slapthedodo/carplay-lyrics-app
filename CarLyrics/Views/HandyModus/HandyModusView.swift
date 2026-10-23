@@ -54,8 +54,16 @@ public struct HandyModusView: View {
             GeometryReader { geo in
                 let isLandscape = geo.size.width > geo.size.height
 
-                if !isLandscape {
-                    // Portrait: läuft unter ignoresSafeArea, manuelle Insets nötig
+                if isLandscape {
+                    HandyModusLandscapeView(
+                        observer: observer,
+                        obd: obd,
+                        motion: motion,
+                        warmup: warmup
+                    )
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .toolbar(.hidden, for: .tabBar)
+                } else {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 14) {
                             // ── 1. Status-Streifen ──────────────────────────────────
@@ -86,21 +94,6 @@ public struct HandyModusView: View {
                 }
             }
             .ignoresSafeArea()
-
-            // Landscape: EIGENER Layer OHNE ignoresSafeArea – damit GeometryReader
-            // in HandyModusLandscapeView korrekte safeAreaInsets bekommt (Dynamic Island!)
-            GeometryReader { geo in
-                let isLandscape = geo.size.width > geo.size.height
-                if isLandscape {
-                    HandyModusLandscapeView(
-                        observer: observer,
-                        obd: obd,
-                        motion: motion,
-                        warmup: warmup
-                    )
-                    .toolbar(.hidden, for: .tabBar)
-                }
-            }
         }
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)

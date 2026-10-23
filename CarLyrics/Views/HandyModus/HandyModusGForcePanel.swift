@@ -171,8 +171,8 @@ public struct WidescreenPowertrainPod: View {
     }
 
     public var body: some View {
-        let pillarH = max(55, min(85, height * 0.32))
-        let radarSize = min(112, height * 0.44)
+        let pillarH = max(65, min(108, height * 0.32))
+        let radarSize = min(136, height * 0.44)
 
         return VStack(spacing: 6) {
             // ── Section 1: Twin Precision Pillars (Boost & Oil) ───────────────
