@@ -396,7 +396,7 @@ public struct TogglePlaybackIntent: AudioPlaybackIntent {
                     let query = MPMediaQuery.songs()
                     if let items = query.items, !items.isEmpty {
                         player.setQueue(with: query)
-                        player.prepareToPlay()
+                        try? await player.prepareToPlay()
                     }
                 }
                 player.play()
