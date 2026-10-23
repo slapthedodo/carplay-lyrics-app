@@ -53,30 +53,35 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
 
-    /// Liefert die echte Öltemperatur (PID 01 5C) oder das hochpräzise EA113-Thermikmodell
-    /// basierend auf Kühlmittel (01 05), Drehzahl (01 0C) und Motorlast.
+    /// Liefert echte Öltemperatur (PID 01 5C) oder konservatives EA113-Thermikmodell.
+    /// KONSERVATIV: lieber zu niedrig als zu hoch – Nutzer entscheidet über Vollgas-Timing!
+    /// UI-Label: hasOilTempPID=true → "ÖL DIREKT",  false → "ÖL MODELL ±5°C"
     public var effectiveOilTemp: Int? {
         if let real = liveOilTemp {
             return real
         }
         guard let coolant = liveCoolantTemp else { return nil }
-        // VW EA113 2.0 TFSI Thermik:
-        // Der integrierte Öl-Wasser-Wärmetauscher am Ölfilterflansch sorgt dafür,
-        // dass sich das Öl dem Kühlmittel mit ca. 8°C Nachlauf anpasst.
-        // Bei kaltem Motor starten beide bei ähnlicher Temperatur (z.B. 10°C).
+        // VW EA113 2.0 TFSI Thermik (konservativ kalibriert für Schutz):
+        // Der integrierte Öl-Wasser-Wärmetauscher hält das Öl ~8-12°C unter dem Kühlmittel
+        // im normalen Stadtbetrieb. Bei hoher Last kann Öl das Kühlmittel übersteigen (bis +15°C),
+        // aber das Modell ist BEWUSST konservativ – lieber 5°C zu niedrig anzeigen als zu hoch!
         let baseOil: Int
         if coolant < 25 {
             baseOil = coolant
         } else if coolant < 60 {
-            baseOil = coolant - 6
+            baseOil = coolant - 8   // Etwas konservativer: Öl-Aufheizung dauert länger
+        } else if coolant < 85 {
+            baseOil = coolant - 10
         } else {
-            baseOil = coolant - 8
+            baseOil = coolant - 8   // Betriebswarm: 8°C Nachlauf (Öl-Wasser-WT in Balance)
         }
 
+        // Nur bei Volllast und vollbetriebswarmem Motor (>= 85°C Kühlmittel) gibt es einen Bonus
+        // Kein Bonus unter 85°C → schützt vor Vollgas bei kaltem Öl!
         let loadBonus: Int
-        if coolant >= 80 {
-            if liveRPM > 3000 || (liveBoostBar ?? 0) > 0.3 {
-                loadBonus = min(25, max(0, Int((liveBoostBar ?? 0) * 12) + (liveRPM > 4000 ? 6 : 2)))
+        if coolant >= 85 {
+            if liveRPM > 4000 && (liveBoostBar ?? 0) > 0.5 {
+                loadBonus = min(12, max(0, Int((liveBoostBar ?? 0) * 8)))
             } else {
                 loadBonus = 0
             }
@@ -88,7 +93,7 @@ public final class OBDManager: NSObject, ObservableObject {
 
     // PID-Unterstützungs-Flags (Bosch MED9.1 Filter: 010B standardmäßig false)
     @Published public var hasMAPPID            : Bool    = false
-    @Published public var hasCheckedMAPPID     : Bool    = true
+    @Published public var hasCheckedMAPPID     : Bool    = false   // false = 010B beim ersten Connect immer probieren
     @Published public var isPollingActive      : Bool    = false
     internal var pollWatchdogTimer             : Timer?  = nil
 
@@ -286,10 +291,10 @@ public final class OBDManager: NSObject, ObservableObject {
     public func resetTelemetryValues() {
         liveOilTemp = nil
         liveCoolantTemp = nil
-        liveBoostBar = 0.0
-        liveMAP = 101
-        liveIAT = 20
-        liveMAF = 3.5
+        liveBoostBar = nil
+        liveMAP = nil
+        liveIAT = nil
+        liveMAF = nil
         liveEngineLoad = nil
         liveRPM = 0
         liveSpeed = 0
@@ -302,6 +307,8 @@ public final class OBDManager: NSObject, ObservableObject {
         isIgnitionOn = nil
         hasOilTempPID = false
         hasCheckedOilTempPID = false
+        hasMAPPID = false
+        hasCheckedMAPPID = false   // Immer 010B neu probieren bei Reconnect
         isInitializingUART = false
         initQueue.removeAll()
         isWaitingForResponse = false

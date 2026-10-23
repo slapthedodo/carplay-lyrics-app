@@ -169,13 +169,20 @@ extension OBDManager {
                 let maf = Double((Int(b1) * 256) + Int(b2)) / 100.0
                 liveMAF = maf
 
-                // EA113 2.0 TFSI Ladedruck-Berechnung (Bosch MED9.1 hat kein PID 010B MAP)
-                if liveRPM > 500 {
+                // EA113 2.0 TFSI MAF-basierte Ladedruck-Schätzung
+                // NUR wenn 010B kein gültiges Ergebnis liefert (hasMAPPID == false)
+                if !hasMAPPID && liveRPM > 600 {
                     let iatK = Double((liveIAT ?? 20) + 273)
-                    // baseAirflowNA in g/s: (RPM/120) * 1.984 L * (101.325 / (0.287058 * iatK)) * 0.88
-                    let baseAirflowNA = (Double(liveRPM) / 120.0) * 1.984 * (101.325 / (0.287058 * iatK)) * 0.88
+                    // Natürliche Ansaugluftmenge bei Atmosphärendruck (1 bar):
+                    // Rho_Luft = 101.325/(0.287058 * iatK) kg/m3
+                    // V_Zylinder = 1.984 L = 0.001984 m3
+                    // Jeder Zylinder saugt bei 4-Takter alle 2 Umdrehungen -> RPM/120 Ansaugtakte/s
+                    // vol.Eff. EA113 NA = 0.80 (konservativ)
+                    let rhoAir = 101.325 / (0.287058 * iatK)
+                    let baseAirflowNA = (Double(liveRPM) / 120.0) * 0.001984 * rhoAir * 0.80 * 1000.0 // g/s
                     if baseAirflowNA > 1.0 {
                         let ratio = maf / baseAirflowNA
+                        // ratio > 1.0 bedeutet Aufladung, ratio - 1.0 = Ladedruck in bar (grob)
                         let boostEst = max(0.0, ratio - 1.0)
                         liveBoostBar = Double(round(boostEst * 100) / 100)
                         liveMAP = Int(101.3 * max(0.2, ratio))
@@ -183,9 +190,6 @@ extension OBDManager {
                         liveBoostBar = 0.0
                         liveMAP = 101
                     }
-                } else {
-                    liveBoostBar = 0.0
-                    liveMAP = 101
                 }
             }
         }

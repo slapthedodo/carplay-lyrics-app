@@ -29,61 +29,22 @@ public struct HandyModusLandscapeView: View {
         self.warmup   = warmup
     }
 
-    private var safeHardwareInsets: UIEdgeInsets {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        if let window = scenes.first(where: { $0.activationState == .foregroundActive })?.windows.first(where: { $0.isKeyWindow })
-            ?? scenes.flatMap({ $0.windows }).first(where: { $0.isKeyWindow })
-            ?? scenes.flatMap({ $0.windows }).first {
-            return window.safeAreaInsets
-        }
-        return UIEdgeInsets(top: 0, left: 59, bottom: 21, right: 0)
-    }
-
-    private var currentInterfaceOrientation: UIInterfaceOrientation {
-        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene ?? UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            return scene.interfaceOrientation
-        }
-        return .landscapeRight
-    }
-
-    private var islandOnLeadingEdge: Bool {
-        let insets = safeHardwareInsets
-        // 1. Echte Hardware Insets: Wenn links > 20 und rechts < 20, ist die Island links
-        if insets.left > 20 && insets.right < 20 { return true }
-        if insets.right > 20 && insets.left < 20 { return false }
-
-        // 2. UIDeviceOrientation: landscapeLeft = 90° gegen Uhrzeigersinn -> Island links
-        let devOri = UIDevice.current.orientation
-        if devOri == .landscapeLeft { return true }
-        if devOri == .landscapeRight { return false }
-
-        // 3. UIInterfaceOrientation: landscapeRight = Content nach rechts gedreht -> Top/Island links
-        if currentInterfaceOrientation == .landscapeRight { return true }
-        if currentInterfaceOrientation == .landscapeLeft { return false }
-
-        // Standard Halterungsausrichtung: Island links
-        return true
-    }
-
     public var body: some View {
-        GeometryReader { geo in
-            let hwInsets = safeHardwareInsets
-            let isLeading = islandOnLeadingEdge
+        // Zwei-Lagen-Ansatz:
+        // Äußerer GeometryReader liest die ECHTEN safe area insets (kein ignoresSafeArea auf dieser Ebene)
+        // Innerer Content wird edge-to-edge gezeichnet (background etc.) aber Content ist safe-area-aware
+        GeometryReader { safeGeo in
+            // safeGeo.safeAreaInsets sind hier korrekt, da dieser GeometryReader nicht unter ignoresSafeArea läuft
+            let insets = safeGeo.safeAreaInsets
 
-            // iPhone 14 Pro Max / 15 Pro / 16 Pro Dynamic Island Hardware Clearance:
-            // Die Dynamic Island ragt 59pt von der Kante hinein.
-            // Mit 6pt Puffer = 65pt absolute Freistellung!
-            // Die Gegenseite (Ladebuchse) schließt bis auf 14pt bündig ab.
-            let islandPad: CGFloat = max(hwInsets.left > 20 ? hwInsets.left : 0, hwInsets.right > 20 ? hwInsets.right : 0, 59) + 6
-            let edgePad: CGFloat = 14
+            // Der eigentliche Content
+            let topPad: CGFloat = max(insets.top, 4)
+            let bottomPad: CGFloat = max(insets.bottom, 4)
+            let leadPad: CGFloat = max(insets.leading, 4)
+            let trailPad: CGFloat = max(insets.trailing, 4)
 
-            let leadPad: CGFloat = isLeading ? islandPad : edgePad
-            let trailPad: CGFloat = isLeading ? edgePad : islandPad
-            let bottomPad: CGFloat = max(hwInsets.bottom, 21)
-            let topPad: CGFloat = max(hwInsets.top, 4)
-
-            let usableW = geo.size.width - leadPad - trailPad
-            let usableH = geo.size.height - topPad - bottomPad
+            let usableW = safeGeo.size.width - leadPad - trailPad
+            let usableH = safeGeo.size.height - topPad - bottomPad
 
             let topBarH: CGFloat = 24
             let flightBarH: CGFloat = 36
@@ -104,7 +65,7 @@ public struct HandyModusLandscapeView: View {
             .padding(.trailing, trailPad)
             .padding(.top, topPad)
             .padding(.bottom, bottomPad)
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: safeGeo.size.width, height: safeGeo.size.height)
         }
         .overlay(
             Group {
