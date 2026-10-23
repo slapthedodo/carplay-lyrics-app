@@ -191,8 +191,10 @@ public struct WidescreenPowertrainPod: View {
 
                 // Oil Temp Pillar
                 telemetryPillar(
-                    title: "ÖLTEMPERATUR",
-                    valueStr: obd.effectiveOilTemp != nil ? "\(obd.effectiveOilTemp!)°" : "--°",
+                    title: obd.hasOilTempPID ? "ÖLTEMPERATUR" : "ÖLTEMP (EST)",
+                    valueStr: obd.effectiveOilTemp != nil
+                        ? (obd.hasOilTempPID ? "\(obd.effectiveOilTemp!)°" : "~\(obd.effectiveOilTemp!)°")
+                        : "--°",
                     unit: "°C",
                     ratio: oilRatio,
                     color: oilColor,

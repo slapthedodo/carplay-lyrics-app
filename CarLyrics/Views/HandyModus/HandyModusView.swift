@@ -202,9 +202,9 @@ public struct HandyModusView: View {
             // Öltemp Ring (links)
             VStack(spacing: 4) {
                 OilTempRingView(tempC: obd.effectiveOilTemp, size: 110)
-                Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL")
+                Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL (EST)")
                     .font(.system(size: 7.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(.white.opacity(0.35))
             }
             .frame(maxWidth: .infinity)
 
