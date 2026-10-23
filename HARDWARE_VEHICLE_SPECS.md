@@ -472,12 +472,19 @@ Auf Basis des Nutzerfeedbacks wurden alle isolierten Karten-Container (`RoundedR
   * **Unten:** G-Force Radar (112pt Durchmesser) mit den Messwerten und Peak-Hold rechts daneben.
   * **Nullpunkt-Button:** Sitzt direkt rechts neben dem Label `"G-KRAFT"` (`spacing: 5`).
 
+---
 
+## 20. 🎯 Builds #95 – #97: Ladedruck MAP Fix, Native Dynamic Island Layer & Öltemperatur Option B (23.10.2026)
 
+### A. Ladedruck-Wiederherstellung (Build #95):
+* **Problem:** `hasCheckedMAPPID` war initial auf `true` gesetzt (bei `hasMAPPID = false`), wodurch der MAP-PID `01 0B` in der Polling-Schleife nie abgefragt wurde. Ladedruck blieb bei 0.00 bar.
+* **Lösung:** `hasCheckedMAPPID = false` gesetzt + automatischer Re-Probe bei jedem Reconnect. Zudem verbesserte MAF-Fallback-Berechnung für EA113 K03 Turbo.
 
+### B. Dynamic Island Native SwiftUI Safe Area Layer (Build #95):
+* **Problem:** `HandyModusView` hatte ein globales `.ignoresSafeArea()`, das alle inneren `geo.safeAreaInsets` auf 0 zwang. Manuelle UIWindowScene Inset-Hacks schlugen fehl.
+* **Lösung:** Die `HandyModusLandscapeView` wurde in einen separaten ZStack-Layer **ohne** `.ignoresSafeArea()` ausgelagert. Dadurch liefert SwiftUIs nativer `GeometryReader` automatisch die 100% korrekten Hardware-Insets für die Dynamic Island auf beiden Orientierungen (links/rechts), ohne manuelle Orientierungsberechnungen.
 
-
-
-
-
-
+### C. Öltemperatur: Thermische Trägheitssperre & Option B (Build #96 & #97):
+* **Erkenntnis:** Der Golf 5 GTI EA113 liefert bei PID `01 5C` standardmäßig `NO DATA` (Sensor G266 ist nur am Tacho angeschlossen). Das bisherige Modell rechnete stur `Kühlwasser - 8°C`, was nach 5 Min fälschlicherweise 82°C meldete, obwohl 4,6L Öl noch kalt waren.
+* **Build #96:** Kaltstart-Sperre via `WarmupCalculator` gekoppelt an `initialCoolantTemp` und Fahrtzeit: Erreicht erst nach echten 14–15 Minuten 80°C. Bei Vollgas/Ladedruck dynamischer Anstieg auf bis zu 98°C.
+* **Build #97 (Option B):** Vollkommen transparente Kennzeichnung in Portrait (`ÖL MODELL (EST)`) und Landscape (`ÖLTEMP (EST)` mit `~`-Präfix, z.B. `~82°C`), damit für den Fahrer jederzeit klar ist, dass es sich um eine physikalische Modellschätzung handelt.
