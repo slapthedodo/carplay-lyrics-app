@@ -61,14 +61,15 @@ public struct HandyModusLandscapeView: View {
     public var body: some View {
         GeometryReader { geo in
             let isLeft = islandOnLeft
-            // 60pt hält exakt 1pt Abstand von der 59pt Dynamic Island – maximal mögliche Ausnutzung!
+            // Dynamic Island Seite: 60pt (exakt 1pt Abstand zur 59pt Dynamic Island)
             let islandPad: CGFloat = 60
-            let edgePad: CGFloat = 8
+            // Abgerundete Gehäuse-Ecke: 22pt (exakt an der Kante der 55pt Display-Rundung)
+            let edgePad: CGFloat = 22
 
             let leadPad: CGFloat = isLeft ? islandPad : edgePad
             let trailPad: CGFloat = isLeft ? edgePad : islandPad
-            let topPad: CGFloat = 2
-            let bottomPad: CGFloat = 16
+            let topPad: CGFloat = 4
+            let bottomPad: CGFloat = 18
 
             let usableW = geo.size.width - leadPad - trailPad
             let usableH = geo.size.height - topPad - bottomPad
