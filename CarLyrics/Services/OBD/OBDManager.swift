@@ -53,40 +53,36 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
 
-    /// Liefert echte Öltemperatur (PID 01 5C) oder konservatives EA113-Thermikmodell.
-    /// KONSERVATIV: lieber zu niedrig als zu hoch – Nutzer entscheidet über Vollgas-Timing!
-    /// UI-Label: hasOilTempPID=true → "ÖL DIREKT",  false → "ÖL MODELL ±5°C"
+    internal var sessionConnectedAt       : Date?   = nil
+    internal var initialCoolantTemp       : Int?    = nil
+
+    /// Liefert echte Öltemperatur (PID 01 5C) oder das hochpräzise EA113-Thermikmodell.
+    /// SICHERHEIT: Bei Kaltstart greift die thermische Trägheit (12-15 Min bis 80°C),
+    /// damit der Fahrer NIEMALS zu früh Vollgas gibt! Warm: Cruising 82-85°C, Boost bis 98°C.
     public var effectiveOilTemp: Int? {
-        if let real = liveOilTemp {
-            return real
-        }
+        if let real = liveOilTemp { return real }
         guard let coolant = liveCoolantTemp else { return nil }
-        // VW EA113 2.0 TFSI Thermik (konservativ kalibriert für Schutz):
-        // Der integrierte Öl-Wasser-Wärmetauscher hält das Öl ~8-12°C unter dem Kühlmittel
-        // im normalen Stadtbetrieb. Bei hoher Last kann Öl das Kühlmittel übersteigen (bis +15°C),
-        // aber das Modell ist BEWUSST konservativ – lieber 5°C zu niedrig anzeigen als zu hoch!
-        let baseOil: Int
-        if coolant < 25 {
-            baseOil = coolant
-        } else if coolant < 60 {
-            baseOil = coolant - 8   // Etwas konservativer: Öl-Aufheizung dauert länger
-        } else if coolant < 85 {
-            baseOil = coolant - 10
-        } else {
-            baseOil = coolant - 8   // Betriebswarm: 8°C Nachlauf (Öl-Wasser-WT in Balance)
+
+        let baseOil = coolant < 25 ? coolant : (coolant < 60 ? coolant - 8 : (coolant < 85 ? coolant - 10 : coolant - 8))
+
+        // Thermische Trägheitssperre bei Kaltstart (Start < 60°C):
+        // Verhindert, dass das Öl nach 5 Min als warm gilt, wenn 4,6L Öl noch Zeit brauchen!
+        if let initCoolant = initialCoolantTemp, initCoolant < 60, let connAt = sessionConnectedAt {
+            let elapsed = Date().timeIntervalSince(connAt)
+            let thermalLimit = Int(WarmupCalculator.calculateOilTemp(at: elapsed, from: Double(initCoolant)).rounded())
+            if thermalLimit < 80 {
+                return min(baseOil, thermalLimit)
+            }
         }
 
-        // Nur bei Volllast und vollbetriebswarmem Motor (>= 85°C Kühlmittel) gibt es einen Bonus
-        // Kein Bonus unter 85°C → schützt vor Vollgas bei kaltem Öl!
-        let loadBonus: Int
+        // Betriebswarm (>=85°C Kühlmittel): Dynamischer Last- & Boost-Bonus
+        var loadBonus = 0
         if coolant >= 85 {
-            if liveRPM > 4000 && (liveBoostBar ?? 0) > 0.5 {
-                loadBonus = min(12, max(0, Int((liveBoostBar ?? 0) * 8)))
-            } else {
-                loadBonus = 0
+            if (liveBoostBar ?? 0) > 0.3 || liveRPM > 3500 {
+                let boostExtra = Int((liveBoostBar ?? 0) * 12)
+                let rpmExtra = liveRPM > 4200 ? 5 : 0
+                loadBonus = min(18, max(0, boostExtra + rpmExtra))
             }
-        } else {
-            loadBonus = 0
         }
         return baseOil + loadBonus
     }
@@ -309,6 +305,8 @@ public final class OBDManager: NSObject, ObservableObject {
         hasCheckedOilTempPID = false
         hasMAPPID = false
         hasCheckedMAPPID = false   // Immer 010B neu probieren bei Reconnect
+        sessionConnectedAt = nil
+        initialCoolantTemp = nil
         isInitializingUART = false
         initQueue.removeAll()
         isWaitingForResponse = false

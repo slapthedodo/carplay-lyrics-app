@@ -95,6 +95,10 @@ extension OBDManager {
             let after = String(compact[range.upperBound...])
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
                 let tempC = Int(val) - 40
+                if initialCoolantTemp == nil {
+                    initialCoolantTemp = tempC
+                    sessionConnectedAt = Date()
+                }
                 liveCoolantTemp = tempC
                 if let eff = effectiveOilTemp {
                     Task { @MainActor in
