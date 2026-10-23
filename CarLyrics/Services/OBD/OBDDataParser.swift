@@ -246,14 +246,15 @@ extension OBDManager {
         }
 
         let iat = Double(liveIAT ?? 20)
-        let rpmFactor = Double(liveRPM) / 80.0
-        let loadFactor = Double(liveEngineLoad ?? 20) * 5.2
-        let boostFactor = (liveBoostBar ?? 0.0) * 120.0
-        let targetEGT = min(920.0, max(220.0, iat + 180.0 + rpmFactor + loadFactor + boostFactor))
+        let coolantWarmth = Double(min(90, max(20, liveCoolantTemp ?? 20))) * 3.5 // Grundwärme
+        let rpmFactor = (Double(liveRPM) / 6000.0) * 160.0
+        let loadFactor = (Double(liveEngineLoad ?? 15) / 100.0) * 180.0
+        let boostFactor = min(1.2, max(0.0, liveBoostBar ?? 0.0)) * 140.0
+        let targetEGT = min(880.0, max(380.0, 80.0 + iat + coolantWarmth + rpmFactor + loadFactor + boostFactor))
 
         if let prev = smoothedEGT {
-            // Thermische Trägheit: Gusseisenkrümmer & K03 Gehäuse erwärmen sich schnell, kühlen langsam ab
-            let alpha = targetEGT > prev ? 0.08 : 0.035
+            // Reale thermische Trägheit: Gusskrümmer & K03 reagieren sanft (kein Springen)
+            let alpha = targetEGT > prev ? 0.018 : 0.007
             let next = prev + alpha * (targetEGT - prev)
             smoothedEGT = next
             liveEGT = Int(next.rounded())

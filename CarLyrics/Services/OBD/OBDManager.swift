@@ -20,8 +20,7 @@ public final class OBDManager: NSObject, ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Published public var isEnabled            : Bool = true
-    /// CarPlay-Gating: Wenn true (Standard), verbindet OBD NUR wenn echtes CarPlay aktiv ist.
-    /// Im Diagnose-Workbench (manuelle Scan-Taste) wird das Gate explizit deaktiviert.
+    /// CarPlay-Gating: verbindet OBD nur bei aktivem CarPlay (Batterieschutz).
     @Published public var carPlayGatingEnabled : Bool = true
     @Published public var connectionState      : OBDConnectionState = .disconnected
 
@@ -50,41 +49,43 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var coldOverloadMessage: String = ""      // Kurztitel der Warnung
     @Published public var coldOverloadDetail: String = ""       // Detailhinweis für Fahrer
     internal var smoothedEGT              : Double? = nil
+    internal var smoothedOilTemp          : Double? = nil
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
-
     internal var sessionConnectedAt       : Date?   = nil
     internal var initialCoolantTemp       : Int?    = nil
 
-    /// Liefert echte Öltemperatur (PID 01 5C) oder das hochpräzise EA113-Thermikmodell.
-    /// SICHERHEIT: Bei Kaltstart greift die thermische Trägheit (12-15 Min bis 80°C),
-    /// damit der Fahrer NIEMALS zu früh Vollgas gibt! Warm: Cruising 82-85°C, Boost bis 98°C.
+    /// Liefert echte Öltemperatur (PID 01 5C) oder das thermisch träge EA113-Modell (PT1-geglättet).
     public var effectiveOilTemp: Int? {
         if let real = liveOilTemp { return real }
         guard let coolant = liveCoolantTemp else { return nil }
 
         let baseOil = coolant < 25 ? coolant : (coolant < 60 ? coolant - 8 : (coolant < 85 ? coolant - 10 : coolant - 8))
+        var target = baseOil
 
-        // Thermische Trägheitssperre bei Kaltstart (Start < 60°C):
-        // Verhindert, dass das Öl nach 5 Min als warm gilt, wenn 4,6L Öl noch Zeit brauchen!
         if let initCoolant = initialCoolantTemp, initCoolant < 60, let connAt = sessionConnectedAt {
             let elapsed = Date().timeIntervalSince(connAt)
-            let thermalLimit = Int(WarmupCalculator.calculateOilTemp(at: elapsed, from: Double(initCoolant)).rounded())
-            if thermalLimit < 80 {
-                return min(baseOil, thermalLimit)
-            }
+            let limit = Int(WarmupCalculator.calculateOilTemp(at: elapsed, from: Double(initCoolant)).rounded())
+            if limit < 80 { target = min(baseOil, limit) }
         }
 
-        // Betriebswarm (>=85°C Kühlmittel): Dynamischer Last- & Boost-Bonus
-        var loadBonus = 0
-        if coolant >= 85 {
-            if (liveBoostBar ?? 0) > 0.3 || liveRPM > 3500 {
-                let boostExtra = Int((liveBoostBar ?? 0) * 12)
-                let rpmExtra = liveRPM > 4200 ? 5 : 0
-                loadBonus = min(18, max(0, boostExtra + rpmExtra))
-            }
+        if coolant >= 85 && target >= 78 {
+            let boostX = Int((liveBoostBar ?? 0) * 10)
+            let rpmX = liveRPM > 4200 ? 4 : 0
+            target += min(16, max(0, boostX + rpmX))
         }
-        return baseOil + loadBonus
+
+        // PT1-Glättung: 4.6L Öl reagieren thermisch träge – kein schlagartiges Springen bei Last!
+        let targetD = Double(target)
+        if let prev = smoothedOilTemp {
+            let alpha = targetD > prev ? 0.006 : 0.0025
+            let next = prev + alpha * (targetD - prev)
+            smoothedOilTemp = next
+            return Int(next.rounded())
+        } else {
+            smoothedOilTemp = targetD
+            return target
+        }
     }
 
     // PID-Unterstützungs-Flags (Bosch MED9.1 Filter: 010B standardmäßig false)
@@ -296,6 +297,7 @@ public final class OBDManager: NSObject, ObservableObject {
         liveSpeed = 0
         liveEGT = nil
         smoothedEGT = nil
+        smoothedOilTemp = nil
         isColdOverloaded = false
         coldOverloadMessage = ""
         coldOverloadDetail = ""

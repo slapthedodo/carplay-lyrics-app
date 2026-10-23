@@ -56,17 +56,9 @@ struct StatTile: View {
 // ─────────────────────────────────────────────────────────────────────────────
 
 public extension OBDManager {
-    /// Liefert die geglättete Abgastemperatur mit thermischer Trägheit (oder Direktschätzung als Fallback)
+    /// Liefert die thermisch geglättete Abgastemperatur (PT1-gefiltert, kein Springen)
     var estimatedExhaustTemp: Int? {
-        if let smoothed = liveEGT { return smoothed }
-        guard isEnabled, connectionState == .connected,
-              let iat  = liveIAT,
-              let load = liveEngineLoad else { return nil }
-        let rpmFactor   = Double(liveRPM) / 80.0
-        let loadFactor  = Double(load) * 5.2
-        let boostFactor = (liveBoostBar ?? 0.0) * 120.0
-        let est = Double(iat) + 180.0 + rpmFactor + loadFactor + boostFactor
-        return Int(min(920, max(220, est)))
+        liveEGT
     }
 }
 
