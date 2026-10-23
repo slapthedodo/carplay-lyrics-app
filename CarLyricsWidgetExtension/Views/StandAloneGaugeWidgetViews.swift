@@ -249,3 +249,74 @@ struct GForceWidgetEntryView: View {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Standalone Gauge Widget Configurations
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct OilTempWidget: Widget {
+    public let kind: String = "CarLyrics_OilTempWidget"
+    public init() {}
+
+    public var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
+            OilTempWidgetEntryView(entry: entry)
+                .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("TFSI Öltemperatur")
+        .description("Zeigt die exakte TFSI Öltemperatur und Aufwärmphasen mit Thermometer-Symbol.")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline
+        ])
+        .contentMarginsDisabled()
+    }
+}
+
+public struct GForceWidget: Widget {
+    public let kind: String = "CarLyrics_GForceWidget"
+    public init() {}
+
+    public var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
+            GForceWidgetEntryView(entry: entry)
+                .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("G-Kraft Telemetrie")
+        .description("Zeigt die G-Kräfte im violetten Rundinstrument mit Fadenkreuz-Design an.")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline
+        ])
+        .contentMarginsDisabled()
+    }
+}
+
+public struct BoostPerformanceWidget: Widget {
+    public let kind: String = "CarLyrics_BoostWidget"
+    public init() {}
+
+    public var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
+            BoostPerformanceWidgetEntryView(entry: entry)
+                .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("Kachel 2: Turbo & Luft")
+        .description("Ladedruckbalken in Bar sowie Rundinstrumente für Ansaugluft (IAT) und Luftmasse (MAF).")
+        .supportedFamilies([
+            .systemSmall,
+            .systemMedium,
+            .accessoryCircular,
+            .accessoryRectangular,
+            .accessoryInline
+        ])
+        .contentMarginsDisabled()
+    }
+}
+

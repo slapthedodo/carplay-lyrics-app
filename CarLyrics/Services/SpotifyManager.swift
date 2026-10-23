@@ -60,18 +60,28 @@ public final class SpotifyManager: ObservableObject {
     @Published public var accessToken     : String = "" {
         didSet {
             UserDefaults.standard.set(accessToken, forKey: "spotify_access_token")
+            UserDefaults(suiteName: "group.com.carlyrics")?.set(accessToken, forKey: "spotify_access_token")
             isAuthenticated = !accessToken.trimmingCharacters(in: .whitespaces).isEmpty
         }
     }
 
     @Published public var refreshToken    : String = "" {
-        didSet { UserDefaults.standard.set(refreshToken, forKey: "spotify_refresh_token") }
+        didSet {
+            UserDefaults.standard.set(refreshToken, forKey: "spotify_refresh_token")
+            UserDefaults(suiteName: "group.com.carlyrics")?.set(refreshToken, forKey: "spotify_refresh_token")
+        }
     }
     @Published public var clientId        : String = "" {
-        didSet { UserDefaults.standard.set(clientId, forKey: "spotify_client_id") }
+        didSet {
+            UserDefaults.standard.set(clientId, forKey: "spotify_client_id")
+            UserDefaults(suiteName: "group.com.carlyrics")?.set(clientId, forKey: "spotify_client_id")
+        }
     }
     @Published public var clientSecret    : String = "" {
-        didSet { UserDefaults.standard.set(clientSecret, forKey: "spotify_client_secret") }
+        didSet {
+            UserDefaults.standard.set(clientSecret, forKey: "spotify_client_secret")
+            UserDefaults(suiteName: "group.com.carlyrics")?.set(clientSecret, forKey: "spotify_client_secret")
+        }
     }
 
     @Published public var trackTitle      : String = ""
@@ -106,17 +116,18 @@ public final class SpotifyManager: ObservableObject {
     // ─────────────────────────────────────────────────────────────────────────
 
     public init() {
-        if let savedToken = UserDefaults.standard.string(forKey: "spotify_access_token") {
+        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
+        if let savedToken = UserDefaults.standard.string(forKey: "spotify_access_token") ?? appGroup?.string(forKey: "spotify_access_token") {
             self.accessToken = savedToken
             self.isAuthenticated = !savedToken.isEmpty
         }
-        if let savedRefresh = UserDefaults.standard.string(forKey: "spotify_refresh_token") {
+        if let savedRefresh = UserDefaults.standard.string(forKey: "spotify_refresh_token") ?? appGroup?.string(forKey: "spotify_refresh_token") {
             self.refreshToken = savedRefresh
         }
-        if let savedClient = UserDefaults.standard.string(forKey: "spotify_client_id") {
+        if let savedClient = UserDefaults.standard.string(forKey: "spotify_client_id") ?? appGroup?.string(forKey: "spotify_client_id") {
             self.clientId = savedClient
         }
-        if let savedSecret = UserDefaults.standard.string(forKey: "spotify_client_secret") {
+        if let savedSecret = UserDefaults.standard.string(forKey: "spotify_client_secret") ?? appGroup?.string(forKey: "spotify_client_secret") {
             self.clientSecret = savedSecret
         }
         let savedDelay = UserDefaults.standard.double(forKey: "carplay_audio_delay")

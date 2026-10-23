@@ -299,185 +299,196 @@ struct LyricsWidgetEntryView: View {
             Text("🎵 \(entry.songTitle): \(entry.currentLine)")
 
         case .systemSmall:
-            Button(intent: RefreshWidgetIntent()) {
-                ZStack {
-                    Color.black
-                    VStack(spacing: 3) {
-                        // 1. Header: Songtitel & Artist mit ScaleFactor
-                        HStack(spacing: 3.5) {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.green)
-                            Text("\(entry.songTitle) • \(entry.artist)")
-                                .font(.system(size: 8.5, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
-                            Spacer()
-                        }
+            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
+            ZStack {
+                Color.black
+                VStack(spacing: 3) {
+                    // 1. Header: Songtitel & Artist
+                    HStack(spacing: 3.5) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.green)
+                        Text("\(entry.songTitle) • \(entry.artist)")
+                            .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Spacer()
+                    }
 
-                        Divider().overlay(Color.white.opacity(0.15))
+                    Divider().overlay(Color.white.opacity(0.15))
+                    Spacer(minLength: 1)
 
-                        Spacer(minLength: 1)
-
-                        // 2. Mitte: Synchrone Lyrics ODER klarer Standby-Zustand
-                        let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
-                        if isStandby {
+                    // 2. Mitte: Synchrone Lyrics ODER Tap-to-Play
+                    if isStandby {
+                        Button(intent: TogglePlaybackIntent()) {
                             VStack(spacing: 3) {
-                                Image(systemName: "music.note.list")
-                                    .font(.system(size: 14, weight: .bold))
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 26, weight: .bold))
                                     .foregroundStyle(.green)
-                                Text("Bereit zur Fahrt")
+                                Text("Musik starten")
                                     .font(.system(size: 11, weight: .heavy, design: .rounded))
                                     .foregroundStyle(.white)
-                                    .minimumScaleFactor(0.8)
-                                Text("Starte Musik auf dem iPhone")
+                                Text("Tippen zum Abspielen")
                                     .font(.system(size: 7.5, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.55))
-                                    .minimumScaleFactor(0.8)
                             }
                             .frame(maxWidth: .infinity)
-                        } else {
-                            VStack(spacing: 2) {
-                                if !entry.previousLine.isEmpty {
-                                    Text(entry.previousLine)
-                                        .font(.system(size: 8, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.white.opacity(0.5))
-                                        .italic()
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.8)
-                                }
-
-                                Text(entry.currentLine)
-                                    .font(.system(size: 10.5, weight: .heavy, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.75)
-                                    .padding(.vertical, 2)
-                                    .padding(.horizontal, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 5)
-                                            .fill(Color.white.opacity(0.08))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 5)
-                                                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-                                            )
-                                    )
-
-                                if !entry.nextLine.isEmpty {
-                                    Text(entry.nextLine)
-                                        .font(.system(size: 8, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.white.opacity(0.65))
-                                        .italic()
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.8)
-                                }
-                            }
                         }
-
-                        Spacer(minLength: 1)
-
-                        Divider().overlay(Color.white.opacity(0.15))
-
-                        // 3. Unten: Zeiten direkt neben dem Balken in einer Reihe
-                        HStack(spacing: 4) {
-                            Text(entry.currentTimeStr)
-                                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.green)
-
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color.white.opacity(0.15)).frame(height: 3)
-                                    Capsule()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [.green, .mint],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
-                                }
-                            }
-                            .frame(height: 3)
-
-                            Text(entry.totalTimeStr)
-                                .font(.system(size: 7.5, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                }
-            }
-            .buttonStyle(.plain)
-            .widgetURL(URL(string: "carlyrics://cockpit"))
-
-        default: // .systemMedium
-            Button(intent: RefreshWidgetIntent()) {
-                ZStack {
-                    Color.black
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Image(systemName: "music.note").foregroundStyle(.green)
-                            Text("\(entry.songTitle) • \(entry.artist)")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                            Spacer()
-                            Text("LIVE LYRICS")
-                                .font(.system(size: 8, weight: .black))
-                                .foregroundStyle(.green)
-                        }
-
-                        Spacer()
-
-                        VStack(alignment: .leading, spacing: 3) {
+                        .buttonStyle(.plain)
+                    } else {
+                        VStack(spacing: 2) {
                             if !entry.previousLine.isEmpty {
                                 Text(entry.previousLine)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.55))
+                                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.5))
+                                    .italic()
                                     .lineLimit(1)
                             }
 
-                            Text(entry.currentLine.isEmpty ? "♪" : entry.currentLine)
-                                .font(.system(size: 16, weight: .heavy, design: .rounded))
+                            Text(entry.currentLine)
+                                .font(.system(size: 10, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
+                                .multilineTextAlignment(.center)
                                 .lineLimit(2)
+                                .padding(.vertical, 1.5)
+                                .padding(.horizontal, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.white.opacity(0.08))
+                                )
 
                             if !entry.nextLine.isEmpty {
                                 Text(entry.nextLine)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .font(.system(size: 8, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white.opacity(0.65))
+                                    .italic()
                                     .lineLimit(1)
                             }
                         }
+                    }
+
+                    Spacer(minLength: 1)
+                    Divider().overlay(Color.white.opacity(0.15))
+
+                    // 3. Unten: Steuerungstasten & Fortschritt
+                    HStack(spacing: 6) {
+                        Button(intent: SkipPreviousTrackIntent()) {
+                            Image(systemName: "backward.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.7))
+                        }.buttonStyle(.plain)
+
+                        Button(intent: TogglePlaybackIntent()) {
+                            Image(systemName: isStandby ? "play.fill" : "pause.fill")
+                                .font(.system(size: 10, weight: .bold)).foregroundStyle(.green)
+                        }.buttonStyle(.plain)
+
+                        Button(intent: SkipNextTrackIntent()) {
+                            Image(systemName: "forward.fill").font(.system(size: 8)).foregroundStyle(.white.opacity(0.7))
+                        }.buttonStyle(.plain)
 
                         Spacer()
 
-                        HStack(spacing: 8) {
-                            Text(entry.currentTimeStr)
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.green)
+                        Text(entry.currentTimeStr)
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
 
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
-                                    Capsule().fill(Color.green).frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
-                                }
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.15)).frame(height: 3)
+                                Capsule().fill(Color.green)
+                                    .frame(width: max(2, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
                             }
-                            .frame(height: 3)
+                        }
+                        .frame(height: 3)
 
-                            Text(entry.totalTimeStr)
-                                .font(.system(size: 9, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                        Text(entry.totalTimeStr)
+                            .font(.system(size: 7.5, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+            }
+            .widgetURL(URL(string: "carlyrics://cockpit"))
+
+
+        default: // .systemMedium
+            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
+            ZStack {
+                Color.black
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Image(systemName: "music.note").foregroundStyle(.green)
+                        Text("\(entry.songTitle) • \(entry.artist)")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("LIVE LYRICS")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundStyle(.green)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        if !entry.previousLine.isEmpty {
+                            Text(entry.previousLine)
+                                .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.55))
+                                .lineLimit(1)
+                        }
+
+                        Text(entry.currentLine.isEmpty ? "Bereit zur Fahrt" : entry.currentLine)
+                            .font(.system(size: 15, weight: .heavy, design: .rounded))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+
+                        if !entry.nextLine.isEmpty {
+                            Text(entry.nextLine)
+                                .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.65))
+                                .lineLimit(1)
                         }
                     }
-                    .padding(14)
+
+                    Spacer()
+
+                    HStack(spacing: 12) {
+                        HStack(spacing: 10) {
+                            Button(intent: SkipPreviousTrackIntent()) {
+                                Image(systemName: "backward.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.8))
+                            }.buttonStyle(.plain)
+
+                            Button(intent: TogglePlaybackIntent()) {
+                                Image(systemName: isStandby ? "play.circle.fill" : "pause.circle.fill")
+                                    .font(.system(size: 18, weight: .heavy)).foregroundStyle(.green)
+                            }.buttonStyle(.plain)
+
+                            Button(intent: SkipNextTrackIntent()) {
+                                Image(systemName: "forward.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.8))
+                            }.buttonStyle(.plain)
+                        }
+
+                        Text(entry.currentTimeStr)
+                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.green)
+
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.12)).frame(height: 3)
+                                Capsule().fill(Color.green).frame(width: max(3, geo.size.width * max(0.02, min(1.0, entry.progress))), height: 3)
+                            }
+                        }
+                        .frame(height: 3)
+
+                        Text(entry.totalTimeStr)
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .padding(12)
             }
-            .buttonStyle(.plain)
         }
     }
 }

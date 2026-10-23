@@ -6,6 +6,7 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 import AppIntents
+import MediaPlayer
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARK: - Gemeinsamer Timeline Entry & Provider für alle Widgets
@@ -317,72 +318,6 @@ public struct LyricsActivityWidget: Widget {
 // MARK: - Widget Configurations
 // ─────────────────────────────────────────────────────────────────────────────
 
-public struct OilTempWidget: Widget {
-    public let kind: String = "CarLyrics_OilTempWidget"
-    public init() {}
-
-    public var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
-            OilTempWidgetEntryView(entry: entry)
-                .containerBackground(.black, for: .widget)
-        }
-        .configurationDisplayName("TFSI Öltemperatur")
-        .description("Zeigt die exakte TFSI Öltemperatur und Aufwärmphasen mit Thermometer-Symbol.")
-        .supportedFamilies([
-            .systemSmall,
-            .systemMedium,
-            .accessoryCircular,
-            .accessoryRectangular,
-            .accessoryInline
-        ])
-        .contentMarginsDisabled()
-    }
-}
-
-public struct GForceWidget: Widget {
-    public let kind: String = "CarLyrics_GForceWidget"
-    public init() {}
-
-    public var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
-            GForceWidgetEntryView(entry: entry)
-                .containerBackground(.black, for: .widget)
-        }
-        .configurationDisplayName("G-Kraft Telemetrie")
-        .description("Zeigt die G-Kräfte im violetten Rundinstrument mit Fadenkreuz-Design an.")
-        .supportedFamilies([
-            .systemSmall,
-            .systemMedium,
-            .accessoryCircular,
-            .accessoryRectangular,
-            .accessoryInline
-        ])
-        .contentMarginsDisabled()
-    }
-}
-
-public struct BoostPerformanceWidget: Widget {
-    public let kind: String = "CarLyrics_BoostWidget"
-    public init() {}
-
-    public var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: TelemetryTimelineProvider()) { entry in
-            BoostPerformanceWidgetEntryView(entry: entry)
-                .containerBackground(.black, for: .widget)
-        }
-        .configurationDisplayName("Kachel 2: Turbo & Luft")
-        .description("Ladedruckbalken in Bar sowie Rundinstrumente für Ansaugluft (IAT) und Luftmasse (MAF).")
-        .supportedFamilies([
-            .systemSmall,
-            .systemMedium,
-            .accessoryCircular,
-            .accessoryRectangular,
-            .accessoryInline
-        ])
-        .contentMarginsDisabled()
-    }
-}
-
 public struct LyricsWidget: Widget {
     public let kind: String = "CarLyrics_LyricsWidget"
     public init() {}
@@ -427,19 +362,119 @@ public struct TelemetryCockpitWidget: Widget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: - Interactive Widget Intent (Tap-to-Refresh auf CarPlay & iPhone)
+// MARK: - Interactive Widget Audio Playback Intents (iOS 17 & 18)
 // ─────────────────────────────────────────────────────────────────────────────
 
-public struct RefreshWidgetIntent: AppIntent {
-    public static var title: LocalizedStringResource = "Widget aktualisieren"
-    public static var description = IntentDescription("Aktualisiert sofort alle Widgets und öffnet das Cockpit.")
-    public static var openAppWhenRun: Bool = true
+public struct TogglePlaybackIntent: AudioPlaybackIntent {
+    public static var title: LocalizedStringResource = "Wiedergabe umschalten"
+    public static var description = IntentDescription("Startet oder pausiert Musik direkt im Widget.")
+    public static var openAppWhenRun: Bool = false
 
     public init() {}
 
+    @MainActor
+    public func perform() async throws -> some IntentResult {
+        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
+        let spotifyToken = appGroup?.string(forKey: "spotify_access_token") ?? ""
+
+        if !spotifyToken.isEmpty {
+            let isPlaying = TelemetrySharedStore.load().isPlaying
+            let endpoint = isPlaying ? "https://api.spotify.com/v1/me/player/pause" : "https://api.spotify.com/v1/me/player/play"
+            if let url = URL(string: endpoint) {
+                var req = URLRequest(url: url)
+                req.httpMethod = "PUT"
+                req.setValue("Bearer \(spotifyToken)", forHTTPHeaderField: "Authorization")
+                req.timeoutInterval = 2.0
+                _ = try? await URLSession.shared.data(for: req)
+            }
+        } else {
+            let player = MPMusicPlayerController.systemMusicPlayer
+            if player.playbackState == .playing {
+                player.pause()
+            } else {
+                if player.nowPlayingItem == nil {
+                    let query = MPMediaQuery.songs()
+                    if let items = query.items, !items.isEmpty {
+                        player.setQueue(with: query)
+                        player.prepareToPlay()
+                    }
+                }
+                player.play()
+            }
+        }
+
+        WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
+        return .result()
+    }
+}
+
+public struct SkipNextTrackIntent: AudioPlaybackIntent {
+    public static var title: LocalizedStringResource = "Nächster Titel"
+    public static var description = IntentDescription("Springt zum nächsten Song.")
+    public static var openAppWhenRun: Bool = false
+
+    public init() {}
+
+    @MainActor
+    public func perform() async throws -> some IntentResult {
+        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
+        let spotifyToken = appGroup?.string(forKey: "spotify_access_token") ?? ""
+
+        if !spotifyToken.isEmpty, let url = URL(string: "https://api.spotify.com/v1/me/player/next") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("Bearer \(spotifyToken)", forHTTPHeaderField: "Authorization")
+            req.timeoutInterval = 2.0
+            _ = try? await URLSession.shared.data(for: req)
+        } else {
+            MPMusicPlayerController.systemMusicPlayer.skipToNextItem()
+        }
+
+        WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
+        return .result()
+    }
+}
+
+public struct SkipPreviousTrackIntent: AudioPlaybackIntent {
+    public static var title: LocalizedStringResource = "Vorheriger Titel"
+    public static var description = IntentDescription("Springt zum vorherigen Song.")
+    public static var openAppWhenRun: Bool = false
+
+    public init() {}
+
+    @MainActor
+    public func perform() async throws -> some IntentResult {
+        let appGroup = UserDefaults(suiteName: "group.com.carlyrics")
+        let spotifyToken = appGroup?.string(forKey: "spotify_access_token") ?? ""
+
+        if !spotifyToken.isEmpty, let url = URL(string: "https://api.spotify.com/v1/me/player/previous") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue("Bearer \(spotifyToken)", forHTTPHeaderField: "Authorization")
+            req.timeoutInterval = 2.0
+            _ = try? await URLSession.shared.data(for: req)
+        } else {
+            let player = MPMusicPlayerController.systemMusicPlayer
+            if player.currentPlaybackTime > 3.0 {
+                player.skipToBeginning()
+            } else {
+                player.skipToPreviousItem()
+            }
+        }
+
+        WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
+        return .result()
+    }
+}
+
+public struct RefreshWidgetIntent: AppIntent {
+    public static var title: LocalizedStringResource = "Widget aktualisieren"
+    public static var openAppWhenRun: Bool = false
+    public init() {}
     public func perform() async throws -> some IntentResult {
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }
+
 
