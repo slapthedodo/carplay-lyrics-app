@@ -300,6 +300,14 @@ struct LyricsWidgetEntryView: View {
 
         case .systemSmall:
             let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt" || entry.currentLine == "Öl- & Telemetrie-Monitor" || entry.currentLine == "♪"
+            // ── DEBUG: App Group Diagnostik ──
+            let agDefaults = UserDefaults(suiteName: "group.com.carlyrics")
+            let hasAGDefaults = agDefaults != nil
+            let agSongTitle = agDefaults?.string(forKey: "widget_song_title") ?? "nil"
+            let agCurrentLine = agDefaults?.string(forKey: "widget_current_line") ?? "nil"
+            let agIsPlaying = agDefaults?.bool(forKey: "widget_is_playing") ?? false
+            let containerExists = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.carlyrics") != nil
+            let debugText = "AG:\(hasAGDefaults ? "✓" : "✗") C:\(containerExists ? "✓" : "✗") P:\(agIsPlaying ? "▶" : "⏸") S:\(agSongTitle.prefix(15)) L:\(agCurrentLine.prefix(20))"
             ZStack {
                 Color.black
                 VStack(spacing: 3) {
@@ -315,6 +323,13 @@ struct LyricsWidgetEntryView: View {
                             .minimumScaleFactor(0.75)
                         Spacer()
                     }
+
+                    // DEBUG: App Group Diagnostik (temporär!)
+                    Text(debugText)
+                        .font(.system(size: 6, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.yellow.opacity(0.8))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.5)
 
                     Divider().overlay(Color.white.opacity(0.15))
                     Spacer(minLength: 1)
