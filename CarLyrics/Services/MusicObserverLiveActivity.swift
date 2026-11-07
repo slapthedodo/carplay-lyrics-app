@@ -31,19 +31,17 @@ extension MusicObserver {
     }
 
     /// Intelligenter Widget-Reload:
-    /// Wenn Live Activity läuft oder ein Songzeilenwechsel ansteht (force),
-    /// wird das CarPlay- & Homescreen-LyricsWidget synchron im 1.0s Takt aktualisiert!
+    /// Bei Song-Wechsel (force=true): Alle Widget-Timelines sofort neu laden
+    /// Sonst: Rate-Limit auf 6 Sekunden für reguläre Updates
     public func scheduleWidgetReload(force: Bool = false) {
         let now = Date()
         let elapsed = now.timeIntervalSince(lastWidgetReloadTime)
         let minInterval = force ? 1.0 : 6.0
         if elapsed >= minInterval {
             lastWidgetReloadTime = now
-            if force {
-                WidgetCenter.shared.reloadTimelines(ofKind: "CarLyrics_LyricsWidget")
-            } else {
-                WidgetCenter.shared.reloadAllTimelines()
-            }
+            // IMMER alle Widgets reloaden — nicht nur LyricsWidget!
+            // (TelemetryCockpitWidget, BoostPerformanceWidget, LyricsWidget, OilTempWidget, GForceWidget)
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
 

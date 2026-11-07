@@ -94,9 +94,6 @@ struct TelemetryTimelineProvider: TimelineProvider {
                 let nextLineText = (i + 1 < lrcData.lines.count) ? lrcData.lines[i + 1].text : ""
                 let nextLine2Text = (i + 2 < lrcData.lines.count) ? lrcData.lines[i + 2].text : ""
 
-                // Fortschritt basierend auf Song-Duration berechnen
-                let songProgress = storeData.progress > 0 ? storeData.progress : 0
-
                 entries.append(makeEntry(
                     from: storeData,
                     at: entryDate,
@@ -115,16 +112,25 @@ struct TelemetryTimelineProvider: TimelineProvider {
             }
         }
 
-        // Fallback: Statischer Snapshot (kein Song / keine Lyrics)
-        // Nur Warmup-Simulation für die nächsten 15 Minuten
+        // ── Musik läuft aber (noch) keine LRC-Daten vorhanden ──
+        // Snapshot der aktuellen Daten zeigen, .never Policy wartet auf nächsten
+        // expliziten reloadTimelines() Aufruf (passiert wenn Lyrics fertig geladen sind)
+        if storeData.isPlaying {
+            let entry = makeEntry(from: storeData, at: now)
+            let timeline = Timeline(entries: [entry], policy: .never)
+            completion(timeline)
+            return
+        }
+
+        // ── Kein Song aktiv: Warmup-Simulation ──
         var entries: [TelemetryEntry] = []
         for minute in 0...15 {
             let entryDate = now.addingTimeInterval(Double(minute * 60))
             let entry = makeEntry(from: storeData, at: entryDate, additionalElapsed: Double(minute * 60))
             entries.append(entry)
         }
-
-        let timeline = Timeline(entries: entries, policy: .after(now.addingTimeInterval(60 * 10)))
+        // Kurze Refresh-Policy damit neue Songs schnell erkannt werden
+        let timeline = Timeline(entries: entries, policy: .after(now.addingTimeInterval(60 * 2)))
         completion(timeline)
     }
 

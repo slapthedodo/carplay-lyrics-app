@@ -207,9 +207,10 @@ public final class MusicObserver: ObservableObject {
             currentLine       = ""
             nextLine          = ""
 
-            // Dynamic Island & Kacheln sofort mit neuem Track aktualisieren
+            // Dynamic Island sofort mit neuem Track aktualisieren (Lyrics kommen asynchron)
             pushActivityUpdate(force: true)
-            scheduleWidgetReload(force: true)
+            // Widget-Reload NICHT hier — currentLine ist noch leer!
+            // loadLyrics() ruft scheduleWidgetReload auf wenn Lyrics fertig geladen sind.
 
             Task {
                 await loadLyrics(title: title, artist: artist, album: spotify.albumName, duration: spotify.durationSeconds)
@@ -257,7 +258,8 @@ public final class MusicObserver: ObservableObject {
             nextLine3         = ""
 
             pushActivityUpdate(force: true)
-            scheduleWidgetReload(force: true)
+            // Widget-Reload NICHT hier — currentLine ist noch leer!
+            // loadLyrics() macht den Reload wenn Lyrics fertig sind.
             Task { await loadLyrics(title: title, artist: artist, album: album, duration: dur) }
         } else {
             // Track unverändert: Playback-Zustand & Zeit-Drift synchronisieren
