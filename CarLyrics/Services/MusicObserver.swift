@@ -47,13 +47,17 @@ public final class MusicObserver: ObservableObject {
         return hasCarPlayScreen || hasCarAudio
     }
 
+    /// Manuelle Aktivierung (z.B. durch Kurzbefehl / Shortcut)
+    public var forceDynamicIslandActive: Bool = false
+
     /// Dynamic Island & Live Activity dürfen aktiv sein, wenn:
-    /// 1. Die App MINIMIERT / im Hintergrund ist (nicht im Vordergrund)
-    /// 2. UND Musik spielt ODER CarPlay verbunden ist
-    /// So funktionieren Lyrics auch auf Lock Screen + Dynamic Island ohne CarPlay!
+    /// 1. Manuell per Kurzbefehl/Shortcut erzwungen
+    /// 2. ODER die App minimiert / im Hintergrund ist
+    /// 3. ODER echtes CarPlay verbunden ist
     public var shouldDynamicIslandBeActive: Bool {
+        if forceDynamicIslandActive { return true }
         let isMinimized = (UIApplication.shared.applicationState != .active)
-        return isMinimized && (isRealCarPlayActive || isPlaying)
+        return isMinimized || isRealCarPlayActive
     }
 
     /// Prüft ob ein echtes CarPlay-Display oder CarPlay- / Auto-Audioausgang aktiv ist

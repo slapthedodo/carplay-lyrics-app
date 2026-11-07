@@ -179,12 +179,15 @@ extension MusicObserver {
                 }
             }
 
+            // IMMER makeState() aufrufen — speichert TelemetrySharedStore.save(sharedData) in die App Group!
+            // Muss VOR dem guard passieren, damit Widgets auch im Vordergrund-Betrieb sofort Daten bekommen.
+            let state = self.makeState()
+
             guard let activity = self.activeActivity else {
                 await self.reattachOrCreateLiveActivity()
                 return
             }
 
-            let state = self.makeState()
             // staleDate: nil -> iOS setzt die Dynamic Island NIEMALS versehentlich auf .stale
             let content = ActivityContent(state: state, staleDate: nil)
             await activity.update(content)

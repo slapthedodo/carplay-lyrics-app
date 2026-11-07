@@ -91,6 +91,7 @@ public struct StartDynamicIslandIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult {
+        MusicObserver.shared.forceDynamicIslandActive = true
         BackgroundKeepAliveManager.shared.start()
         MotionManager.shared.start()
         WarmupManager.shared.start()
@@ -109,6 +110,7 @@ public struct StopDynamicIslandIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult {
+        MusicObserver.shared.forceDynamicIslandActive = false
         await MusicObserver.shared.endAllLiveActivities()
         BackgroundKeepAliveManager.shared.stop()
         MotionManager.shared.stop()
@@ -127,11 +129,13 @@ public struct ToggleDynamicIslandIntent: AppIntent {
     @MainActor
     public func perform() async throws -> some IntentResult {
         if MusicObserver.shared.hasActiveLiveActivity {
+            MusicObserver.shared.forceDynamicIslandActive = false
             await MusicObserver.shared.endAllLiveActivities()
             BackgroundKeepAliveManager.shared.stop()
             MotionManager.shared.stop()
             WarmupManager.shared.stop()
         } else {
+            MusicObserver.shared.forceDynamicIslandActive = true
             BackgroundKeepAliveManager.shared.start()
             MotionManager.shared.start()
             WarmupManager.shared.start()
