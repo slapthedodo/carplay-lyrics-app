@@ -142,36 +142,6 @@ public struct ToggleDynamicIslandIntent: AppIntent {
     }
 }
 
-public struct CarLyricsShortcuts: AppShortcutsProvider {
-    public static var appShortcuts: [AppShortcut] {
-        AppShortcut(
-            intent: StartDynamicIslandIntent(),
-            phrases: [
-                "Starte \(.applicationName) Dynamic Island",
-                "Starte \(.applicationName) Cockpit",
-                "Starte \(.applicationName)"
-            ],
-            shortTitle: "Dynamic Island starten",
-            systemImageName: "play.circle.fill"
-        )
-        AppShortcut(
-            intent: StopDynamicIslandIntent(),
-            phrases: [
-                "Beende \(.applicationName) Dynamic Island",
-                "Stoppe \(.applicationName) Cockpit",
-                "Beende \(.applicationName)"
-            ],
-            shortTitle: "Dynamic Island beenden",
-            systemImageName: "stop.circle.fill"
-        )
-        AppShortcut(
-            intent: ToggleDynamicIslandIntent(),
-            phrases: [
-                "Schalte \(.applicationName) um",
-                "Toggle \(.applicationName)"
-            ],
-            shortTitle: "Cockpit umschalten",
-            systemImageName: "arrow.left.arrow.right.circle.fill"
-        )
-    }
-}
+// AppShortcutsProvider (Siri-Phrases) entfernt – verursachte Konflikte mit
+// Blitzer-App Ruhemodus-Automation. Die Intents oben bleiben in der
+// iOS Kurzbefehle-App verfügbar und können dort manuell hinzugefügt werden.

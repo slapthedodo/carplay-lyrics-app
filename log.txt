@@ -1,0 +1,362 @@
+﻿2026-10-23T16:05:49.4867300Z Current runner version: '2.338.0'
+2026-10-23T16:05:49.4882700Z ##[group]Runner Image Provisioner
+2026-10-23T16:05:49.4883220Z Hosted Compute Agent
+2026-10-23T16:05:49.4883670Z Version: 20260828.587
+2026-10-23T16:05:49.4884200Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-10-23T16:05:49.4884680Z Build Date: 2026-08-28T16:44:25Z
+2026-10-23T16:05:49.4885240Z Worker ID: {755da9ff-a9fe-4c3a-87fd-eb1151456acd}
+2026-10-23T16:05:49.4885770Z Azure Region: westus
+2026-10-23T16:05:49.4886180Z ##[endgroup]
+2026-10-23T16:05:49.4887070Z ##[group]Operating System
+2026-10-23T16:05:49.4887440Z macOS
+2026-10-23T16:05:49.4887770Z 14.8.9
+2026-10-23T16:05:49.4888250Z 23J631
+2026-10-23T16:05:49.4888730Z ##[endgroup]
+2026-10-23T16:05:49.4928260Z ##[group]Runner Image
+2026-10-23T16:05:49.4928680Z Image: macos-14-arm64
+2026-10-23T16:05:49.4929060Z Version: 20260831.0302.1
+2026-10-23T16:05:49.4929860Z Included Software: https://github.com/actions/runner-images/blob/macos-14-arm64/20260831.0302/images/macos/macos-14-arm64-Readme.md
+2026-10-23T16:05:49.4930960Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260831.0302
+2026-10-23T16:05:49.4931560Z ##[endgroup]
+2026-10-23T16:05:49.4932250Z ##[group]GITHUB_TOKEN Permissions
+2026-10-23T16:05:49.4933450Z Contents: write
+2026-10-23T16:05:49.4933770Z Metadata: read
+2026-10-23T16:05:49.4934110Z ##[endgroup]
+2026-10-23T16:05:49.4935380Z Secret source: Actions
+2026-10-23T16:05:49.4935880Z Cache mode: write
+2026-10-23T16:05:49.4936280Z Prepare workflow directory
+2026-10-23T16:05:49.5141470Z Prepare all required actions
+2026-10-23T16:05:49.5174770Z Getting action download info
+2026-10-23T16:05:49.7867980Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-10-23T16:05:50.0145040Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-10-23T16:05:50.1065650Z Download action repository 'softprops/action-gh-release@v2' (SHA:3bb12739c298aeb8a4eeaf626c5b8d85266b0e65)
+2026-10-23T16:05:50.7490620Z Complete job name: Build & Package CarLyrics
+2026-10-23T16:05:50.7965620Z ##[group]Run actions/checkout@v4
+2026-10-23T16:05:50.7966500Z with:
+2026-10-23T16:05:50.7966990Z   repository: slapthedodo/carplay-lyrics-app
+2026-10-23T16:05:50.7970190Z   token: ***
+2026-10-23T16:05:50.7970580Z   ssh-strict: true
+2026-10-23T16:05:50.7970920Z   ssh-user: git
+2026-10-23T16:05:50.7971390Z   persist-credentials: true
+2026-10-23T16:05:50.7981190Z   clean: true
+2026-10-23T16:05:50.7981960Z   sparse-checkout-cone-mode: true
+2026-10-23T16:05:50.7983060Z   fetch-depth: 1
+2026-10-23T16:05:50.7983890Z   fetch-tags: false
+2026-10-23T16:05:50.7985330Z   show-progress: true
+2026-10-23T16:05:50.7986140Z   lfs: false
+2026-10-23T16:05:50.7987920Z   submodules: false
+2026-10-23T16:05:50.7988350Z   set-safe-directory: true
+2026-10-23T16:05:50.7989790Z   allow-unsafe-pr-checkout: false
+2026-10-23T16:05:50.7990730Z ##[endgroup]
+2026-10-23T16:05:50.9505790Z Syncing repository: slapthedodo/carplay-lyrics-app
+2026-10-23T16:05:50.9512530Z ##[group]Getting Git version info
+2026-10-23T16:05:50.9514460Z Working directory is '/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app'
+2026-10-23T16:05:50.9516500Z [command]/opt/homebrew/bin/git version
+2026-10-23T16:05:50.9711420Z git version 2.55.0
+2026-10-23T16:05:50.9725000Z ##[endgroup]
+2026-10-23T16:05:50.9731840Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/c1f5ab9b-e9f3-4f74-8a61-53646dd4ceb0/.gitconfig'
+2026-10-23T16:05:50.9740980Z Temporarily overriding HOME='/Users/runner/work/_temp/c1f5ab9b-e9f3-4f74-8a61-53646dd4ceb0' before making global git config changes
+2026-10-23T16:05:50.9742200Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-23T16:05:50.9744200Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:05:50.9821130Z Deleting the contents of '/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app'
+2026-10-23T16:05:50.9825970Z ##[group]Initializing the repository
+2026-10-23T16:05:50.9829130Z [command]/opt/homebrew/bin/git init /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:05:50.9977380Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-23T16:05:50.9989870Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-23T16:05:50.9990930Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-23T16:05:50.9991570Z hint: call:
+2026-10-23T16:05:50.9991930Z hint:
+2026-10-23T16:05:50.9992360Z hint: 	git config --global init.defaultBranch <name>
+2026-10-23T16:05:50.9992830Z hint:
+2026-10-23T16:05:50.9993290Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-23T16:05:50.9993990Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-23T16:05:50.9994610Z hint:
+2026-10-23T16:05:50.9994940Z hint: 	git branch -m <name>
+2026-10-23T16:05:50.9995370Z hint:
+2026-10-23T16:05:50.9995890Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-23T16:05:50.9996750Z Initialized empty Git repository in /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/.git/
+2026-10-23T16:05:50.9998470Z [command]/opt/homebrew/bin/git remote add origin https://github.com/slapthedodo/carplay-lyrics-app
+2026-10-23T16:05:51.0039530Z ##[endgroup]
+2026-10-23T16:05:51.0040170Z ##[group]Disabling automatic garbage collection
+2026-10-23T16:05:51.0042660Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-10-23T16:05:51.0086260Z ##[endgroup]
+2026-10-23T16:05:51.0086930Z ##[group]Setting up auth
+2026-10-23T16:05:51.0092150Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-23T16:05:51.0134960Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-23T16:05:51.0801710Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-23T16:05:51.0844430Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-23T16:05:51.1435620Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-23T16:05:51.1479510Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-23T16:05:51.2187220Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-23T16:05:51.2238170Z ##[endgroup]
+2026-10-23T16:05:51.2239400Z ##[group]Fetching the repository
+2026-10-23T16:05:51.2244710Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +416ea10a95d879c1991468917d61918b151340ad:refs/remotes/origin/main
+2026-10-23T16:05:52.2423840Z From https://github.com/slapthedodo/carplay-lyrics-app
+2026-10-23T16:05:52.2424930Z  * [new ref]         416ea10a95d879c1991468917d61918b151340ad -> origin/main
+2026-10-23T16:05:52.2428060Z ##[endgroup]
+2026-10-23T16:05:52.2429090Z ##[group]Determining the checkout info
+2026-10-23T16:05:52.2430090Z ##[endgroup]
+2026-10-23T16:05:52.2431690Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-10-23T16:05:52.2537320Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-23T16:05:52.2570670Z ##[group]Checking out the ref
+2026-10-23T16:05:52.2573710Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-23T16:05:52.2973650Z Switched to a new branch 'main'
+2026-10-23T16:05:52.3075210Z branch 'main' set up to track 'origin/main'.
+2026-10-23T16:05:52.3269620Z ##[endgroup]
+2026-10-23T16:05:52.3338020Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-10-23T16:05:52.3339810Z 416ea10a95d879c1991468917d61918b151340ad
+2026-10-23T16:05:52.3486280Z ##[group]Run xcodebuild -version
+2026-10-23T16:05:52.3487340Z [36;1mxcodebuild -version[0m
+2026-10-23T16:05:52.3488320Z [36;1mxcodebuild -project CarLyrics.xcodeproj -list[0m
+2026-10-23T16:05:52.3559530Z shell: /bin/bash -e {0}
+2026-10-23T16:05:52.3560320Z ##[endgroup]
+2026-10-23T16:05:52.4953380Z Xcode 15.4
+2026-10-23T16:05:52.4960160Z Build version 15F31d
+2026-10-23T16:05:53.6043090Z Command line invocation:
+2026-10-23T16:05:53.6045120Z     /Applications/Xcode_15.4.app/Contents/Developer/usr/bin/xcodebuild -project CarLyrics.xcodeproj -list
+2026-10-23T16:05:53.6045960Z 
+2026-10-23T16:05:53.6046180Z User defaults from command line:
+2026-10-23T16:05:53.6046700Z     IDEPackageSupportUseBuiltinSCM = YES
+2026-10-23T16:05:53.6047340Z 
+2026-10-23T16:06:00.0290810Z Information about project "CarLyrics":
+2026-10-23T16:06:00.0291360Z     Targets:
+2026-10-23T16:06:00.0296030Z         CarLyrics
+2026-10-23T16:06:00.0298330Z         CarLyricsWidgetExtension
+2026-10-23T16:06:00.0298670Z 
+2026-10-23T16:06:00.0299140Z     Build Configurations:
+2026-10-23T16:06:00.0301080Z         Debug
+2026-10-23T16:06:00.0301380Z         Release
+2026-10-23T16:06:00.0301700Z 
+2026-10-23T16:06:00.0302060Z     If no build configuration is specified and -scheme is not passed then "Release" is used.
+2026-10-23T16:06:00.0311470Z 
+2026-10-23T16:06:00.0311710Z     Schemes:
+2026-10-23T16:06:00.0315500Z         CarLyrics
+2026-10-23T16:06:00.0315650Z 
+2026-10-23T16:06:00.0413060Z ##[group]Run set -o pipefail
+2026-10-23T16:06:00.0414310Z [36;1mset -o pipefail[0m
+2026-10-23T16:06:00.0414580Z [36;1mxcodebuild -project CarLyrics.xcodeproj \[0m
+2026-10-23T16:06:00.0414980Z [36;1m           -scheme CarLyrics \[0m
+2026-10-23T16:06:00.0415280Z [36;1m           -configuration Release \[0m
+2026-10-23T16:06:00.0415680Z [36;1m           -destination 'generic/platform=iOS' \[0m
+2026-10-23T16:06:00.0416080Z [36;1m           -derivedDataPath build_carlyrics \[0m
+2026-10-23T16:06:00.0431980Z [36;1m           CODE_SIGN_STYLE=Manual \[0m
+2026-10-23T16:06:00.0432270Z [36;1m           CODE_SIGN_IDENTITY="-" \[0m
+2026-10-23T16:06:00.0432560Z [36;1m           CODE_SIGNING_REQUIRED=NO \[0m
+2026-10-23T16:06:00.0432840Z [36;1m           AD_HOC_CODE_SIGNING_ALLOWED=YES \[0m
+2026-10-23T16:06:00.0433120Z [36;1m           PROVISIONING_PROFILE_SPECIFIER="" \[0m
+2026-10-23T16:06:00.0433420Z [36;1m           clean build[0m
+2026-10-23T16:06:00.0525090Z shell: /bin/bash -e {0}
+2026-10-23T16:06:00.0525290Z ##[endgroup]
+2026-10-23T16:06:00.5779870Z Command line invocation:
+2026-10-23T16:06:00.5786600Z     /Applications/Xcode_15.4.app/Contents/Developer/usr/bin/xcodebuild -project CarLyrics.xcodeproj -scheme CarLyrics -configuration Release -destination generic/platform=iOS -derivedDataPath build_carlyrics CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO AD_HOC_CODE_SIGNING_ALLOWED=YES PROVISIONING_PROFILE_SPECIFIER= clean build
+2026-10-23T16:06:00.5810230Z 
+2026-10-23T16:06:00.5810640Z User defaults from command line:
+2026-10-23T16:06:00.5811220Z     IDEDerivedDataPathOverride = /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics
+2026-10-23T16:06:00.5813090Z     IDEPackageSupportUseBuiltinSCM = YES
+2026-10-23T16:06:00.5813460Z 
+2026-10-23T16:06:00.5866650Z Build settings from command line:
+2026-10-23T16:06:00.5867640Z     AD_HOC_CODE_SIGNING_ALLOWED = YES
+2026-10-23T16:06:00.5868020Z     CODE_SIGN_IDENTITY = -
+2026-10-23T16:06:00.5868350Z     CODE_SIGN_STYLE = Manual
+2026-10-23T16:06:00.5868770Z     CODE_SIGNING_REQUIRED = NO
+2026-10-23T16:06:00.5869100Z     PROVISIONING_PROFILE_SPECIFIER = 
+2026-10-23T16:06:00.5869410Z 
+2026-10-23T16:06:00.8685490Z note: Using codesigning identity override: -
+2026-10-23T16:06:01.2358190Z 
+2026-10-23T16:06:01.2360270Z ** CLEAN SUCCEEDED **
+2026-10-23T16:06:01.2360700Z 
+2026-10-23T16:06:01.2685530Z Prepare packages
+2026-10-23T16:06:01.3026640Z 
+2026-10-23T16:06:01.3053510Z note: Using codesigning identity override: -
+2026-10-23T16:06:01.3133230Z ComputeTargetDependencyGraph
+2026-10-23T16:06:01.3397740Z note: Building targets in dependency order
+2026-10-23T16:06:01.3398080Z note: Target dependency graph (2 targets)
+2026-10-23T16:06:01.3398330Z     Target 'CarLyrics' in project 'CarLyrics'
+2026-10-23T16:06:01.3399030Z         ➜ Explicit dependency on target 'CarLyricsWidgetExtension' in project 'CarLyrics'
+2026-10-23T16:06:01.3399570Z     Target 'CarLyricsWidgetExtension' in project 'CarLyrics' (no dependencies)
+2026-10-23T16:06:01.3414840Z 
+2026-10-23T16:06:01.3417340Z GatherProvisioningInputs
+2026-10-23T16:06:01.4298880Z 
+2026-10-23T16:06:01.4368740Z CreateBuildDescription
+2026-10-23T16:06:01.4713170Z 
+2026-10-23T16:06:01.4714460Z ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -v
+2026-10-23T16:06:02.3003400Z 
+2026-10-23T16:06:02.3006000Z ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics/Assets.xcassets
+2026-10-23T16:06:03.4788210Z 
+2026-10-23T16:06:03.4789910Z ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -x c -c /dev/null
+2026-10-23T16:06:03.4791210Z 
+2026-10-23T16:06:03.4792420Z ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+2026-10-23T16:06:03.4792850Z 
+2026-10-23T16:06:03.4793130Z ExecuteExternalTool /Applications/Xcode_15.4.app/Contents/Developer/usr/bin/actool --version --output-format xml1
+2026-10-23T16:06:03.4876020Z 
+2026-10-23T16:06:03.5711890Z Build description signature: 83b827d3d8b43de72e2e737a12c0f9c4
+2026-10-23T16:06:03.5722830Z Build description path: /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/XCBuildData/83b827d3d8b43de72e2e737a12c0f9c4.xcbuilddata
+2026-10-23T16:06:03.5909520Z CreateBuildDirectory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products
+2026-10-23T16:06:03.5910320Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics.xcodeproj
+2026-10-23T16:06:03.5911250Z     builtin-create-build-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products
+2026-10-23T16:06:03.5946260Z 
+2026-10-23T16:06:03.5948010Z ClangStatCache /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache
+2026-10-23T16:06:03.5950100Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics.xcodeproj
+2026-10-23T16:06:03.5964800Z     /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache
+2026-10-23T16:06:04.9116750Z 
+2026-10-23T16:06:04.9117370Z CreateBuildDirectory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex
+2026-10-23T16:06:04.9118080Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics.xcodeproj
+2026-10-23T16:06:04.9118770Z     builtin-create-build-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex
+2026-10-23T16:06:04.9119690Z 
+2026-10-23T16:06:04.9120020Z CreateBuildDirectory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos
+2026-10-23T16:06:04.9120600Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics.xcodeproj
+2026-10-23T16:06:04.9121270Z     builtin-create-build-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos
+2026-10-23T16:06:04.9121680Z 
+2026-10-23T16:06:04.9122080Z CreateBuildDirectory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+2026-10-23T16:06:04.9122690Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics.xcodeproj
+2026-10-23T16:06:04.9123320Z     builtin-create-build-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/EagerLinkingTBDs/Release-iphoneos
+2026-10-23T16:06:04.9123790Z 
+2026-10-23T16:06:04.9124300Z MkDir /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyricsWidgetExtension.appex (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9124970Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9125490Z     /bin/mkdir -p /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyricsWidgetExtension.appex
+2026-10-23T16:06:04.9125910Z 
+2026-10-23T16:06:04.9126560Z MkDir /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app/PlugIns (in target 'CarLyrics' from project 'CarLyrics')
+2026-10-23T16:06:04.9127170Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9127720Z     /bin/mkdir -p /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app/PlugIns
+2026-10-23T16:06:04.9128120Z 
+2026-10-23T16:06:04.9128520Z MkDir /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app (in target 'CarLyrics' from project 'CarLyrics')
+2026-10-23T16:06:04.9129100Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9129560Z     /bin/mkdir -p /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app
+2026-10-23T16:06:04.9129930Z 
+2026-10-23T16:06:04.9130640Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/Entitlements.plist (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9131600Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9132330Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/Entitlements.plist
+2026-10-23T16:06:04.9132940Z 
+2026-10-23T16:06:04.9134130Z ProcessProductPackaging /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetExtension.entitlements /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9135440Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9135690Z     
+2026-10-23T16:06:04.9135810Z     Entitlements:
+2026-10-23T16:06:04.9135980Z     
+2026-10-23T16:06:04.9136090Z     {
+2026-10-23T16:06:04.9136240Z     "com.apple.security.application-groups" =     (
+2026-10-23T16:06:04.9136480Z         "group.com.yourcompany.CarLyrics",
+2026-10-23T16:06:04.9136700Z         "group.com.yourcompany.CarLyrics.widget",
+2026-10-23T16:06:04.9137110Z         "group.com.carlyrics",
+2026-10-23T16:06:04.9137290Z         "group.com.slapthedodo.CarLyrics",
+2026-10-23T16:06:04.9137490Z         "group.com.slapthedodo.carlyrics"
+2026-10-23T16:06:04.9137660Z     );
+2026-10-23T16:06:04.9137770Z }
+2026-10-23T16:06:04.9137870Z     
+2026-10-23T16:06:04.9138980Z     builtin-productPackagingUtility /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetExtension.entitlements -entitlements -format xml -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent
+2026-10-23T16:06:04.9140110Z 
+2026-10-23T16:06:04.9141500Z ProcessProductPackagingDER /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent.der (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9143180Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9144760Z     /usr/bin/derq query -f xml -i /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.appex.xcent.der --raw
+2026-10-23T16:06:04.9146080Z 
+2026-10-23T16:06:04.9146780Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/all-product-headers.yaml (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9147670Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9148360Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/all-product-headers.yaml
+2026-10-23T16:06:04.9148940Z 
+2026-10-23T16:06:04.9149670Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9150570Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9151270Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension.hmap
+2026-10-23T16:06:04.9151910Z 
+2026-10-23T16:06:04.9152770Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9153770Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9154520Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap
+2026-10-23T16:06:04.9155170Z 
+2026-10-23T16:06:04.9155950Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9157160Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9157920Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap
+2026-10-23T16:06:04.9158620Z 
+2026-10-23T16:06:04.9159400Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9160520Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9161280Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap
+2026-10-23T16:06:04.9161940Z 
+2026-10-23T16:06:04.9162720Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9163850Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9164710Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap
+2026-10-23T16:06:04.9165370Z 
+2026-10-23T16:06:04.9166310Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-non-framework-target-headers.hmap (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9167300Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9168090Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-non-framework-target-headers.hmap
+2026-10-23T16:06:04.9168760Z 
+2026-10-23T16:06:04.9169700Z ProcessInfoPlistFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyricsWidgetExtension.appex/Info.plist /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Info.plist (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9170690Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9171930Z     builtin-infoPlistUtility /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Info.plist -producttype com.apple.product-type.app-extension -expandbuildsettings -format binary -platform iphoneos -requiredArchitecture arm64 -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/CarLyricsWidgetExtension.appex/Info.plist
+2026-10-23T16:06:04.9173040Z 
+2026-10-23T16:06:04.9173820Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.LinkFileList (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9174820Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9180400Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.LinkFileList
+2026-10-23T16:06:04.9181220Z 
+2026-10-23T16:06:04.9182010Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9182960Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9183730Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json
+2026-10-23T16:06:04.9184410Z 
+2026-10-23T16:06:04.9185160Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.SwiftFileList (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9186080Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9186960Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.SwiftFileList
+2026-10-23T16:06:04.9187600Z 
+2026-10-23T16:06:04.9188370Z WriteAuxiliaryFile /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-OutputFileMap.json (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9189300Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9190150Z     write-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-OutputFileMap.json
+2026-10-23T16:06:04.9190850Z 
+2026-10-23T16:06:04.9191200Z SwiftDriver CarLyricsWidgetExtension normal arm64 com.apple.xcode.tools.swift.compiler (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9191730Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9207520Z     builtin-SwiftDriver -- /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name CarLyricsWidgetExtension -O -whole-module-optimization -enforce-exclusivity\=checked @/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.SwiftFileList -sdk /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -target arm64-apple-ios17.0 -enable-bare-slash-regex -g -module-cache-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex -Xfrontend -serialize-debugging-options -application-extension -swift-version 5 -I /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -F /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64 -c -num-threads 5 -Xcc -ivfsstatcache -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache -output-file-map /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-Swift.h -working-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app -no-emit-module-separately-wmo
+2026-10-23T16:06:04.9550010Z 
+2026-10-23T16:06:04.9566650Z SwiftDriver\ Compilation CarLyricsWidgetExtension normal arm64 com.apple.xcode.tools.swift.compiler (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9567440Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9581280Z     builtin-Swift-Compilation -- /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name CarLyricsWidgetExtension -O -whole-module-optimization -enforce-exclusivity\=checked @/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.SwiftFileList -sdk /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -target arm64-apple-ios17.0 -enable-bare-slash-regex -g -module-cache-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex -Xfrontend -serialize-debugging-options -application-extension -swift-version 5 -I /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -F /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64 -c -num-threads 5 -Xcc -ivfsstatcache -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache -output-file-map /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension.swiftmodule -validate-clang-modules-once -clang-build-session-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension-Swift.h -working-directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app -no-emit-module-separately-wmo
+2026-10-23T16:06:04.9595810Z 
+2026-10-23T16:06:04.9598950Z SwiftCompile normal arm64 Compiling\ CarLyricsWidgetBundle.swift,\ LyricsActivityWidget.swift,\ LyricsModels.swift,\ WidgetGaugeBadges.swift,\ LockScreenBannerView.swift,\ CarPlayTilesWidgetViews.swift,\ StandAloneGaugeWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetBundle.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics/Models/LyricsModels.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/WidgetGaugeBadges.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/LockScreenBannerView.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/CarPlayTilesWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/StandAloneGaugeWidgetViews.swift (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:04.9602240Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:04.9630440Z     builtin-swiftTaskExecution -- /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -frontend -c /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetBundle.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics/Models/LyricsModels.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/WidgetGaugeBadges.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/LockScreenBannerView.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/CarPlayTilesWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/StandAloneGaugeWidgetViews.swift -supplementary-output-file-map /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/supplementaryOutputs-1 -emit-localized-strings -emit-localized-strings-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64 -target arm64-apple-ios17.0 -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -I /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -F /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -no-color-diagnostics -application-extension -g -module-cache-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex -swift-version 5 -enforce-exclusivity\=checked -O -serialize-debugging-options -const-gather-protocols-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app -resource-dir /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -Xcc -ivfsstatcache -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources -module-name CarLyricsWidgetExtension -frontend-parseable-output -disable-clang-spi -target-sdk-version 17.5 -target-sdk-name iphoneos17.5 -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/local/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -enable-default-cmo -num-threads 5 -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetBundle.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsActivityWidget.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsModels.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/WidgetGaugeBadges.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LockScreenBannerView.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarPlayTilesWidgetViews.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/StandAloneGaugeWidgetViews.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetBundle.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsActivityWidget.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsModels.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/WidgetGaugeBadges.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LockScreenBannerView.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarPlayTilesWidgetViews.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/StandAloneGaugeWidgetViews.o
+2026-10-23T16:06:05.0133250Z 
+2026-10-23T16:06:05.0133730Z CompileSwift normal arm64 (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:05.0134140Z     cd /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:05.0159070Z     /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend -c /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetBundle.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics/Models/LyricsModels.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/WidgetGaugeBadges.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/LockScreenBannerView.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/CarPlayTilesWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/StandAloneGaugeWidgetViews.swift -supplementary-output-file-map /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/supplementaryOutputs-1 -emit-localized-strings -emit-localized-strings-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64 -target arm64-apple-ios17.0 -Xllvm -aarch64-use-tbi -enable-objc-interop -stack-check -sdk /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk -I /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -F /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos -no-color-diagnostics -application-extension -g -module-cache-path /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex -swift-version 5 -enforce-exclusivity\=checked -O -serialize-debugging-options -const-gather-protocols-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetExtension_const_extract_protocols.json -enable-bare-slash-regex -empty-abi-descriptor -validate-clang-modules-once -clang-build-session-file /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/ModuleCache.noindex/Session.modulevalidation -Xcc -working-directory -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app -resource-dir /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift -Xcc -ivfsstatcache -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/SDKStatCaches.noindex/iphoneos17.5-21F77-f0fa7969d082b13145125136a829df3a.sdkstatcache -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/swift-overrides.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-generated-files.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-own-target-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/CarLyricsWidgetExtension-project-headers.hmap -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Products/Release-iphoneos/include -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/DerivedSources -module-name CarLyricsWidgetExtension -frontend-parseable-output -disable-clang-spi -target-sdk-version 17.5 -target-sdk-name iphoneos17.5 -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/local/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS17.5.sdk/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -external-plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/local/lib/swift/host/plugins\#/Applications/Xcode_15.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/bin/swift-plugin-server -plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins -plugin-path /Applications/Xcode_15.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/local/lib/swift/host/plugins -enable-default-cmo -num-threads 5 -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetBundle.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsActivityWidget.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsModels.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/WidgetGaugeBadges.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LockScreenBannerView.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarPlayTilesWidgetViews.o -o /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/build_carlyrics/Build/Intermediates.noindex/CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/StandAloneGaugeWidgetViews.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarLyricsWidgetBundle.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsActivityWidget.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LyricsModels.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/WidgetGaugeBadges.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/LockScreenBannerView.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/CarPlayTilesWidgetViews.o -index-unit-output-path /CarLyrics.build/Release-iphoneos/CarLyricsWidgetExtension.build/Objects-normal/arm64/StandAloneGaugeWidgetViews.o
+2026-10-23T16:06:10.9339170Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: error: call can throw but is not marked with 'try'
+2026-10-23T16:06:10.9339810Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9340020Z                         ^~~~~~~~~~~~~~~~~~~~~~
+2026-10-23T16:06:10.9340670Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: note: did you mean to use 'try'?
+2026-10-23T16:06:10.9341390Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9341580Z                         ^
+2026-10-23T16:06:10.9341730Z                         try 
+2026-10-23T16:06:10.9342290Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: note: did you mean to handle error as optional value?
+2026-10-23T16:06:10.9342850Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9343040Z                         ^
+2026-10-23T16:06:10.9343180Z                         try? 
+2026-10-23T16:06:10.9343700Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: note: did you mean to disable error propagation?
+2026-10-23T16:06:10.9344260Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9344820Z                         ^
+2026-10-23T16:06:10.9344970Z                         try! 
+2026-10-23T16:06:10.9345500Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: error: expression is 'async' but is not marked with 'await'
+2026-10-23T16:06:10.9346080Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9346270Z                         ^~~~~~~~~~~~~~~~~~~~~~
+2026-10-23T16:06:10.9346450Z                         await 
+2026-10-23T16:06:10.9346890Z /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift:399:25: note: call is 'async'
+2026-10-23T16:06:10.9347360Z                         player.prepareToPlay()
+2026-10-23T16:06:10.9347540Z                         ^
+2026-10-23T16:06:10.9347640Z 
+2026-10-23T16:06:10.9400160Z ** BUILD FAILED **
+2026-10-23T16:06:10.9400380Z 
+2026-10-23T16:06:10.9400380Z 
+2026-10-23T16:06:10.9400470Z The following build commands failed:
+2026-10-23T16:06:10.9400960Z 	CompileSwift normal arm64 (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:10.9404820Z 	SwiftCompile normal arm64 Compiling\ CarLyricsWidgetBundle.swift,\ LyricsActivityWidget.swift,\ LyricsModels.swift,\ WidgetGaugeBadges.swift,\ LockScreenBannerView.swift,\ CarPlayTilesWidgetViews.swift,\ StandAloneGaugeWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/CarLyricsWidgetBundle.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/LyricsActivityWidget.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyrics/Models/LyricsModels.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/WidgetGaugeBadges.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/LockScreenBannerView.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/CarPlayTilesWidgetViews.swift /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app/CarLyricsWidgetExtension/Views/StandAloneGaugeWidgetViews.swift (in target 'CarLyricsWidgetExtension' from project 'CarLyrics')
+2026-10-23T16:06:10.9408260Z (2 failures)
+2026-10-23T16:06:10.9510080Z ##[error]Process completed with exit code 65.
+2026-10-23T16:06:10.9692030Z Post job cleanup.
+2026-10-23T16:06:11.0444920Z [command]/opt/homebrew/bin/git version
+2026-10-23T16:06:11.0492610Z git version 2.55.0
+2026-10-23T16:06:11.0508170Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/38421201-966a-4866-b101-7ffd4cedfbbf/.gitconfig'
+2026-10-23T16:06:11.0515980Z Temporarily overriding HOME='/Users/runner/work/_temp/38421201-966a-4866-b101-7ffd4cedfbbf' before making global git config changes
+2026-10-23T16:06:11.0517400Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-23T16:06:11.0518760Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/carplay-lyrics-app/carplay-lyrics-app
+2026-10-23T16:06:11.0571170Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-23T16:06:11.0616510Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-23T16:06:11.1318450Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-23T16:06:11.1357700Z http.https://github.com/.extraheader
+2026-10-23T16:06:11.1364000Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-10-23T16:06:11.1408730Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-23T16:06:11.2368990Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-23T16:06:11.2424320Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-23T16:06:11.3139270Z Cleaning up orphan processes
+2026-10-23T16:06:11.3573330Z Terminate orphan process: pid (7715) (ibtoold)
+2026-10-23T16:06:11.6939410Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
