@@ -347,16 +347,11 @@ public struct WidescreenTachoConsole: View {
     }
 
     private var currentGearString: String {
-        guard obd.isEnabled && obd.connectionState == .connected && obd.liveSpeed > 3 else {
+        guard obd.isEnabled && obd.connectionState == .connected else {
             return "GEAR P"
         }
-        let ratio = Double(obd.liveRPM) / Double(max(1, obd.liveSpeed))
-        if ratio > 65 { return "GEAR 1" }
-        if ratio > 42 { return "GEAR 2" }
-        if ratio > 28 { return "GEAR 3" }
-        if ratio > 20 { return "GEAR 4" }
-        if ratio > 15 { return "GEAR 5" }
-        return "GEAR 6"
+        let gear = Golf5GTIGearEstimator.estimate(speed: obd.liveSpeed, rpm: obd.liveRPM)
+        return "GEAR \(gear)"
     }
 }
 

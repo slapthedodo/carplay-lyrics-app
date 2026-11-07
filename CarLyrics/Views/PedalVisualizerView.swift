@@ -191,17 +191,7 @@ public struct PedalVisualizerView: View {
 // MARK: - Gear Estimator
 
 private func estimateGear(speed: Int, rpm: Int) -> String {
-    guard speed >= 5 else { return "N" }
-    let safeRPM = max(rpm, 1)
-    let ratio = Double(speed) / Double(safeRPM) * 1000.0
-    switch ratio {
-    case ..<5:  return "1"
-    case ..<9:  return "2"
-    case ..<13: return "3"
-    case ..<18: return "4"
-    case ..<24: return "5"
-    default:    return "6"
-    }
+    Golf5GTIGearEstimator.estimate(speed: speed, rpm: rpm)
 }
 
 // MARK: - Single Pedal View

@@ -128,3 +128,38 @@ public extension Notification.Name {
     static let obdDidUpdateTelemetry  = Notification.Name("obdDidUpdateTelemetry")
     static let obdDidDisconnect       = Notification.Name("obdDidDisconnect")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - Golf 5 GTI EA113 Gear Estimator
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum Golf5GTIGearEstimator {
+    /// Berechnet den eingelegten Gang anhand der exakten VAG 02Q / DQ250 Übersetzungen
+    /// für VW Golf 5 GTI (EA113 2.0 TFSI) mit 225/40 R18 / 225/45 R17 Serienbereifung.
+    public static func estimate(speed: Int, rpm: Int) -> String {
+        guard speed >= 5, rpm >= 500 else { return "N" }
+
+        let ratio = Double(rpm) / Double(speed)
+
+        // Auskuppeln / Leerlauf während der Fahrt (Standgas < 1100 RPM bei Geschwindigkeit)
+        if ratio < 19.0 && rpm < 1100 {
+            return "N"
+        }
+
+        // VW Golf 5 GTI Getriebeübersetzungen (RPM / km/h):
+        // 1. Gang: ~131.5 (Schwelle: > 95.0)
+        // 2. Gang: ~72.5  (Schwelle: > 58.0)
+        // 3. Gang: ~47.2  (Schwelle: > 41.0)
+        // 4. Gang: ~35.7  (Schwelle: > 31.0)
+        // 5. Gang: ~26.7  (Schwelle: > 24.5)
+        // 6. Gang: ~22.3  (Schwelle: >= 18.0)
+        if ratio > 95.0 { return "1" }
+        if ratio > 58.0 { return "2" }
+        if ratio > 41.0 { return "3" }
+        if ratio > 31.0 { return "4" }
+        if ratio > 24.5 { return "5" }
+        if ratio >= 18.0 { return "6" }
+
+        return "N"
+    }
+}

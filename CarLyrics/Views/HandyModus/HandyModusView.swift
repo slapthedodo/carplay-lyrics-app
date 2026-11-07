@@ -23,6 +23,29 @@ public struct HandyModusView: View {
     // Show calibration hint once
     @State private var showCalibHint = true
 
+    // Auto-hiding Tab Bar: Leiste geht nach Inaktivität langsam weg und ploppt bei Berührung wieder auf
+    @State private var isTabBarVisible: Bool = true
+    @State private var hideTabBarTask: Task<Void, Never>? = nil
+
+    private func showTabBarTemporarily() {
+        if !isTabBarVisible {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isTabBarVisible = true
+            }
+        }
+        hideTabBarTask?.cancel()
+        hideTabBarTask = Task {
+            try? await Task.sleep(nanoseconds: 3_500_000_000) // 3.5s sichtbar bleiben
+            if !Task.isCancelled {
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.8)) { // Langsam & weich ausblenden
+                        isTabBarVisible = false
+                    }
+                }
+            }
+        }
+    }
+
     public init(observer: MusicObserver,
                 obd:      OBDManager,
                 motion:   MotionManager,
@@ -62,7 +85,6 @@ public struct HandyModusView: View {
                         warmup: warmup
                     )
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .toolbar(.hidden, for: .tabBar)
                 } else {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 14) {
@@ -96,6 +118,14 @@ public struct HandyModusView: View {
             .ignoresSafeArea()
         }
         .navigationBarHidden(true)
+        .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
+        .animation(.easeInOut(duration: 0.4), value: isTabBarVisible)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    showTabBarTemporarily()
+                }
+        )
         .preferredColorScheme(.dark)
         .overlay(
             Group {
@@ -107,10 +137,13 @@ public struct HandyModusView: View {
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             idleTimerDisabled = true
+            showTabBarTemporarily()
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             idleTimerDisabled = false
+            hideTabBarTask?.cancel()
+            isTabBarVisible = true
         }
     }
 
