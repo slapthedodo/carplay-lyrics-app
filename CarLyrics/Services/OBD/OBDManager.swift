@@ -361,11 +361,11 @@ public final class OBDManager: NSObject, ObservableObject {
         let delay: Double
         switch focusMode {
         case .pedalOnly:
-            delay = 0.020 // 20ms ultraschnell für 20-30Hz flüssige Pedal- & Ganganzeige
+            delay = 0.015 // 15ms ultraschnell für flüssige Pedal- & Ganganzeige
         case .minimal:
-            delay = 0.100 // 100ms entspannt für Kupplungs-Tutorial, schont CPU & BLE
+            delay = 0.080 // 80ms für Kupplungs-Tutorial
         case .standard:
-            delay = 0.045 // 45ms Standard Cockpit-Takt
+            delay = 0.015 // 15ms blitzschneller Takt für CAN-Bus (statt 45ms) — spart 30ms pro Abfrage!
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -395,31 +395,49 @@ public final class OBDManager: NSObject, ObservableObject {
                 "0104"      // Motorlast %
             ]
         case .standard:
-            // PIDs für Bosch MED9.1 zusammenstellen (Cockpit / HandyModus)
-            var pids: [String] = [
-                "010C",     // Motordrehzahl RPM (Prio 1)
-                "0110",     // Luftmasse MAF (Prio 1)
-                "0104",     // Motorlast (Prio 2)
-                "0105",     // Kühlmittel (Prio 2)
-                "010D",     // Geschwindigkeit
-                "010F"      // Ansaugluft IAT
+            // High-Speed Priority Interleaving für EA113 2.0 TFSI (Bosch MED9.1):
+            // Schnelle Werte (Ladedruck via MAP/MAF & Drehzahl) bekommen 75% der Bandbreite!
+            let fastPIDs: [String]
+            if hasCheckedMAPPID && !hasMAPPID {
+                // MED9.1 nutzt MAF (0110) für Ladedruck + 010C (RPM)
+                fastPIDs = ["0110", "010C"]
+            } else if hasCheckedMAPPID && hasMAPPID {
+                // Echtes MAP (010B) vorhanden
+                fastPIDs = ["010B", "010C"]
+            } else {
+                // Noch nicht geprüft: MAP, MAF und RPM abfragen
+                fastPIDs = ["010B", "0110", "010C"]
+            }
+
+            var slowPIDs: [String] = [
+                "010D", // Geschwindigkeit km/h
+                "0105", // Kühlmittel °C (steigt nur sehr langsam)
+                "0104", // Motorlast %
+                "010F"  // Ansaugluft IAT °C
             ]
 
-            // 010B nur abfragen wenn unterstützt (MED9.1 liefert typischerweise NODATA)
-            if !hasCheckedMAPPID || hasMAPPID {
-                pids.append("010B")
+            // 015C (Öltemperatur) alle paar Zyklen einstreuen
+            if !hasCheckedOilTempPID || hasOilTempPID || (currentPIDIndex % 20 == 0) {
+                slowPIDs.append("015C")
             }
 
-            // 015C nur alle 35 Zyklen kurz anfragen
-            if !hasCheckedOilTempPID || hasOilTempPID || (currentPIDIndex % 35 == 0) {
-                pids.append("015C")
+            // ATRV (Bordspannung) alle 30 Zyklen
+            if currentPIDIndex % 30 == 0 {
+                slowPIDs.append("ATRV")
             }
 
-            // ATRV alle 25 Zyklen kollisionsfrei in den Stream einstreuen
-            if currentPIDIndex % 25 == 0 {
-                pids.append("ATRV")
+            // 3:1 Taktung: 3x Fast PID (Ladedruck/Drehzahl), dann 1x Slow PID (Wasser/IAT/Last/Temp)
+            // Ladedruck wird dadurch alle ~150-250ms aktualisiert (5-8 Hz statt vorher 0.8 Hz!)
+            let step = currentPIDIndex % 4
+            let selectedPID: String
+            if step < 3 {
+                let fastIdx = (currentPIDIndex / 4 * 3 + step) % fastPIDs.count
+                selectedPID = fastPIDs[fastIdx]
+            } else {
+                let slowIdx = (currentPIDIndex / 4) % slowPIDs.count
+                selectedPID = slowPIDs[slowIdx]
             }
-            activePIDs = pids
+            activePIDs = [selectedPID]
         }
 
         guard !activePIDs.isEmpty else { return }

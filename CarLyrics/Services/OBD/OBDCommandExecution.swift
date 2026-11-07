@@ -124,11 +124,13 @@ extension OBDManager {
         // 4. ATL0 (Linefeeds aus)
         // 5. ATS0 (Leerzeichen aus für maximalen Durchsatz)
         // 6. ATH0 (Headers standardmäßig aus)
-        // 7. ATRV (Bordspannung messen zur Zündungs-Verifizierung!)
-        // 8. ATI  (ELM327 Firmware-Version auslesen)
-        // 9. Ausgewähltes Protokoll setzen (z.B. ATSP6)
-        // 10. Prüfen mit 0100 (ECU Suche)
-        var sequence = ["\r", "ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATRV", "ATI", selectedProtocol.elmCommand]
+        // 7. ATAT2 (Aggressives adaptives Timing für minimale Latenz)
+        // 8. ATST19 (100ms Timeout statt 400ms Standard — beschleunigt fehlende PIDs um Faktor 4)
+        // 9. ATRV (Bordspannung messen zur Zündungs-Verifizierung!)
+        // 10. ATI  (ELM327 Firmware-Version auslesen)
+        // 11. Ausgewähltes Protokoll setzen (z.B. ATSP6)
+        // 12. Prüfen mit 0100 (ECU Suche)
+        var sequence = ["\r", "ATZ", "ATE0", "ATL0", "ATS0", "ATH0", "ATAT2", "ATST19", "ATRV", "ATI", selectedProtocol.elmCommand]
         if let header = selectedProtocol.headerCommand {
             sequence.append(header)
         }
