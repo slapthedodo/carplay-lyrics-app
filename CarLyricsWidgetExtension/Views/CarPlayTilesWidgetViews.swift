@@ -299,7 +299,7 @@ struct LyricsWidgetEntryView: View {
             Text("🎵 \(entry.songTitle): \(entry.currentLine)")
 
         case .systemSmall:
-            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
+            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt" || entry.currentLine == "Öl- & Telemetrie-Monitor" || entry.currentLine == "♪"
             ZStack {
                 Color.black
                 VStack(spacing: 3) {
@@ -413,7 +413,7 @@ struct LyricsWidgetEntryView: View {
 
 
         default: // .systemMedium
-            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt"
+            let isStandby = entry.currentLine.isEmpty || entry.currentLine == "Bereit zur Fahrt" || entry.currentLine == "Öl- & Telemetrie-Monitor" || entry.currentLine == "♪"
             ZStack {
                 Color.black
                 VStack(alignment: .leading, spacing: 5) {

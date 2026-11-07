@@ -109,7 +109,8 @@ extension MusicObserver {
                             }
                         }
                     }
-                    self.scheduleWidgetReload(force: false)
+                    // Widget-Reload NICHT im Heartbeat — verbraucht das WidgetKit Budget (40-70/Tag) in Minuten!
+                    // Lyrics-Updates laufen über Pre-Scheduled Timeline + Live Activity (beides ohne Budget)
                 } else {
                     self.disconnectedSeconds += 1
                     if self.autoDismissEnabled && self.disconnectedSeconds >= 900 {
@@ -353,8 +354,8 @@ extension MusicObserver {
             totalTimeStr: totStr,
             progress: progress,
             isPlaying: isPlaying,
-            sessionStartTime: UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at"),
-            sessionStartTemp: UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp"),
+            sessionStartTime: UserDefaults(suiteName: TelemetrySharedStore.appGroupId)?.double(forKey: "carlyrics_warmup_started_at") ?? 0,
+            sessionStartTemp: UserDefaults(suiteName: TelemetrySharedStore.appGroupId)?.double(forKey: "carlyrics_warmup_start_temp") ?? 0,
             updatedAt: Date()
         )
         TelemetrySharedStore.save(sharedData)

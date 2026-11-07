@@ -278,137 +278,94 @@ public struct TelemetrySharedData: Codable {
 }
 
 public enum TelemetrySharedStore {
-    public static let candidateAppGroupIds: [String] = [
-        "group.com.yourcompany.CarLyrics",
-        "group.com.carlyrics",
-        "group.com.slapthedodo.CarLyrics",
-        "group.com.slapthedodo.carlyrics"
-    ]
+    /// Einzige App Group ID — muss in BEIDEN .entitlements Dateien stehen!
+    public static let appGroupId = "group.com.carlyrics"
     public static let jsonFileName = "telemetry_store.json"
+    public static let lrcFileName  = "lyrics_lines.json"
 
-    private static var activeGroupDefaults: [UserDefaults] {
-        var list: [UserDefaults] = []
-        for id in candidateAppGroupIds {
-            if let defs = UserDefaults(suiteName: id) {
-                list.append(defs)
-            }
-        }
-        return list
+    private static var sharedDefaults: UserDefaults? {
+        UserDefaults(suiteName: appGroupId)
     }
 
-    private static var activeContainerURLs: [URL] {
-        var list: [URL] = []
-        for id in candidateAppGroupIds {
-            if let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) {
-                list.append(dir.appendingPathComponent(jsonFileName))
-            }
-        }
-        return list
+    private static var containerURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // MARK: Telemetry Save (Main App → App Group)
+    // ─────────────────────────────────────────────────────────────────────
 
     public static func save(_ data: TelemetrySharedData) {
+        guard let group = sharedDefaults else { return }
         let enc = try? JSONEncoder().encode(data)
-        // 1. Alle verfügbaren App Group UserDefaults
-        for group in activeGroupDefaults {
-            if let enc { group.set(enc, forKey: "carlyrics_telemetry_payload") }
-            group.set(data.oilTemp, forKey: "widget_oil_temp")
-            group.set(data.coolantTemp, forKey: "widget_coolant_temp")
-            group.set(data.boostBar, forKey: "widget_boost_bar")
-            group.set(data.currentG, forKey: "widget_current_g")
-            group.set(data.peakG, forKey: "widget_peak_g")
-            group.set(data.iat, forKey: "widget_iat")
-            group.set(data.maf, forKey: "widget_maf")
-            group.set(data.phase.rawValue, forKey: "widget_warmup_phase")
-            group.set(data.warmupProgress, forKey: "widget_warmup_progress")
-            group.set(data.songTitle, forKey: "widget_song_title")
-            group.set(data.artist, forKey: "widget_artist")
-            group.set(data.previousLine2, forKey: "widget_prev_line2")
-            group.set(data.previousLine, forKey: "widget_prev_line")
-            group.set(data.currentLine, forKey: "widget_current_line")
-            group.set(data.nextLine, forKey: "widget_next_line")
-            group.set(data.nextLine2, forKey: "widget_next_line2")
-            group.set(data.currentTimeStr, forKey: "widget_cur_time_str")
-            group.set(data.totalTimeStr, forKey: "widget_tot_time_str")
-            group.set(data.progress, forKey: "widget_song_progress")
-            group.set(data.sessionStartTime, forKey: "carlyrics_warmup_started_at")
-            group.set(data.sessionStartTemp, forKey: "carlyrics_warmup_start_temp")
-        }
 
-        // 2. Lokale Standard Defaults
-        if let enc {
-            UserDefaults.standard.set(enc, forKey: "carlyrics_telemetry_payload")
-        }
+        // 1. App Group UserDefaults (primärer Kanal)
+        if let enc { group.set(enc, forKey: "carlyrics_telemetry_payload") }
+        group.set(data.songTitle, forKey: "widget_song_title")
+        group.set(data.artist, forKey: "widget_artist")
+        group.set(data.currentLine, forKey: "widget_current_line")
+        group.set(data.previousLine, forKey: "widget_prev_line")
+        group.set(data.nextLine, forKey: "widget_next_line")
+        group.set(data.nextLine2, forKey: "widget_next_line2")
+        group.set(data.previousLine2, forKey: "widget_prev_line2")
+        group.set(data.currentTimeStr, forKey: "widget_cur_time_str")
+        group.set(data.totalTimeStr, forKey: "widget_tot_time_str")
+        group.set(data.progress, forKey: "widget_song_progress")
+        group.set(data.isPlaying, forKey: "widget_is_playing")
+        group.set(data.oilTemp ?? 0, forKey: "widget_oil_temp")
+        group.set(data.coolantTemp ?? 0, forKey: "widget_coolant_temp")
+        group.set(data.boostBar ?? 0, forKey: "widget_boost_bar")
+        group.set(data.currentG, forKey: "widget_current_g")
+        group.set(data.peakG, forKey: "widget_peak_g")
+        group.set(data.iat ?? 0, forKey: "widget_iat")
+        group.set(data.maf ?? 0, forKey: "widget_maf")
+        group.set(data.phase.rawValue, forKey: "widget_warmup_phase")
+        group.set(data.warmupProgress, forKey: "widget_warmup_progress")
+        group.set(data.sessionStartTime, forKey: "carlyrics_warmup_started_at")
+        group.set(data.sessionStartTemp, forKey: "carlyrics_warmup_start_temp")
+        // Cross-Process Flush erzwingen — ohne synchronize() liest das Widget veraltete Daten!
+        group.synchronize()
 
-        // 3. Shared Container JSON Dateien (atomar)
-        if let enc {
-            for fileURL in activeContainerURLs {
-                try? enc.write(to: fileURL, options: .atomic)
-            }
+        // 2. Shared Container JSON (Backup-Kanal)
+        if let enc, let dir = containerURL {
+            let fileURL = dir.appendingPathComponent(jsonFileName)
+            try? enc.write(to: fileURL, options: .atomic)
         }
     }
 
-    public static func load() -> TelemetrySharedData {
-        // 0. Live Activity State (ActivityKit IPC wird direkt von iOS verwaltet und funktioniert auch ohne App-Group-Entitlements!)
-        if #available(iOS 16.1, *) {
-            if let liveState = Activity<LyricsAttributes>.activities.first(where: { $0.activityState == .active })?.content.state {
-                let cleanSong = liveState.songTitle.isEmpty ? "TFSI Telemetrie" : liveState.songTitle
-                let cleanArtist = liveState.artist.isEmpty ? "CarLyrics Cockpit" : liveState.artist
-                let cleanLine = liveState.currentLine.isEmpty ? "Bereit zur Fahrt" : liveState.currentLine
-                return TelemetrySharedData(
-                    oilTemp: liveState.oilTemp,
-                    coolantTemp: liveState.coolantTemp,
-                    boostBar: liveState.boostBar,
-                    currentG: liveState.currentG,
-                    peakG: liveState.peakG,
-                    iat: liveState.iatTemp,
-                    maf: liveState.mafVal,
-                    phase: liveState.warmupPhase,
-                    warmupProgress: liveState.warmupProgress,
-                    songTitle: cleanSong,
-                    artist: cleanArtist,
-                    previousLine2: "",
-                    previousLine: liveState.previousLine,
-                    currentLine: cleanLine,
-                    nextLine: liveState.nextLine,
-                    nextLine2: liveState.nextLine2,
-                    currentTimeStr: "--:--",
-                    totalTimeStr: "--:--",
-                    progress: liveState.progress,
-                    isPlaying: liveState.isPlaying,
-                    sessionStartTime: 0,
-                    sessionStartTemp: 0,
-                    updatedAt: Date()
-                )
-            }
-        }
+    // ─────────────────────────────────────────────────────────────────────
+    // MARK: Telemetry Load (Widget Extension ← App Group)
+    // ─────────────────────────────────────────────────────────────────────
 
-        // 1. Check all App Group Container JSON files
-        for fileURL in activeContainerURLs {
+    public static func load() -> TelemetrySharedData {
+        // NICHT Activity<>.activities abfragen — gibt im Widget-Prozess IMMER [] zurück!
+        // NICHT UserDefaults.standard verwenden — ist zwischen App und Widget NICHT geteilt!
+
+        // 1. App Group JSON Datei (zuverlässigster Kanal)
+        if let dir = containerURL {
+            let fileURL = dir.appendingPathComponent(jsonFileName)
             if let data = try? Data(contentsOf: fileURL),
                let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
                 return decoded
             }
         }
 
-        // 2. Check all App Group UserDefaults
-        for group in activeGroupDefaults {
+        // 2. App Group UserDefaults (Backup)
+        if let group = sharedDefaults {
+            group.synchronize() // Neuesten Stand von cfprefsd holen
             if let data = group.data(forKey: "carlyrics_telemetry_payload"),
                let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
                 return decoded
             }
         }
 
-        // 3. Check Standard UserDefaults
-        if let data = UserDefaults.standard.data(forKey: "carlyrics_telemetry_payload"),
-           let decoded = try? JSONDecoder().decode(TelemetrySharedData.self, from: data) {
-            return decoded
-        }
-
-        // 4. Fallback: Dynamische Standby-Werte mit Live-Berechnung
+        // 3. Fallback: Dynamische Standby-Werte (wenn App noch nie Daten geschrieben hat)
         let now = Date()
         let profile = WarmupCalculator.profileForCurrentDate(date: now)
-        let sTime = UserDefaults.standard.double(forKey: "carlyrics_warmup_started_at")
-        let sTempSaved = UserDefaults.standard.double(forKey: "carlyrics_warmup_start_temp")
+
+        // Warmup-Timestamps aus App Group lesen (nicht UserDefaults.standard!)
+        let sTime = sharedDefaults?.double(forKey: "carlyrics_warmup_started_at") ?? 0
+        let sTempSaved = sharedDefaults?.double(forKey: "carlyrics_warmup_start_temp") ?? 0
 
         let sTemp = (sTempSaved > -20 && sTempSaved != 0) ? sTempSaved : profile.ambientTemp
         let baseTime = (sTime > 0) ? sTime : now.timeIntervalSince1970
@@ -446,5 +403,72 @@ public enum TelemetrySharedStore {
             updatedAt: now
         )
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // MARK: LRC Lyrics Lines (für Pre-Scheduled Widget Timelines)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// Codable Lyrics-Zeile für App Group Serialisierung
+    public struct WidgetLyricLine: Codable {
+        public var timestamp: TimeInterval
+        public var text: String
+        public init(timestamp: TimeInterval, text: String) {
+            self.timestamp = timestamp
+            self.text = text
+        }
+    }
+
+    /// Hauptapp schreibt alle LRC-Zeilen bei Song-Start in die App Group
+    public static func saveLyrics(_ lines: [WidgetLyricLine], playbackPosition: TimeInterval, playbackTimestamp: TimeInterval) {
+        guard let group = sharedDefaults else { return }
+        if let encoded = try? JSONEncoder().encode(lines) {
+            group.set(encoded, forKey: "widget_lrc_lines")
+        }
+        group.set(playbackPosition, forKey: "widget_playback_position")
+        group.set(playbackTimestamp, forKey: "widget_playback_timestamp")
+        group.synchronize()
+
+        // Auch als JSON-Datei im Container
+        if let dir = containerURL, let encoded = try? JSONEncoder().encode(lines) {
+            let fileURL = dir.appendingPathComponent(lrcFileName)
+            try? encoded.write(to: fileURL, options: .atomic)
+        }
+    }
+
+    /// Widget Extension liest LRC-Zeilen aus App Group
+    public static func loadLyrics() -> (lines: [WidgetLyricLine], playbackPosition: TimeInterval, playbackTimestamp: TimeInterval)? {
+        guard let group = sharedDefaults else { return nil }
+        group.synchronize()
+
+        var lines: [WidgetLyricLine]?
+
+        // Primär: UserDefaults
+        if let data = group.data(forKey: "widget_lrc_lines") {
+            lines = try? JSONDecoder().decode([WidgetLyricLine].self, from: data)
+        }
+
+        // Fallback: Container JSON
+        if lines == nil, let dir = containerURL {
+            let fileURL = dir.appendingPathComponent(lrcFileName)
+            if let data = try? Data(contentsOf: fileURL) {
+                lines = try? JSONDecoder().decode([WidgetLyricLine].self, from: data)
+            }
+        }
+
+        guard let lines, !lines.isEmpty else { return nil }
+        let pos = group.double(forKey: "widget_playback_position")
+        let ts = group.double(forKey: "widget_playback_timestamp")
+        return (lines, pos, ts)
+    }
+
+    /// Playback-Position aktualisieren (bei Seek, Pause, Resume)
+    public static func updatePlaybackPosition(_ position: TimeInterval, isPlaying: Bool) {
+        guard let group = sharedDefaults else { return }
+        group.set(position, forKey: "widget_playback_position")
+        group.set(Date().timeIntervalSince1970, forKey: "widget_playback_timestamp")
+        group.set(isPlaying, forKey: "widget_is_playing")
+        group.synchronize()
+    }
 }
+
 

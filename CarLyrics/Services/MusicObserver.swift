@@ -47,12 +47,13 @@ public final class MusicObserver: ObservableObject {
         return hasCarPlayScreen || hasCarAudio
     }
 
-    /// Dynamic Island & Live Activity dürfen NUR aktiv sein, wenn:
+    /// Dynamic Island & Live Activity dürfen aktiv sein, wenn:
     /// 1. Die App MINIMIERT / im Hintergrund ist (nicht im Vordergrund)
-    /// 2. UND das iPhone mit echtem CarPlay verbunden ist!
+    /// 2. UND Musik spielt ODER CarPlay verbunden ist
+    /// So funktionieren Lyrics auch auf Lock Screen + Dynamic Island ohne CarPlay!
     public var shouldDynamicIslandBeActive: Bool {
         let isMinimized = (UIApplication.shared.applicationState != .active)
-        return isMinimized && isRealCarPlayActive
+        return isMinimized && (isRealCarPlayActive || isPlaying)
     }
 
     /// Prüft ob ein echtes CarPlay-Display oder CarPlay- / Auto-Audioausgang aktiv ist
@@ -389,6 +390,17 @@ public final class MusicObserver: ObservableObject {
             lyricsStatus = .loaded
             startLineTimer()
             pushActivityUpdate(force: true)
+
+            // ── LRC-Zeilen in App Group für Pre-Scheduled Widget Timeline ──
+            // Das Widget liest diese Zeilen und erstellt Timeline-Entries mit
+            // exakten Zeitpunkten — WidgetKit flippt sie automatisch ohne Budget!
+            let widgetLines = parsed.lines.map {
+                TelemetrySharedStore.WidgetLyricLine(timestamp: $0.time, text: $0.text)
+            }
+            let playbackPos = currentPlaybackTime
+            TelemetrySharedStore.saveLyrics(widgetLines, playbackPosition: playbackPos, playbackTimestamp: Date().timeIntervalSince1970)
+            // Widget-Reload NUR hier — 1x pro Song (spart Budget!)
+            scheduleWidgetReload(force: true)
         } catch {
             lyricsStatus = .error(error.localizedDescription)
             // Trotz Lyrics-Fehler die Live Activity für Motortelemetrie aktiv halten
@@ -454,8 +466,7 @@ public final class MusicObserver: ObservableObject {
                     nextLine3     = newNext3
                     // Live Activity sofort mit neuer Textzeile aktualisieren (min 0.3s Abstand schützt vor Throttling)
                     pushActivityUpdate(force: true)
-                    // CarPlay- & Homescreen-LyricsWidget synchron im Hintergrund nachziehen
-                    scheduleWidgetReload(force: true)
+                    // Widget-Reload bei Zeilenwechsel NICHT nötig — Pre-Scheduled Timeline schaltet automatisch!
                 }
             }
         }

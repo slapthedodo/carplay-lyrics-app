@@ -70,8 +70,53 @@ struct TelemetryTimelineProvider: TimelineProvider {
         let storeData = TelemetrySharedStore.load()
         let now = Date()
 
-        // Dynamische Timeline für die nächsten 15 Minuten (im 1-Minuten-Takt):
-        // So läuft die Aufwärmkurve auch dann stetig weiter, wenn das iPhone im Ruhezustand ist!
+        // ──────────────────────────────────────────────────────────────────
+        // Pre-Scheduled Lyrics Timeline:
+        // Liest alle LRC-Zeilen aus der App Group und erstellt für JEDE Zeile
+        // einen Timeline-Entry mit exaktem Zeitpunkt. WidgetKit schaltet
+        // automatisch zwischen Entries um — OHNE Reload-Budget zu verbrauchen!
+        // ──────────────────────────────────────────────────────────────────
+
+        if let lrcData = TelemetrySharedStore.loadLyrics(),
+           storeData.isPlaying {
+            let currentPosition = lrcData.playbackPosition + (now.timeIntervalSince1970 - lrcData.playbackTimestamp)
+            var entries: [TelemetryEntry] = []
+
+            for (i, line) in lrcData.lines.enumerated() {
+                let delay = line.timestamp - currentPosition
+                // Nur zukünftige Zeilen + aktuelle Zeile (bis zu 2s in der Vergangenheit)
+                guard delay >= -2.0 else { continue }
+                // Maximal 100 Entries (WidgetKit Performance-Limit)
+                guard entries.count < 100 else { break }
+
+                let entryDate = now.addingTimeInterval(max(0, delay))
+                let prevLine = i > 0 ? lrcData.lines[i - 1].text : ""
+                let nextLineText = (i + 1 < lrcData.lines.count) ? lrcData.lines[i + 1].text : ""
+                let nextLine2Text = (i + 2 < lrcData.lines.count) ? lrcData.lines[i + 2].text : ""
+
+                // Fortschritt basierend auf Song-Duration berechnen
+                let songProgress = storeData.progress > 0 ? storeData.progress : 0
+
+                entries.append(makeEntry(
+                    from: storeData,
+                    at: entryDate,
+                    overridePrevLine: prevLine,
+                    overrideCurrentLine: line.text,
+                    overrideNextLine: nextLineText,
+                    overrideNextLine2: nextLine2Text
+                ))
+            }
+
+            if !entries.isEmpty {
+                // .atEnd → WidgetKit fragt erst nach neuem Timeline wenn alle Entries durch sind
+                let timeline = Timeline(entries: entries, policy: .atEnd)
+                completion(timeline)
+                return
+            }
+        }
+
+        // Fallback: Statischer Snapshot (kein Song / keine Lyrics)
+        // Nur Warmup-Simulation für die nächsten 15 Minuten
         var entries: [TelemetryEntry] = []
         for minute in 0...15 {
             let entryDate = now.addingTimeInterval(Double(minute * 60))
@@ -83,7 +128,9 @@ struct TelemetryTimelineProvider: TimelineProvider {
         completion(timeline)
     }
 
-    private func makeEntry(from data: TelemetrySharedData, at date: Date, additionalElapsed: TimeInterval = 0) -> TelemetryEntry {
+    private func makeEntry(from data: TelemetrySharedData, at date: Date, additionalElapsed: TimeInterval = 0,
+                           overridePrevLine: String? = nil, overrideCurrentLine: String? = nil,
+                           overrideNextLine: String? = nil, overrideNextLine2: String? = nil) -> TelemetryEntry {
         let displayTemp: Int
         let displayWater: Int
         let phase: WarmupPhase
@@ -99,16 +146,18 @@ struct TelemetryTimelineProvider: TimelineProvider {
             let profile = WarmupCalculator.profileForCurrentDate(date: date)
             let sTemp = data.sessionStartTemp > -20 ? data.sessionStartTemp : profile.ambientTemp
             
-            let savedWidgetStart = UserDefaults.standard.double(forKey: "widget_local_session_start")
+            // App Group statt UserDefaults.standard für Widget-lokale Session
+            let widgetDefaults = UserDefaults(suiteName: TelemetrySharedStore.appGroupId)
+            let savedWidgetStart = widgetDefaults?.double(forKey: "widget_local_session_start") ?? 0
             let effectiveStartTime: Double
             if data.sessionStartTime > 0 {
                 effectiveStartTime = data.sessionStartTime
-                UserDefaults.standard.set(data.sessionStartTime, forKey: "widget_local_session_start")
+                widgetDefaults?.set(data.sessionStartTime, forKey: "widget_local_session_start")
             } else if savedWidgetStart > 0 && (date.timeIntervalSince1970 - savedWidgetStart) < 2700 {
                 effectiveStartTime = savedWidgetStart
             } else {
                 effectiveStartTime = date.timeIntervalSince1970
-                UserDefaults.standard.set(effectiveStartTime, forKey: "widget_local_session_start")
+                widgetDefaults?.set(effectiveStartTime, forKey: "widget_local_session_start")
             }
 
             let baseElapsed = max(0, date.timeIntervalSince1970 - effectiveStartTime)
@@ -120,6 +169,12 @@ struct TelemetryTimelineProvider: TimelineProvider {
             phase = WarmupCalculator.phaseFor(temp: calcOil)
             warmupProgress = WarmupCalculator.warmupProgress(temp: calcOil, startTemp: sTemp)
         }
+
+        // Lyrics: Override aus Pre-Scheduled Timeline oder Fallback aus storeData
+        let finalPrevLine = overridePrevLine ?? data.previousLine
+        let finalCurrentLine = overrideCurrentLine ?? (data.currentLine.isEmpty ? "Bereit zur Fahrt" : data.currentLine)
+        let finalNextLine = overrideNextLine ?? data.nextLine
+        let finalNextLine2 = overrideNextLine2 ?? data.nextLine2
 
         return TelemetryEntry(
             date           : date,
@@ -135,10 +190,10 @@ struct TelemetryTimelineProvider: TimelineProvider {
             songTitle      : data.songTitle.isEmpty ? "TFSI Telemetrie" : data.songTitle,
             artist         : data.artist.isEmpty ? "CarLyrics Cockpit" : data.artist,
             previousLine2  : data.previousLine2,
-            previousLine   : data.previousLine,
-            currentLine    : data.currentLine.isEmpty ? "Bereit zur Fahrt" : data.currentLine,
-            nextLine       : data.nextLine,
-            nextLine2      : data.nextLine2,
+            previousLine   : finalPrevLine,
+            currentLine    : finalCurrentLine,
+            nextLine       : finalNextLine,
+            nextLine2      : finalNextLine2,
             currentTimeStr : data.currentTimeStr,
             totalTimeStr   : data.totalTimeStr,
             progress       : data.progress
