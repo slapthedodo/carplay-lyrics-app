@@ -153,7 +153,7 @@ public struct OilTempTachoSettingsView: View {
                                         .fontWeight(.bold)
                                 } else {
                                     Image(systemName: "thermometer.and.liquid.waves")
-                                    Text("Jetzt messen (alle Methoden testen)")
+                                    Text("Jetzt messen (15 Methoden testen)")
                                         .fontWeight(.bold)
                                 }
                                 Spacer()
@@ -181,11 +181,11 @@ public struct OilTempTachoSettingsView: View {
                 // ── Fallback Methoden Status ──
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Fallback-Methoden (6 Versuche)", systemImage: "list.bullet.clipboard")
+                        Label("Fallback-Methoden (15 Versuche)", systemImage: "list.bullet.clipboard")
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Jede Methode wird der Reihe nach ausprobiert. Die erste erfolgreiche wird dauerhaft verwendet.")
+                        Text("Jede Methode wird der Reihe nach ausprobiert. Die erste erfolgreiche wird dauerhaft verwendet. 15 Methoden = maximale Chance auch auf schwierigen ECUs!")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -215,17 +215,35 @@ public struct OilTempTachoSettingsView: View {
 
                         Group {
                             MethodInfoRow(num: 1, name: "OBD Standard PID 015C",
-                                desc: "SAE-Standard. Funktioniert wenn MED9.1 diesen PID freigegeben hat.")
-                            MethodInfoRow(num: 2, name: "VAG Mode 22 PID 221C1F",
-                                desc: "VW/Audi erweiterter Diagnose-PID. Direktzugriff auf Motorsteuergerät.")
-                            MethodInfoRow(num: 3, name: "VAG Mode 22 PID 221140",
-                                desc: "Alternativer VAG-Öl-PID. Häufig auf MED9.x.")
-                            MethodInfoRow(num: 4, name: "VAG ECU 7E0 + Mode22 F43C",
-                                desc: "ECU-Header 7E0: Direktabfrage am MED9.1.")
-                            MethodInfoRow(num: 5, name: "Kombiinstrument (Header 7C4)",
-                                desc: "Liest Öltemp aus dem Tacho-CAN.")
-                            MethodInfoRow(num: 6, name: "Broadcast 7DF + 015C",
-                                desc: "OBD-Broadcast an alle Steuergeräte. Letzter Fallback.")
+                                desc: "SAE-Standard. Erster Versuch.")
+                            MethodInfoRow(num: 2, name: "VAG Mode22 7E0+115C ★",
+                                desc: "WAHRSCHEINLICHSTE Methode! MED9.1-spezifisch, gut dokumentiert.")
+                            MethodInfoRow(num: 3, name: "VAG Mode22 7E0+F43C",
+                                desc: "Zweithäufigster VAG Öltemp-DID auf MED9.x.")
+                            MethodInfoRow(num: 4, name: "VAG Mode22 1C1F",
+                                desc: "PQ35 Instrument-Cluster-Kanal (kein Header).")
+                            MethodInfoRow(num: 5, name: "VAG Mode22 1140",
+                                desc: "Alternativer VAG-Öltemp-DID auf MED9.x.")
+                            MethodInfoRow(num: 6, name: "VAG Mode22 7E0+1C1F",
+                                desc: "1C1F mit explizitem ECU-Header 7E0.")
+                            MethodInfoRow(num: 7, name: "VAG Mode22 7E0+1140",
+                                desc: "1140 mit explizitem ECU-Header 7E0.")
+                            MethodInfoRow(num: 8, name: "VAG Mode22 7E0+F450",
+                                desc: "Weitere F4xx-Familie (EA113 Varianten).")
+                            MethodInfoRow(num: 9, name: "VAG Mode22 7E0+F435",
+                                desc: "Weitere F4xx-Variante.")
+                            MethodInfoRow(num: 10, name: "Cluster 0x760+1C1F ★",
+                                desc: "Standard VAG MK5 Instrument-Cluster Diagnose-Adresse!")
+                            MethodInfoRow(num: 11, name: "Cluster 0x730+1C1F",
+                                desc: "Alternative Cluster-Adresse einiger VAG MK5.")
+                            MethodInfoRow(num: 12, name: "Cluster 0x7C4+0C01",
+                                desc: "Legacy Cluster-Adresse.")
+                            MethodInfoRow(num: 13, name: "Broadcast 7DF+015C",
+                                desc: "Alle ECUs gleichzeitig antworten lassen.")
+                            MethodInfoRow(num: 14, name: "Bosch Messgruppe 0623",
+                                desc: "VCDS Gruppe 005 Äquivalent via Mode 22.")
+                            MethodInfoRow(num: 15, name: "KWP2000 (ATSP5)+015C",
+                                desc: "Letzter Fallback: altes ISO 14230 Protokoll.")
                         }
                     }
                 }
@@ -236,7 +254,7 @@ public struct OilTempTachoSettingsView: View {
                             .font(.headline)
                             .foregroundStyle(.yellow)
 
-                        Text("Motor muss LAUFEN damit der Sensor aktiv ist! Bosch MED9.1 auf dem EA113 (Golf 5 GTI) gibt PID 015C im Standard-OBD nicht immer frei – deshalb 6 Fallbacks.")
+                        Text("Motor muss LAUFEN damit der Sensor aktiv ist! Bosch MED9.1 auf dem EA113 (Golf 5 GTI) gibt PID 015C im Standard-OBD nicht immer frei – deshalb 15 Fallbacks. Methode 2 (115C) und 10 (Cluster 0x760) sind die wahrscheinlichsten für deinen Wagen.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

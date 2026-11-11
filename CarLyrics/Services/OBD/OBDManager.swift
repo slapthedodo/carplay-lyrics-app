@@ -58,6 +58,8 @@ public final class OBDManager: NSObject, ObservableObject {
     @Published public var tachoOilTempMethod     : String = ""       // Welche Methode hat funktioniert
     @Published public var tachoOilTempProbeStatus: [OilTempProbeStatus] = []
     @Published public var isMeasuringTachoOilTemp: Bool   = false
+    /// Zuletzt gesetztes ELM327-Protokoll (z.B. "ATSP6" für CAN). Wird für Prober-Cleanup genutzt.
+    internal var currentElmProtocol       : String? = "ATSP6"
     internal var sessionConnectedAt       : Date?   = nil
     internal var initialCoolantTemp       : Int?    = nil
 
