@@ -243,6 +243,7 @@
 		97C1B0232A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDCommandExecution.swift; path = OBDCommandExecution.swift; sourceTree = "<group>"; };
 		97C1B0242A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDataParser.swift; path = OBDDataParser.swift; sourceTree = "<group>"; };
 		97C1B0252A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDProtocolProber.swift; path = OBDProtocolProber.swift; sourceTree = "<group>"; };
+		97C1B0262A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDOilTempProber.swift; path = OBDOilTempProber.swift; sourceTree = "<group>"; };
 
 		/* Cockpit Views */
 		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
@@ -253,6 +254,7 @@
 		97C1B0352A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitTabView.swift; path = CockpitTabView.swift; sourceTree = "<group>"; };
 		97C1B0362A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsTabView.swift; path = SettingsTabView.swift; sourceTree = "<group>"; };
 		97C1B0372A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifySetupSheet.swift; path = SpotifySetupSheet.swift; sourceTree = "<group>"; };
+		97C1B0382A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OilTempTachoSettingsView.swift; path = OilTempTachoSettingsView.swift; sourceTree = "<group>"; };
 
 		/* Diagnostic Workbench Views */
 		97C1B0402A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDiagnosticWorkbenchView.swift; path = OBDDiagnosticWorkbenchView.swift; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 				97C1E0432A000001, /* OBDCommandExecution.swift */
 				97C1E0442A000001, /* OBDDataParser.swift */
 				97C1E0452A000001, /* OBDProtocolProber.swift */
+				97C1E0462A000001, /* OBDOilTempProber.swift */
 				97C1E0502A000001, /* CockpitUIComponents.swift */
 				97C1E0512A000001, /* NowPlayingCard.swift */
 				97C1E0522A000001, /* LyricsCard.swift */
@@ -322,6 +325,7 @@
 				97C1E0552A000001, /* CockpitTabView.swift */
 				97C1E0562A000001, /* SettingsTabView.swift */
 				97C1E0572A000001, /* SpotifySetupSheet.swift */
+				97C1E0582A000001, /* OilTempTachoSettingsView.swift */
 				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
 				97C1E0612A000001, /* OBDStatusBarHeader.swift */
 				97C1E0622A000001, /* OBDMethodProbeSection.swift */
@@ -428,6 +432,7 @@
 		97C1E0432A000001 = { isa = PBXBuildFile; fileRef = 97C1B0232A000001; };
 		97C1E0442A000001 = { isa = PBXBuildFile; fileRef = 97C1B0242A000001; };
 		97C1E0452A000001 = { isa = PBXBuildFile; fileRef = 97C1B0252A000001; };
+		97C1E0462A000001 = { isa = PBXBuildFile; fileRef = 97C1B0262A000001; };
 
 		/* Cockpit Views */
 		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
@@ -438,6 +443,7 @@
 		97C1E0552A000001 = { isa = PBXBuildFile; fileRef = 97C1B0352A000001; };
 		97C1E0562A000001 = { isa = PBXBuildFile; fileRef = 97C1B0362A000001; };
 		97C1E0572A000001 = { isa = PBXBuildFile; fileRef = 97C1B0372A000001; };
+		97C1E0582A000001 = { isa = PBXBuildFile; fileRef = 97C1B0382A000001; };
 
 		/* Diagnostic Workbench */
 		97C1E0602A000001 = { isa = PBXBuildFile; fileRef = 97C1B0402A000001; };
@@ -542,6 +548,7 @@
 				97C1B0232A000001, /* OBDCommandExecution.swift */
 				97C1B0242A000001, /* OBDDataParser.swift */
 				97C1B0252A000001, /* OBDProtocolProber.swift */
+				97C1B0262A000001, /* OBDOilTempProber.swift */
 			);
 			name = OBD;
 			path = OBD;
@@ -574,6 +581,7 @@
 				97C1B0352A000001, /* CockpitTabView.swift */
 				97C1B0362A000001, /* SettingsTabView.swift */
 				97C1B0372A000001, /* SpotifySetupSheet.swift */
+				97C1B0382A000001, /* OilTempTachoSettingsView.swift */
 			);
 			name = Cockpit;
 			path = Cockpit;

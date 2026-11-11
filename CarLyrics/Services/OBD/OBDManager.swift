@@ -52,6 +52,12 @@ public final class OBDManager: NSObject, ObservableObject {
     internal var smoothedOilTemp          : Double? = nil
     @Published public var hasOilTempPID   : Bool    = false
     public var hasCheckedOilTempPID       : Bool    = false
+    // Tacho Öltemp: Multi-Fallback OBD-Auslese (echte Sensor-Temp statt Schätzung)
+    @Published public var tachoOilTempEnabled    : Bool   = true
+    @Published public var tachoOilTempValue      : Int?   = nil      // Bestätigter echter Wert in °C
+    @Published public var tachoOilTempMethod     : String = ""       // Welche Methode hat funktioniert
+    @Published public var tachoOilTempProbeStatus: [OilTempProbeStatus] = []
+    @Published public var isMeasuringTachoOilTemp: Bool   = false
     internal var sessionConnectedAt       : Date?   = nil
     internal var initialCoolantTemp       : Int?    = nil
 
@@ -313,6 +319,10 @@ public final class OBDManager: NSObject, ObservableObject {
         initQueue.removeAll()
         isWaitingForResponse = false
         initStepTimer?.invalidate()
+        tachoOilTempValue = nil
+        tachoOilTempMethod = ""
+        isMeasuringTachoOilTemp = false
+        // Note: tachoOilTempEnabled und tachoOilTempProbeStatus bleiben erhalten (UI-Anzeige)
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,318 @@
+// MARK: - OilTempTachoSettingsView.swift
+// Tacho Öltemperatur: Multi-Fallback OBD Auslese für VW Golf 5 GTI (Bosch MED9.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+import SwiftUI
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Probe Status Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct OilTempProbeStatus: Identifiable {
+    public let id = UUID()
+    public let methodName: String
+    public let command: String
+    public var status: OilTempProbeState
+    public var rawResponse: String
+    public var parsedValue: Int?
+
+    public init(methodName: String, command: String, status: OilTempProbeState = .pending, rawResponse: String = "", parsedValue: Int? = nil) {
+        self.methodName = methodName
+        self.command = command
+        self.status = status
+        self.rawResponse = rawResponse
+        self.parsedValue = parsedValue
+    }
+}
+
+public enum OilTempProbeState {
+    case pending, testing, success, failed, noData
+
+    var label: String {
+        switch self {
+        case .pending:  return "Ausstehend"
+        case .testing:  return "Teste…"
+        case .success:  return "Erfolg"
+        case .failed:   return "Fehler"
+        case .noData:   return "Keine Daten"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .pending:  return .gray
+        case .testing:  return .blue
+        case .success:  return .green
+        case .failed:   return .red
+        case .noData:   return .orange
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .pending:  return "circle"
+        case .testing:  return "circle.dotted"
+        case .success:  return "checkmark.circle.fill"
+        case .failed:   return "xmark.circle.fill"
+        case .noData:   return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: OilTempTachoSettingsView
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct OilTempTachoSettingsView: View {
+    @ObservedObject var obd: OBDManager
+
+    public init(obd: OBDManager) {
+        self.obd = obd
+    }
+
+    private var orangeColor: Color { Color(red: 1.0, green: 0.6, blue: 0.1) }
+
+    public var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+
+                // ── Erklärung & Toggle ──
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Tacho Öltemperatur", systemImage: "thermometer.medium")
+                            .font(.headline)
+                            .foregroundStyle(orangeColor)
+
+                        Text("Versucht die echte Öltemperatur direkt vom Steuergerät (Bosch MED9.1) zu lesen – mit 6 verschiedenen Methoden als Fallback. Viel besser als die errechnete Schätzung!")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Echte Öltemp aktivieren")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.white)
+                                Text(obd.tachoOilTempEnabled ? "OBD-Auslese aktiv" : "Verwendet errechnete Schätzung")
+                                    .font(.caption)
+                                    .foregroundStyle(obd.tachoOilTempEnabled ? .green : .secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { obd.tachoOilTempEnabled },
+                                set: { obd.tachoOilTempEnabled = $0 }
+                            ))
+                            .labelsHidden()
+                            .tint(orangeColor)
+                        }
+                        .padding(8)
+                        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+
+                        if let temp = obd.tachoOilTempValue {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.green)
+                                    .font(.title3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Echte Öltemperatur: \(temp)°C")
+                                        .font(.headline)
+                                        .foregroundStyle(.green)
+                                    if !obd.tachoOilTempMethod.isEmpty {
+                                        Text("Methode: \(obd.tachoOilTempMethod)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                        } else if obd.tachoOilTempEnabled && !obd.isMeasuringTachoOilTemp {
+                            HStack {
+                                Image(systemName: "questionmark.circle")
+                                    .foregroundStyle(.orange)
+                                Text("Noch kein Wert – OBD verbinden und \"Jetzt messen\" drücken")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(8)
+                            .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                        }
+
+                        Button {
+                            Task {
+                                await obd.startTachoOilTempProbe()
+                            }
+                        } label: {
+                            HStack {
+                                if obd.isMeasuringTachoOilTemp {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                        .tint(.white)
+                                        .scaleEffect(0.8)
+                                    Text("Messe…")
+                                        .fontWeight(.bold)
+                                } else {
+                                    Image(systemName: "thermometer.and.liquid.waves")
+                                    Text("Jetzt messen (alle Methoden testen)")
+                                        .fontWeight(.bold)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                        }
+                        .buttonStyle(CockpitButtonStyle(color: orangeColor))
+                        .disabled(obd.connectionState != .connected || obd.isMeasuringTachoOilTemp)
+
+                        if obd.connectionState != .connected {
+                            HStack {
+                                Image(systemName: "wifi.slash")
+                                    .foregroundStyle(.secondary)
+                                    .font(.caption)
+                                Text("OBD nicht verbunden – erst mit ELM327 koppeln")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                // ── Fallback Methoden Status ──
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Label("Fallback-Methoden (6 Versuche)", systemImage: "list.bullet.clipboard")
+                            .font(.headline)
+                            .foregroundStyle(.cyan)
+
+                        Text("Jede Methode wird der Reihe nach ausprobiert. Die erste erfolgreiche wird dauerhaft verwendet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if obd.tachoOilTempProbeStatus.isEmpty {
+                            HStack {
+                                Image(systemName: "clock")
+                                    .foregroundStyle(.secondary)
+                                Text("Noch kein Test durchgeführt")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            ForEach(obd.tachoOilTempProbeStatus) { probe in
+                                ProbeStatusRow(probe: probe)
+                            }
+                        }
+                    }
+                }
+
+                // ── Methoden Erklärung ──
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Was wird getestet?", systemImage: "info.circle.fill")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+
+                        Group {
+                            MethodInfoRow(num: 1, name: "OBD Standard PID 015C",
+                                desc: "SAE-Standard. Funktioniert wenn MED9.1 diesen PID freigegeben hat.")
+                            MethodInfoRow(num: 2, name: "VAG Mode 22 PID 221C1F",
+                                desc: "VW/Audi erweiterter Diagnose-PID. Direktzugriff auf Motorsteuergerät.")
+                            MethodInfoRow(num: 3, name: "VAG Mode 22 PID 221140",
+                                desc: "Alternativer VAG-Öl-PID. Häufig auf MED9.x.")
+                            MethodInfoRow(num: 4, name: "VAG ECU 7E0 + Mode22 F43C",
+                                desc: "ECU-Header 7E0: Direktabfrage am MED9.1.")
+                            MethodInfoRow(num: 5, name: "Kombiinstrument (Header 7C4)",
+                                desc: "Liest Öltemp aus dem Tacho-CAN.")
+                            MethodInfoRow(num: 6, name: "Broadcast 7DF + 015C",
+                                desc: "OBD-Broadcast an alle Steuergeräte. Letzter Fallback.")
+                        }
+                    }
+                }
+
+                GlassCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Wichtiger Hinweis", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline)
+                            .foregroundStyle(.yellow)
+
+                        Text("Motor muss LAUFEN damit der Sensor aktiv ist! Bosch MED9.1 auf dem EA113 (Golf 5 GTI) gibt PID 015C im Standard-OBD nicht immer frei – deshalb 6 Fallbacks.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
+        }
+    }
+}
+
+private struct ProbeStatusRow: View {
+    let probe: OilTempProbeStatus
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: probe.status.icon)
+                .foregroundStyle(probe.status.color)
+                .font(.system(size: 16))
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(probe.methodName)
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                    Spacer()
+                    if let val = probe.parsedValue {
+                        Text("\(val)°C")
+                            .font(.system(.caption, design: .monospaced, weight: .bold))
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(probe.status.label)
+                            .font(.caption2)
+                            .foregroundStyle(probe.status.color)
+                    }
+                }
+                if !probe.rawResponse.isEmpty {
+                    Text(probe.rawResponse)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Text("CMD: \(probe.command)")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary.opacity(0.6))
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 2)
+    }
+}
+
+private struct MethodInfoRow: View {
+    let num: Int
+    let name: String
+    let desc: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(num)")
+                .font(.system(.caption2, design: .monospaced, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 16, height: 16)
+                .background(Color.white.opacity(0.15), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                Text(desc)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}

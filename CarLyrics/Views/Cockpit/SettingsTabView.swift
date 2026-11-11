@@ -1,6 +1,6 @@
 // MARK: - SettingsTabView.swift
-// Einstellungs-Tab (Dynamic Island, Shortcuts, Latenz, Spotify, Sensoren)
-// ─────────────────────────────────────────────────────────────────────────────
+// Einstellungs-Tab (Dynamic Island, Shortcuts, Latenz, Spotify, Sensoren, Tacho Ã–ltemp)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 import SwiftUI
 import UserNotifications
@@ -12,6 +12,7 @@ public struct SettingsTabView: View {
     @State private var tokenInput: String = ""
     @State private var resetSuccess: Bool = false
     @State private var showKupplungTutorial: Bool = false
+    @State private var selectedSettingsTab: Int = 0
 
     public init(spotify: SpotifyManager, obd: OBDManager, observer: MusicObserver) {
         self.spotify = spotify
@@ -20,9 +21,27 @@ public struct SettingsTabView: View {
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            // â”€â”€ Interner Tab-Picker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            Picker("", selection: $selectedSettingsTab) {
+                Text("âš™ï¸ Allgemein").tag(0)
+                Text("ðŸŒ¡ Tacho Ã–ltemp").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
+            Divider().opacity(0.3)
+
+            if selectedSettingsTab == 1 {
+                // â”€â”€ Tacho Ã–ltemperatur Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                OilTempTachoSettingsView(obd: obd)
+            } else {
+            // â”€â”€ Allgemeine Einstellungen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ScrollView {
             VStack(spacing: 20) {
                 // 0. Fahrschule & Kupplungs-Tutorial (3D Anfahren)
+
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -35,7 +54,7 @@ public struct SettingsTabView: View {
                             Spacer()
                         }
 
-                        Text("Interaktives 3D-Kupplungstutorial: Erkläre Schülern das Anfahren (Motor- vs. Auto-Scheibe, Schleifpunkt und wie man ein Abwürgen verhindert).")
+                        Text("Interaktives 3D-Kupplungstutorial: ErklÃ¤re SchÃ¼lern das Anfahren (Motor- vs. Auto-Scheibe, Schleifpunkt und wie man ein AbwÃ¼rgen verhindert).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -44,7 +63,7 @@ public struct SettingsTabView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "play.circle.fill")
-                                Text("3D-Kupplungstutorial öffnen")
+                                Text("3D-Kupplungstutorial Ã¶ffnen")
                                     .fontWeight(.bold)
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -63,7 +82,7 @@ public struct SettingsTabView: View {
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Die Dynamic Island aktualisiert Öltemperatur, Ladedruck, G-Kraft und Songtexte live. Wenn du das Auto verlässt, schließt sie sich nach 10 Sekunden automatisch.")
+                        Text("Die Dynamic Island aktualisiert Ã–ltemperatur, Ladedruck, G-Kraft und Songtexte live. Wenn du das Auto verlÃ¤sst, schlieÃŸt sie sich nach 10 Sekunden automatisch.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -84,7 +103,7 @@ public struct SettingsTabView: View {
                                     HStack(spacing: 4) {
                                         Circle().fill(Color.orange).frame(width: 8, height: 8)
                                         let rem = max(0, 10 - observer.disconnectedSeconds)
-                                        Text(rem > 0 ? "Getrennt (Schließt in \(rem)s)" : "Getrennt (Beendet ✓)")
+                                        Text(rem > 0 ? "Getrennt (SchlieÃŸt in \(rem)s)" : "Getrennt (Beendet âœ“)")
                                             .font(.caption.bold())
                                             .foregroundStyle(.orange)
                                     }
@@ -108,7 +127,7 @@ public struct SettingsTabView: View {
                                     resetSuccess = false
                                 }
                             } label: {
-                                Label(resetSuccess ? "Zurückgesetzt ✓" : "Dynamic Island zurücksetzen",
+                                Label(resetSuccess ? "ZurÃ¼ckgesetzt âœ“" : "Dynamic Island zurÃ¼cksetzen",
                                       systemImage: resetSuccess ? "checkmark.circle.fill" : "arrow.clockwise.circle.fill")
                                     .font(.subheadline.bold())
                                     .foregroundStyle(resetSuccess ? .green : .white)
@@ -137,7 +156,7 @@ public struct SettingsTabView: View {
                             .font(.headline)
                             .foregroundStyle(.purple)
 
-                        Text("Du kannst die Dynamic Island jetzt direkt über Apple Kurzbefehle, Siri oder automatisierte Auslöser steuern:")
+                        Text("Du kannst die Dynamic Island jetzt direkt Ã¼ber Apple Kurzbefehle, Siri oder automatisierte AuslÃ¶ser steuern:")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -160,7 +179,7 @@ public struct SettingsTabView: View {
                         Text("Empfohlene Automation beim Fahren:")
                             .font(.caption.bold())
                             .foregroundStyle(.white)
-                        Text("In Kurzbefehle > Automation > 'Wenn CarPlay trennt' > Aktion 'Dynamic Island beenden'. Sobald du den Schlüssel ziehst, schließt sich die Dynamic Island automatisch!")
+                        Text("In Kurzbefehle > Automation > 'Wenn CarPlay trennt' > Aktion 'Dynamic Island beenden'. Sobald du den SchlÃ¼ssel ziehst, schlieÃŸt sich die Dynamic Island automatisch!")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -202,7 +221,7 @@ public struct SettingsTabView: View {
                             .font(.headline)
                             .foregroundStyle(.green)
 
-                        Text("Sobald das Öl 80°C erreicht hat und der Motor betriebsbereit ist, erhältst du automatisch eine Push-Mitteilung mit Signalton – auch bei gesperrtem Bildschirm oder im Hintergrund.")
+                        Text("Sobald das Ã–l 80Â°C erreicht hat und der Motor betriebsbereit ist, erhÃ¤ltst du automatisch eine Push-Mitteilung mit Signalton â€“ auch bei gesperrtem Bildschirm oder im Hintergrund.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -210,7 +229,7 @@ public struct SettingsTabView: View {
                             WarmupManager.shared.requestNotificationPermission()
                             let content = UNMutableNotificationContent()
                             content.title = "Motor ist warm"
-                            content.body = "Öltemperatur: 80°C"
+                            content.body = "Ã–ltemperatur: 80Â°C"
                             content.sound = .default
                             content.interruptionLevel = .timeSensitive
                             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
@@ -224,14 +243,14 @@ public struct SettingsTabView: View {
                     }
                 }
 
-                // 2. CarPlay Audio-Verzögerung
+                // 2. CarPlay Audio-VerzÃ¶gerung
                 GlassCard {
                     VStack(alignment: .leading, spacing: 12) {
                         Label("CarPlay Audio-Latenz Kompensation", systemImage: "clock.arrow.circlepath")
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Wireless CarPlay & Bluetooth puffern Audio um 2–3 Sekunden. Dieser Regler synchronisiert die Songtexte exakt auf den Zeitpunkt, an dem der Ton aus deinen Autolautsprechern kommt.")
+                        Text("Wireless CarPlay & Bluetooth puffern Audio um 2â€“3 Sekunden. Dieser Regler synchronisiert die Songtexte exakt auf den Zeitpunkt, an dem der Ton aus deinen Autolautsprechern kommt.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -264,7 +283,7 @@ public struct SettingsTabView: View {
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Stelle die maximale G-Kraft passend zu deinem Fahrzeug ein. Erschütterungen über diesem Wert werden gefiltert und der G-Meter skaliert dynamisch darauf.")
+                        Text("Stelle die maximale G-Kraft passend zu deinem Fahrzeug ein. ErschÃ¼tterungen Ã¼ber diesem Wert werden gefiltert und der G-Meter skaliert dynamisch darauf.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -337,7 +356,7 @@ public struct SettingsTabView: View {
                             }
                         } else {
                             VStack(spacing: 10) {
-                                SecureField("Spotify OAuth Access Token hier einfügen", text: $tokenInput)
+                                SecureField("Spotify OAuth Access Token hier einfÃ¼gen", text: $tokenInput)
                                     .textFieldStyle(.roundedBorder)
                                     .font(.caption)
 
@@ -354,12 +373,14 @@ public struct SettingsTabView: View {
                     }
                 }
             }
+            }
             .padding(.horizontal)
             .padding(.top, 8)
             .padding(.bottom, 24)
-        }
         .sheet(isPresented: $showKupplungTutorial) {
             KupplungTutorialView(obd: obd)
         }
+        } // end else (Allgemein)
+        } // end outer VStack
     }
 }

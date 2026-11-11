@@ -145,6 +145,11 @@ extension OBDManager {
                     liveOilTemp = oil
                     hasOilTempPID = true
                     hasCheckedOilTempPID = true
+                    // Auch für Tacho-Öltemp System registrieren
+                    if tachoOilTempEnabled && tachoOilTempValue == nil {
+                        tachoOilTempValue = oil
+                        tachoOilTempMethod = "OBD Standard PID 015C (Auto)"
+                    }
                     Task { @MainActor in
                         WarmupManager.shared.updateLiveOilTemp(oil)
                     }
