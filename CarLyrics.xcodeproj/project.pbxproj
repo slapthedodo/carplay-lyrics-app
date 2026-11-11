@@ -244,6 +244,8 @@
 		97C1B0242A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDataParser.swift; path = OBDDataParser.swift; sourceTree = "<group>"; };
 		97C1B0252A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDProtocolProber.swift; path = OBDProtocolProber.swift; sourceTree = "<group>"; };
 		97C1B0262A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDOilTempProber.swift; path = OBDOilTempProber.swift; sourceTree = "<group>"; };
+		97C1B0272A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPollingLoop.swift; path = OBDPollingLoop.swift; sourceTree = "<group>"; };
+		97C1B0282A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDTerminalLogger.swift; path = OBDTerminalLogger.swift; sourceTree = "<group>"; };
 
 		/* Cockpit Views */
 		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
@@ -317,6 +319,8 @@
 				97C1E0442A000001, /* OBDDataParser.swift */
 				97C1E0452A000001, /* OBDProtocolProber.swift */
 				97C1E0462A000001, /* OBDOilTempProber.swift */
+				97C1E0472A000001, /* OBDPollingLoop.swift */
+				97C1E0482A000001, /* OBDTerminalLogger.swift */
 				97C1E0502A000001, /* CockpitUIComponents.swift */
 				97C1E0512A000001, /* NowPlayingCard.swift */
 				97C1E0522A000001, /* LyricsCard.swift */
@@ -433,6 +437,8 @@
 		97C1E0442A000001 = { isa = PBXBuildFile; fileRef = 97C1B0242A000001; };
 		97C1E0452A000001 = { isa = PBXBuildFile; fileRef = 97C1B0252A000001; };
 		97C1E0462A000001 = { isa = PBXBuildFile; fileRef = 97C1B0262A000001; };
+		97C1E0472A000001 = { isa = PBXBuildFile; fileRef = 97C1B0272A000001; };
+		97C1E0482A000001 = { isa = PBXBuildFile; fileRef = 97C1B0282A000001; };
 
 		/* Cockpit Views */
 		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
@@ -549,6 +555,8 @@
 				97C1B0242A000001, /* OBDDataParser.swift */
 				97C1B0252A000001, /* OBDProtocolProber.swift */
 				97C1B0262A000001, /* OBDOilTempProber.swift */
+				97C1B0272A000001, /* OBDPollingLoop.swift */
+				97C1B0282A000001, /* OBDTerminalLogger.swift */
 			);
 			name = OBD;
 			path = OBD;

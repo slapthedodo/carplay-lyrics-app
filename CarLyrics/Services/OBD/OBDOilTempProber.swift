@@ -1,25 +1,15 @@
 // MARK: - OBDOilTempProber.swift
 // Multi-Fallback Öltemperatur-Auslese für VW Golf 5 GTI (Bosch MED9.1 / EA113)
 // ═══════════════════════════════════════════════════════════════════════════════
-// STRATEGIE: Testet 15 verschiedene Methoden in Reihenfolge nach Wahrscheinlichkeit.
+// STRATEGIE: Testet 18 verschiedene Methoden in Reihenfolge nach Wahrscheinlichkeit.
 // Erste erfolgreiche Methode wird dauerhaft verwendet.
 //
-// METHODEN-ÜBERSICHT:
-//  1.  OBD Standard PID 015C            (SAE J1979 Mode 01)
-//  2.  VAG Mode 22 DID 115C             (MED9.1 extended, häufigste VAG Öltemp)
-//  3.  VAG Mode 22 DID 1C1F             (Instrument Cluster Channel)
-//  4.  VAG Mode 22 DID 1140             (MED9.x alternativ)
-//  5.  VAG ECU 7E0 + Mode22 F43C        (MED9.1 direkt via ISO-TP)
-//  6.  VAG ECU 7E0 + Mode22 F450        (Alternative F4xx Familie)
-//  7.  VAG ECU 7E0 + Mode22 F435        (Weitere F4xx Variante)
-//  8.  VAG ECU 7E0 + Mode22 0623        (Bosch Messgruppe 005 Äquivalent)
-//  9.  VAG ECU 7E0 + Mode22 2101        (Manufacturer Specific Mode 21 equiv)
-// 10.  Instrument Cluster 0x760 + 1C1F  (Standard VAG Cluster CAN-ISO-TP)
-// 11.  Instrument Cluster 0x730 + 1C1F  (Alternative Cluster Adresse)
-// 12.  Instrument Cluster 0x7C4 + 0C01  (Legacy Cluster Adresse)
-// 13.  Broadcast 7DF + 015C             (Alle ECUs)
-// 14.  KWP2000 Protocol + 015C          (Falls ECU auf ISO 14230 reagiert)
-// 15.  CAN Monitor Capture              (Passives Belauschen von CAN Frames)
+// UNTERSTÜTZTE FORMELN / DEKODIERUNG:
+//  • 16-Bit Kelvin (0.1K Auflösung): (((A * 256) + B) - 2731) / 10
+//  • 16-Bit 0.1°C mit -40 Offset:    (((A * 256) + B) / 10) - 40
+//  • 16-Bit 0.1°C direkt:            ((A * 256) + B) / 10
+//  • 8-Bit Standard mit -40 Offset:  A - 40
+//  • 8-Bit Kombiinstrument direkt:   A (wenn im Bereich 45...150°C)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import Foundation
@@ -27,7 +17,7 @@ import Foundation
 extension OBDManager {
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // MARK: Probe Methoden Definition (15 Methoden in Prioritätsreihenfolge)
+    // MARK: Probe Methoden Definition (18 Methoden in Prioritätsreihenfolge)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// Format: Einfacher String = direkter PID ohne Header-Wechsel
@@ -35,124 +25,122 @@ extension OBDManager {
     ///         "PROTO:X||CMD" = Protokoll wechseln zu X, dann CMD senden
     internal static let oilTempProbeMethods: [OilTempProbeStatus] = [
 
-        // ── Methode 1: SAE Standard PID 015C ────────────────────────────────
-        // Einfachste Methode. MED9.1 gibt das oft per NODATA zurück,
-        // aber es ist immer der erste Versuch wert.
+        // ── 1. SAE Standard PID 015C ────────────────────────────────────────
         OilTempProbeStatus(
             methodName: "OBD Standard 015C (SAE J1979)",
             command: "015C"
         ),
 
-        // ── Methode 2: VAG Mode 22 DID 115C mit ECU-Header 7E0 ─────────────
-        // **WAHRSCHEINLICHSTE METHODE für MED9.1**
-        // DID 0x115C ist der bekannteste VAG-spezifische Öltemp-PID.
+        // ── 2. VAG Mode 22 DID 1106 mit ECU-Header 7E0 ─────────────────────
+        // ★ HÄUFIGSTER MED9.1 Custom-PID in Torque Pro / VAG-Foren!
+        // Liefert oft 2-Byte Kelvin oder 0.1°C
+        OilTempProbeStatus(
+            methodName: "VAG Mode22 7E0+1106 (Torque Pro MED9.1 Favorit ★)",
+            command: "ATSH7E0||221106"
+        ),
+
+        // ── 3. VAG Mode 22 DID 115C mit ECU-Header 7E0 ─────────────────────
+        // ★ WAHRSCHEINLICHSTE Standard-VAG Öltemp-Adresse
         // Response: 62 11 5C XX → temp = val - 40
         OilTempProbeStatus(
-            methodName: "VAG Mode22 7E0+115C (MED9.1 primär)",
+            methodName: "VAG Mode22 7E0+115C (MED9.1 primär ★)",
             command: "ATSH7E0||22115C"
         ),
 
-        // ── Methode 3: VAG Mode 22 DID F43C mit ECU-Header 7E0 ─────────────
-        // F43C ist der zweit-häufigste VAG Öltemp-DID auf MED9.x ECUs.
-        // Response: 62 F4 3C XX → temp = val - 40
+        // ── 4. VAG Mode 22 DID 11BE mit ECU-Header 7E0 ─────────────────────
+        // Standard VAG UDS Öltemp (ReadDataByIdentifier)
+        // 2-Byte Kelvin Formel: (((A*256)+B)-2731)/10
+        OilTempProbeStatus(
+            methodName: "VAG Mode22 7E0+11BE (VAG UDS Standard)",
+            command: "ATSH7E0||2211BE"
+        ),
+
+        // ── 5. VAG Mode 22 DID 1152 mit ECU-Header 7E0 ─────────────────────
+        // Car Scanner VAG-Profil Standard für Öltemp
+        OilTempProbeStatus(
+            methodName: "VAG Mode22 7E0+1152 (Car Scanner VAG Profil)",
+            command: "ATSH7E0||221152"
+        ),
+
+        // ── 6. VAG Mode 22 DID F43C mit ECU-Header 7E0 ─────────────────────
+        // F43C ist auf vielen MED9.x und Bosch Steuergeräten aktiv
         OilTempProbeStatus(
             methodName: "VAG Mode22 7E0+F43C (MED9.1 F4-Familie)",
             command: "ATSH7E0||22F43C"
         ),
 
-        // ── Methode 4: VAG Mode 22 DID 1C1F ohne Header-Override ───────────
-        // 1C1F ist ein VAG-Instrument-Cluster-Kanal der oft vom ECU
-        // beantwortet wird. Gut dokumentiert für PQ35-Plattform.
-        // Response: 62 1C 1F XX → temp = val - 40
+        // ── 7. VAG Mode 22 DID 1C1F ohne Header-Override ───────────────────
+        // 1C1F ist PQ35 Instrument-Cluster Kanal
         OilTempProbeStatus(
             methodName: "VAG Mode22 1C1F (PQ35 Cluster-Kanal)",
             command: "221C1F"
         ),
 
-        // ── Methode 5: VAG Mode 22 DID 1140 ────────────────────────────────
-        // Alternativer VAG-Öltemp-DID, bekannt von MED9.5 aber auch MED9.1.
-        // Response: 62 11 40 XX → temp = val - 40
+        // ── 8. VAG ECU 7E0 + DID 1C1F ──────────────────────────────────────
+        OilTempProbeStatus(
+            methodName: "VAG Mode22 7E0+1C1F (mit ECU-Header)",
+            command: "ATSH7E0||221C1F"
+        ),
+
+        // ── 9. VAG Mode 22 DID 1140 ────────────────────────────────────────
+        // Alternativer VAG-Öltemp-DID (MED9.5 / MED9.1)
         OilTempProbeStatus(
             methodName: "VAG Mode22 1140 (alternativ)",
             command: "221140"
         ),
 
-        // ── Methode 6: VAG ECU 7E0 + DID 1C1F ──────────────────────────────
-        // Gleiche DID wie Methode 4, aber explizit mit ECU-Header 7E0.
-        // Manche ELM327-Adapter brauchen den expliziten Header.
+        // ── 10. VAG ECU 7E0 + DID 1140 ─────────────────────────────────────
         OilTempProbeStatus(
-            methodName: "VAG Mode22 7E0+1C1F (mit Header)",
-            command: "ATSH7E0||221C1F"
-        ),
-
-        // ── Methode 7: VAG ECU 7E0 + DID 1140 ──────────────────────────────
-        OilTempProbeStatus(
-            methodName: "VAG Mode22 7E0+1140 (mit Header)",
+            methodName: "VAG Mode22 7E0+1140 (mit ECU-Header)",
             command: "ATSH7E0||221140"
         ),
 
-        // ── Methode 8: VAG Mode 22 DID F450 ────────────────────────────────
-        // Weitere F4xx-Familie. Bosch MED9 verwendet F4xx-Range für
-        // viele Sensordaten. F450 ist auf einigen EA113 Varianten.
+        // ── 11. VAG ECU 7E0 + DID 2002 ─────────────────────────────────────
+        OilTempProbeStatus(
+            methodName: "VAG Mode22 7E0+2002 (Car Scanner Alt)",
+            command: "ATSH7E0||222002"
+        ),
+
+        // ── 12. VAG Mode 22 DID F450 ───────────────────────────────────────
         OilTempProbeStatus(
             methodName: "VAG Mode22 7E0+F450 (F4xx alternativ)",
             command: "ATSH7E0||22F450"
         ),
 
-        // ── Methode 9: VAG Mode 22 DID F435 ────────────────────────────────
+        // ── 13. VAG Mode 22 DID F435 ───────────────────────────────────────
         OilTempProbeStatus(
             methodName: "VAG Mode22 7E0+F435 (F4xx Variante)",
             command: "ATSH7E0||22F435"
         ),
 
-        // ── Methode 10: Instrument Cluster über ISO-TP Adresse 0x760 ────────
-        // Standard VAG Kombiinstrument ISO-TP Diagnose-Adresse für PQ35.
-        // 0x760 = Request, 0x768 = Response (typisch VAG MK5).
-        // DID 0x1C1F ist der Cluster-Kanal für Öltemp.
+        // ── 14. Instrument Cluster über ISO-TP Adresse 0x760 ───────────────
+        // ★ Offizielle VAG MK5 Kombiinstrument-Adresse (Kombi = 17)
         OilTempProbeStatus(
-            methodName: "Cluster 0x760 + 221C1F (VAG MK5 Standard)",
+            methodName: "Cluster 0x760 + 221C1F (VAG MK5 Tacho ★)",
             command: "ATSH760||221C1F"
         ),
 
-        // ── Methode 11: Instrument Cluster über ISO-TP Adresse 0x730 ────────
-        // Alternative Cluster-Adresse für einige VAG MK5 Varianten.
+        // ── 15. Instrument Cluster über ISO-TP Adresse 0x730 ───────────────
         OilTempProbeStatus(
-            methodName: "Cluster 0x730 + 221C1F (VAG alternativ)",
+            methodName: "Cluster 0x730 + 221C1F (Tacho alternativ)",
             command: "ATSH730||221C1F"
         ),
 
-        // ── Methode 12: Instrument Cluster 0x7C4 (Legacy) ───────────────────
-        // Einige ältere ELM327-Guides nennen 0x7C4 für den Cluster.
-        // Das könnte eine CAN-Broadcast-ID sein, kein Diagnose-Request.
+        // ── 16. Instrument Cluster 0x7C4 ───────────────────────────────────
         OilTempProbeStatus(
-            methodName: "Cluster 0x7C4 + 220C01 (legacy)",
+            methodName: "Cluster 0x7C4 + 220C01 (Tacho Legacy)",
             command: "ATSH7C4||220C01"
         ),
 
-        // ── Methode 13: Broadcast 7DF + 015C (alle ECUs antworten) ──────────
-        // 7DF ist der OBD-Funktional-Header — alle ECUs im Netz antworten.
-        // Falls irgendeiner der ECUs 015C kennt, gibt er hier Antwort.
+        // ── 17. Broadcast 7DF + 015C (alle Steuergeräte antworten) ─────────
         OilTempProbeStatus(
             methodName: "Broadcast 7DF + 015C (alle ECUs)",
             command: "ATSH7DF||015C"
         ),
 
-        // ── Methode 14: Bosch Messgruppe 0623 ───────────────────────────────
-        // In VCDS ist Öltemp in Steuergerät 01 (Motor), Messgruppe 005.
-        // Die nächste Annäherung via Mode 22 könnte DID 0x0623 sein
-        // (Messgruppe 06, Byte 23 — Bosch-interne Nomenklatur).
+        // ── 18. Protocol 5 (KWP2000 Fast Init) + 015C ──────────────────────
         OilTempProbeStatus(
-            methodName: "VAG Mode22 7E0+0623 (Messgruppe 005 equiv)",
-            command: "ATSH7E0||220623"
-        ),
-
-        // ── Methode 15: Protocol 5 (KWP2000 Fast Init) + 015C ───────────────
-        // Falls das ELM327 auf CAN nicht reagiert, KWP2000 versuchen.
-        // ATSP5 = ISO 14230-4 KWP (5 baud init), ATSP5 = fast init.
-        // Nach dem Test: Protokoll wieder zurück auf SP6 (CAN).
-        // Format: "PROTO:5||015C" = speziell verarbeiteter Befehl
-        OilTempProbeStatus(
-            methodName: "KWP2000 (ATSP5) + 015C (ISO 14230)",
+            methodName: "KWP2000 (ATSP5) + 015C (ISO 14230 Fallback)",
             command: "PROTO:5||015C"
         ),
     ]
@@ -352,7 +340,55 @@ extension OBDManager {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // MARK: Oil Temp Parsing (unterstützt alle Antwortformate)
+    // MARK: Universal Multi-Byte & Multi-Formel Temperatur-Dekodierer
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// Nimmt die hexadezimalen Datenbytes einer ECU-Antwort entgegen und testet alle
+    /// bekannten VAG / Bosch Dekodier-Formeln (16-Bit Kelvin, 16-Bit 0.1°C, 8-Bit -40, 8-Bit direkt).
+    internal func decodeTemperatureBytes(_ hex: String) -> Int? {
+        // ── 1. 16-Bit (2 Bytes = 4 Hex Chars) zuerst prüfen ─────────────────
+        if hex.count >= 4, let word = UInt16(hex.prefix(4), radix: 16) {
+            // Formel A: Kelvin mit 0.1K Auflösung: (((A*256)+B)-2731)/10
+            // Bei 20°C: 2931 -> (2931-2731)/10 = 20
+            // Bei 90°C: 3631 -> (3631-2731)/10 = 90
+            // Gültiger Kelvin-Bereich: 2531 (-20°C) bis 4331 (+160°C)
+            if word >= 2431 && word <= 4431 {
+                let tempK = (Int(word) - 2731) / 10
+                if tempK >= -20 && tempK <= 160 { return tempK }
+            }
+
+            // Formel B: 0.1°C Auflösung mit -40 Offset: ((word)/10) - 40
+            // Bei 90°C: 1300 -> 130 - 40 = 90
+            if word >= 200 && word <= 2000 {
+                let tempOffset = (Int(word) / 10) - 40
+                if tempOffset >= -20 && tempOffset <= 160 { return tempOffset }
+            }
+
+            // Formel C: 0.1°C Auflösung direkt: word / 10
+            // Bei 90°C: 900 -> 90°C
+            if word >= 300 && word <= 1600 {
+                let tempDirect = Int(word) / 10
+                if tempDirect >= 20 && tempDirect <= 160 { return tempDirect }
+            }
+        }
+
+        // ── 2. 8-Bit (1 Byte = 2 Hex Chars) prüfen ───────────────────────────
+        if hex.count >= 2, let byte = UInt8(hex.prefix(2), radix: 16) {
+            // Standard OBD / VAG mit -40 Offset
+            let tempOffset = Int(byte) - 40
+            if tempOffset >= -20 && tempOffset <= 160 { return tempOffset }
+
+            // Kombiinstrument direkt °C (ohne Offset, z.B. 45°C ... 150°C)
+            if byte >= 45 && byte <= 150 {
+                return Int(byte)
+            }
+        }
+
+        return nil
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MARK: Oil Temp Parsing (unterstützt alle Antwortformate & DIDs)
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// Versucht aus einer rohen OBD-Antwort eine plausible Öltemperatur (°C) zu parsen.
@@ -374,100 +410,45 @@ extension OBDManager {
         // ── Mode 01 PID 5C → Antwort: 41 5C XX (-40 Offset) ────────────────
         if let range = compact.range(of: "415C") {
             let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
+            if let val = decodeTemperatureBytes(after) {
+                return val
             }
         }
 
-        // ── Mode 22 DID 115C → Antwort: 62 11 5C XX (-40 Offset) ───────────
-        if let range = compact.range(of: "62115C") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
+        // ── Mode 22 DIDs: Gezieltes Pattern-Matching ────────────────────────
+        let knownDIDs = [
+            "621106",   // Torque Pro Favorit für MED9.1
+            "62115C",   // VAG primär
+            "6211BE",   // VAG UDS
+            "621152",   // Car Scanner VAG
+            "621C1F",   // Cluster Channel
+            "621140",   // Alternativ
+            "622002",   // Car Scanner Alt
+            "62F43C",   // F4 Familie
+            "62F450",
+            "62F435",
+            "620C01"    // Tacho Legacy
+        ]
 
-        // ── Mode 22 DID 1C1F → Antwort: 62 1C 1F XX (-40 Offset) ───────────
-        if let range = compact.range(of: "621C1F") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Mode 22 DID 1140 → Antwort: 62 11 40 XX (-40 Offset) ───────────
-        if let range = compact.range(of: "621140") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Mode 22 DID F43C → Antwort: 62 F4 3C XX (-40 Offset) ───────────
-        if let range = compact.range(of: "62F43C") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Mode 22 DID F450 → Antwort: 62 F4 50 XX ────────────────────────
-        if let range = compact.range(of: "62F450") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Mode 22 DID F435 → Antwort: 62 F4 35 XX ────────────────────────
-        if let range = compact.range(of: "62F435") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Mode 22 DID 0623 → Antwort: 62 06 23 XX ────────────────────────
-        if let range = compact.range(of: "620623") {
-            let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let temp = Int(val) - 40
-                if temp >= -20 && temp <= 160 { return temp }
-            }
-        }
-
-        // ── Generisches Mode-22 Parsing: "62" + 4 Hex PID-Bytes + Datenbytes ─
-        // Fällt hier hin wenn kein spezifischer PID-Match oben greift.
-        // Versuche alle "62 XX XX" Präfixe die wir gesendet haben zu matchen.
-        if let range = compact.range(of: "62") {
-            let after = String(compact[range.upperBound...])
-            // 4 Hex-Chars = 2 PID-Bytes überspringen → Datenbyte lesen
-            if after.count >= 6 {
-                let dataByte = String(after.dropFirst(4).prefix(2))
-                if let val = UInt8(dataByte, radix: 16) {
-                    let tempWithOffset = Int(val) - 40
-                    if tempWithOffset >= -20 && tempWithOffset <= 160 { return tempWithOffset }
-                    // Manche Cluster senden ohne -40 Offset (direktes °C)
-                    if val >= 50 && val <= 150 { return Int(val) }
+        for prefix in knownDIDs {
+            if let range = compact.range(of: prefix) {
+                let dataPart = String(compact[range.upperBound...])
+                if let temp = decodeTemperatureBytes(dataPart) {
+                    return temp
                 }
             }
         }
 
-        // ── Kombiinstrument spezifisch: 220C01 → 62 0C 01 XX ───────────────
-        if let range = compact.range(of: "620C01") {
+        // ── Generisches Mode-22 Parsing: "62" + 4 Hex PID-Bytes + Daten ────
+        // Falls eine andere Mode-22 DID geantwortet hat
+        if let range = compact.range(of: "62") {
             let after = String(compact[range.upperBound...])
-            if let val = UInt8(after.prefix(2), radix: 16) {
-                let tempOffset = Int(val) - 40
-                let tempDirect = Int(val)
-                if tempOffset >= -20 && tempOffset <= 160 { return tempOffset }
-                if tempDirect >= 0 && tempDirect <= 150 { return tempDirect }
+            // 4 Hex-Chars = 2 PID-Bytes überspringen → Datenbytes dekodieren
+            if after.count >= 6 {
+                let dataPart = String(after.dropFirst(4))
+                if let temp = decodeTemperatureBytes(dataPart) {
+                    return temp
+                }
             }
         }
 
@@ -499,7 +480,10 @@ extension OBDManager {
         }
 
         // VAG Mode 22 Antworten (falls durch anderen Code ausgelöst)
-        let mode22Patterns = ["62115C", "621C1F", "621140", "62F43C", "62F450", "62F435"]
+        let mode22Patterns = [
+            "621106", "62115C", "6211BE", "621152", "621C1F",
+            "621140", "622002", "62F43C", "62F450", "62F435"
+        ]
         for pattern in mode22Patterns {
             if compact.contains(pattern) {
                 if let temp = parseOilTempFromResponse(raw, pid: commandSent) {
