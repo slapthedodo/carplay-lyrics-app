@@ -208,7 +208,11 @@ extension OBDManager {
         if let range = compact.range(of: "410D") {
             let after = String(compact[range.upperBound...])
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
-                liveSpeed = Int(val)
+                let speed = Int(val)
+                liveSpeed = speed
+                Task { @MainActor in
+                    OBDPerformanceTimer.shared.updateSpeed(speed)
+                }
             }
         }
 
@@ -233,6 +237,11 @@ extension OBDManager {
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
                 throttlePosition = Int(Double(val) * 100.0 / 255.0)
             }
+        }
+
+        // 14. Virtual Dyno Aktualisierung (Stage 1 Leistung & Drehmoment)
+        Task { @MainActor in
+            EA113DynoCalculator.shared.update(maf: liveMAF, rpm: liveRPM, boostBar: liveBoostBar)
         }
 
         // Thermische EGT-Glättung und Kaltstart-Überlastungsprüfung

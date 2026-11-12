@@ -247,6 +247,9 @@
 		97C1B0272A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPollingLoop.swift; path = OBDPollingLoop.swift; sourceTree = "<group>"; };
 		97C1B0282A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDTerminalLogger.swift; path = OBDTerminalLogger.swift; sourceTree = "<group>"; };
 		97C1B0292A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EA113ThermalModel.swift; path = EA113ThermalModel.swift; sourceTree = "<group>"; };
+		97C1B02A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EA113DynoCalculator.swift; path = EA113DynoCalculator.swift; sourceTree = "<group>"; };
+		97C1B02B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPerformanceTimer.swift; path = OBDPerformanceTimer.swift; sourceTree = "<group>"; };
+		97C1B02C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDTCScanner.swift; path = OBDDTCScanner.swift; sourceTree = "<group>"; };
 
 		/* Cockpit Views */
 		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
@@ -267,6 +270,8 @@
 		97C1B0442A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDTerminalSection.swift; path = OBDTerminalSection.swift; sourceTree = "<group>"; };
 		97C1B0452A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDBluetoothScannerSection.swift; path = OBDBluetoothScannerSection.swift; sourceTree = "<group>"; };
 		97C1B0462A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDVAGGuideSection.swift; path = OBDVAGGuideSection.swift; sourceTree = "<group>"; };
+		97C1B0472A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDTCCard.swift; path = OBDDTCCard.swift; sourceTree = "<group>"; };
+		97C1B0482A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPerformanceCard.swift; path = OBDPerformanceCard.swift; sourceTree = "<group>"; };
 
 		/* HandyModus Views */
 		97C1B0602A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusBackground.swift; path = HandyModusBackground.swift; sourceTree = "<group>"; };
@@ -323,6 +328,9 @@
 				97C1E0472A000001, /* OBDPollingLoop.swift */
 				97C1E0482A000001, /* OBDTerminalLogger.swift */
 				97C1E0492A000001, /* EA113ThermalModel.swift */
+				97C1E04A2A000001, /* EA113DynoCalculator.swift */
+				97C1E04B2A000001, /* OBDPerformanceTimer.swift */
+				97C1E04C2A000001, /* OBDDTCScanner.swift */
 				97C1E0502A000001, /* CockpitUIComponents.swift */
 				97C1E0512A000001, /* NowPlayingCard.swift */
 				97C1E0522A000001, /* LyricsCard.swift */
@@ -339,6 +347,8 @@
 				97C1E0642A000001, /* OBDTerminalSection.swift */
 				97C1E0652A000001, /* OBDBluetoothScannerSection.swift */
 				97C1E0662A000001, /* OBDVAGGuideSection.swift */
+				97C1E0672A000001, /* OBDDTCCard.swift */
+				97C1E0682A000001, /* OBDPerformanceCard.swift */
 				97C1E0802A000001, /* HandyModusBackground.swift */
 				97C1E0812A000001, /* HandyModusGaugesView.swift */
 				97C1E0822A000001, /* HandyModusLyricsPanel.swift */
@@ -442,6 +452,9 @@
 		97C1E0472A000001 = { isa = PBXBuildFile; fileRef = 97C1B0272A000001; };
 		97C1E0482A000001 = { isa = PBXBuildFile; fileRef = 97C1B0282A000001; };
 		97C1E0492A000001 = { isa = PBXBuildFile; fileRef = 97C1B0292A000001; };
+		97C1E04A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02A2A000001; };
+		97C1E04B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02B2A000001; };
+		97C1E04C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02C2A000001; };
 
 		/* Cockpit Views */
 		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
@@ -462,6 +475,8 @@
 		97C1E0642A000001 = { isa = PBXBuildFile; fileRef = 97C1B0442A000001; };
 		97C1E0652A000001 = { isa = PBXBuildFile; fileRef = 97C1B0452A000001; };
 		97C1E0662A000001 = { isa = PBXBuildFile; fileRef = 97C1B0462A000001; };
+		97C1E0672A000001 = { isa = PBXBuildFile; fileRef = 97C1B0472A000001; };
+		97C1E0682A000001 = { isa = PBXBuildFile; fileRef = 97C1B0482A000001; };
 
 		/* HandyModus Views */
 		97C1E0802A000001 = { isa = PBXBuildFile; fileRef = 97C1B0602A000001; };
@@ -561,6 +576,9 @@
 				97C1B0272A000001, /* OBDPollingLoop.swift */
 				97C1B0282A000001, /* OBDTerminalLogger.swift */
 				97C1B0292A000001, /* EA113ThermalModel.swift */
+				97C1B02A2A000001, /* EA113DynoCalculator.swift */
+				97C1B02B2A000001, /* OBDPerformanceTimer.swift */
+				97C1B02C2A000001, /* OBDDTCScanner.swift */
 			);
 			name = OBD;
 			path = OBD;
@@ -610,6 +628,8 @@
 				97C1B0442A000001, /* OBDTerminalSection.swift */
 				97C1B0452A000001, /* OBDBluetoothScannerSection.swift */
 				97C1B0462A000001, /* OBDVAGGuideSection.swift */
+				97C1B0472A000001, /* OBDDTCCard.swift */
+				97C1B0482A000001, /* OBDPerformanceCard.swift */
 			);
 			name = DiagnosticWorkbench;
 			path = DiagnosticWorkbench;

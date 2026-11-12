@@ -90,6 +90,16 @@ extension OBDManager {
                 "0104"      // Motorlast %
             ]
         case .standard:
+            // ── 0–100 km/h Drag Modus: 100% Bandbreite AUSSCHLIESSLICH für Speed (01 0D) ──
+            if OBDPerformanceTimer.shared.isDedicatedSpeedPollingRequired {
+                sendCommandRaw("010D")
+                pollWatchdogTimer?.invalidate()
+                pollWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+                    self?.pollNextPID()
+                }
+                return
+            }
+
             // High-Speed Priority Interleaving für EA113 2.0 TFSI (Bosch MED9.1):
             // Schnelle Werte (Ladedruck via MAP/MAF & Drehzahl) bekommen 75% der Bandbreite!
             let fastPIDs: [String]
