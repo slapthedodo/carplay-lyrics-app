@@ -63,37 +63,12 @@ public final class OBDManager: NSObject, ObservableObject {
     internal var sessionConnectedAt       : Date?   = nil
     internal var initialCoolantTemp       : Int?    = nil
 
-    /// Liefert echte Öltemperatur (PID 01 5C) oder das thermisch träge EA113-Modell (PT1-geglättet).
+    /// Liefert echte Öltemperatur (PID 01 5C / Tacho-Sonde) falls aktiv und verfügbar,
+    /// andernfalls das physikalisch kalibrierte EA113-Thermik-Modell (wärmt in realistischen 12-15 Min auf).
     public var effectiveOilTemp: Int? {
-        if let real = liveOilTemp { return real }
-        guard let coolant = liveCoolantTemp else { return nil }
-
-        let baseOil = coolant < 25 ? coolant : (coolant < 60 ? coolant - 8 : (coolant < 85 ? coolant - 10 : coolant - 8))
-        var target = baseOil
-
-        if let initCoolant = initialCoolantTemp, initCoolant < 60, let connAt = sessionConnectedAt {
-            let elapsed = Date().timeIntervalSince(connAt)
-            let limit = Int(WarmupCalculator.calculateOilTemp(at: elapsed, from: Double(initCoolant)).rounded())
-            if limit < 80 { target = min(baseOil, limit) }
-        }
-
-        if coolant >= 85 && target >= 78 {
-            let boostX = Int((liveBoostBar ?? 0) * 10)
-            let rpmX = liveRPM > 4200 ? 4 : 0
-            target += min(16, max(0, boostX + rpmX))
-        }
-
-        // PT1-Glättung: 4.6L Öl reagieren thermisch träge – kein schlagartiges Springen bei Last!
-        let targetD = Double(target)
-        if let prev = smoothedOilTemp {
-            let alpha = targetD > prev ? 0.006 : 0.0025
-            let next = prev + alpha * (targetD - prev)
-            smoothedOilTemp = next
-            return Int(next.rounded())
-        } else {
-            smoothedOilTemp = targetD
-            return target
-        }
+        if tachoOilTempEnabled, let real = liveOilTemp { return real }
+        guard liveCoolantTemp != nil else { return nil }
+        return EA113ThermalModel.shared.currentOilTemp
     }
 
     // PID-Unterstützungs-Flags (Bosch MED9.1 Filter: 010B standardmäßig false)
@@ -324,6 +299,7 @@ public final class OBDManager: NSObject, ObservableObject {
         tachoOilTempValue = nil
         tachoOilTempMethod = ""
         isMeasuringTachoOilTemp = false
+        EA113ThermalModel.shared.reset()
         // Note: tachoOilTempEnabled und tachoOilTempProbeStatus bleiben erhalten (UI-Anzeige)
     }
 }

@@ -100,6 +100,7 @@ extension OBDManager {
                     sessionConnectedAt = Date()
                 }
                 liveCoolantTemp = tempC
+                EA113ThermalModel.shared.update(coolantTemp: tempC, rpm: liveRPM, boostBar: liveBoostBar)
                 if let eff = effectiveOilTemp {
                     Task { @MainActor in
                         WarmupManager.shared.updateLiveOilTemp(eff)
