@@ -27,6 +27,7 @@ public struct SettingsTabView: View {
                 Label("Allgemein", systemImage: "gearshape").tag(0)
                 Label("0–100 Drag", systemImage: "stopwatch.fill").tag(1)
                 Label("Tacho Öltemp", systemImage: "thermometer.medium").tag(2)
+                Label("Layout Studio", systemImage: "slider.horizontal.3").tag(3)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
@@ -40,6 +41,9 @@ public struct SettingsTabView: View {
             } else if selectedSettingsTab == 2 {
                 // ── Tacho Öltemperatur Tab ──────────────────────────
                 OilTempTachoSettingsView(obd: obd)
+            } else if selectedSettingsTab == 3 {
+                // ── Handy Dashboard Layout Studio Tab ───────────────
+                HandyLayoutStudioSettingsView(obd: obd)
             } else {
             // ── Allgemeine Einstellungen ─────────────────────────
         ScrollView {

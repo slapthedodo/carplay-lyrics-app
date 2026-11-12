@@ -25,6 +25,15 @@ public struct HandyModusView: View {
     // Live Prüfstand Dyno Sheet
     @State private var showDynoSheet = false
 
+    public enum HandyPortraitMode: String, CaseIterable {
+        case cockpit = "Cockpit"
+        case lyrics  = "Lyrics"
+        case dyno    = "Dyno"
+    }
+
+    @AppStorage("carlyrics_portrait_layout_mode")
+    private var portraitMode: HandyPortraitMode = .cockpit
+
     // Auto-hiding Tab Bar: Leiste geht nach Inaktivität langsam weg und ploppt bei Berührung wieder auf
     @State private var isTabBarVisible: Bool = true
     @State private var hideTabBarTask: Task<Void, Never>? = nil
@@ -88,35 +97,53 @@ public struct HandyModusView: View {
                     )
                     .frame(width: geo.size.width, height: geo.size.height)
                 } else {
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 14) {
-                            // ── 1. Status-Streifen ──────────────────────────────────
-                            statusStrip
-                                .padding(.top, max(safeHardwareInsets.top, geo.safeAreaInsets.top, 56))
+                    VStack(spacing: 10) {
+                        // ── 1. Status-Streifen ──────────────────────────────────
+                        statusStrip
+                            .padding(.top, max(safeHardwareInsets.top, geo.safeAreaInsets.top, 56))
 
-                            // ── 2. Lyrics Panel ─────────────────────────────────────
-                            HandyModusLyricsPanel(observer: observer)
+                        // ── 1b. Mode-Picker (Cockpit | Lyrics | Dyno) ───────────
+                        modePickerBar
 
-                            // ── 2b. Porsche GT3 RS Performance Torque Widget ────────
-                            PorscheGT3TorqueWidget(obd: obd)
-
-                            // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
-                            mainGaugesRow
-
-                            // ── 4. G-Kräfte Panel ────────────────────────────────
-                            HandyModusGForcePanel(motion: motion)
-
-                            // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
-                            HandyModusStatsBar(obd: obd, motion: motion)
-
-                            // ── 6. Widget-Erklärung (einmalig) ──────────────────────
-                            widgetExplanationBanner
-
-                            // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
-                            footerControls
+                        if portraitMode == .dyno {
+                            HandyModusDynoView(obd: obd, isPresented: .constant(true), showCloseButton: false)
+                                .frame(maxHeight: .infinity)
+                        } else if portraitMode == .lyrics {
+                            ScrollView(showsIndicators: false) {
+                                VStack(spacing: 14) {
+                                    HandyModusLyricsPanel(observer: observer)
+                                }
+                                .padding(.horizontal, 14)
                                 .padding(.bottom, max(safeHardwareInsets.bottom, geo.safeAreaInsets.bottom, 34))
+                            }
+                        } else {
+                            ScrollView(showsIndicators: false) {
+                                VStack(spacing: 14) {
+                                    // ── 2. Lyrics Panel ─────────────────────────────────────
+                                    HandyModusLyricsPanel(observer: observer)
+
+                                    // ── 2b. Porsche GT3 RS Performance Torque Widget ────────
+                                    PorscheGT3TorqueWidget(obd: obd)
+
+                                    // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
+                                    mainGaugesRow
+
+                                    // ── 4. G-Kräfte Panel ────────────────────────────────
+                                    HandyModusGForcePanel(motion: motion)
+
+                                    // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
+                                    HandyModusStatsBar(obd: obd, motion: motion)
+
+                                    // ── 6. Widget-Erklärung (einmalig) ──────────────────────
+                                    widgetExplanationBanner
+
+                                    // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
+                                    footerControls
+                                        .padding(.bottom, max(safeHardwareInsets.bottom, geo.safeAreaInsets.bottom, 34))
+                                }
+                                .padding(.horizontal, 14)
+                            }
                         }
-                        .padding(.horizontal, 14)
                     }
                 }
             }
@@ -175,23 +202,6 @@ public struct HandyModusView: View {
 
             Spacer()
 
-            // 📈 SuperFlow Dyno Prüfstand Button (Oben Rechts)
-            Button {
-                showDynoSheet = true
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chart.xyaxis.line")
-                        .font(.system(size: 9, weight: .bold))
-                    Text("Dyno")
-                        .font(.system(size: 9, weight: .black, design: .rounded))
-                }
-                .foregroundStyle(.cyan)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.cyan.opacity(0.12), in: Capsule())
-                .overlay(Capsule().stroke(Color.cyan.opacity(0.3), lineWidth: 1))
-            }
-
             // Bildschirm aktiv
             HStack(spacing: 4) {
                 Image(systemName: "moon.zzz.fill")
@@ -205,6 +215,36 @@ public struct HandyModusView: View {
             .padding(.vertical, 4)
             .background(Color.yellow.opacity(0.12), in: Capsule())
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MARK: Mode Picker Bar (Cockpit | Lyrics | Dyno)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private var modePickerBar: some View {
+        HStack(spacing: 2) {
+            ForEach(HandyPortraitMode.allCases, id: \.self) { mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        portraitMode = mode
+                    }
+                } label: {
+                    Text(mode.rawValue)
+                        .font(.system(size: 11, weight: portraitMode == mode ? .black : .bold, design: .rounded))
+                        .foregroundStyle(portraitMode == mode ? .white : .white.opacity(0.5))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 5)
+                        .background(
+                            portraitMode == mode ? Color.cyan.opacity(0.32) : Color.clear,
+                            in: Capsule()
+                        )
+                }
+            }
+        }
+        .padding(3)
+        .background(Color.white.opacity(0.06), in: Capsule())
+        .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
+        .padding(.horizontal, 14)
     }
 
     private func connectionPill(label: String, color: Color, icon: String) -> some View {

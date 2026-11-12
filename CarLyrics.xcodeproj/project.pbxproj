@@ -262,6 +262,7 @@
 		97C1B0372A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifySetupSheet.swift; path = SpotifySetupSheet.swift; sourceTree = "<group>"; };
 		97C1B0382A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OilTempTachoSettingsView.swift; path = OilTempTachoSettingsView.swift; sourceTree = "<group>"; };
 		97C1B0392A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDragTimerCard.swift; path = OBDDragTimerCard.swift; sourceTree = "<group>"; };
+		97C1B03A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyLayoutStudioSettingsView.swift; path = HandyLayoutStudioSettingsView.swift; sourceTree = "<group>"; };
 
 		/* Diagnostic Workbench Views */
 		97C1B0402A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDiagnosticWorkbenchView.swift; path = OBDDiagnosticWorkbenchView.swift; sourceTree = "<group>"; };
@@ -344,6 +345,7 @@
 				97C1E0572A000001, /* SpotifySetupSheet.swift */
 				97C1E0582A000001, /* OilTempTachoSettingsView.swift */
 				97C1E0592A000001, /* OBDDragTimerCard.swift */
+				97C1E05A2A000001, /* HandyLayoutStudioSettingsView.swift */
 				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
 				97C1E0612A000001, /* OBDStatusBarHeader.swift */
 				97C1E0622A000001, /* OBDMethodProbeSection.swift */
@@ -473,6 +475,7 @@
 		97C1E0572A000001 = { isa = PBXBuildFile; fileRef = 97C1B0372A000001; };
 		97C1E0582A000001 = { isa = PBXBuildFile; fileRef = 97C1B0382A000001; };
 		97C1E0592A000001 = { isa = PBXBuildFile; fileRef = 97C1B0392A000001; };
+		97C1E05A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B03A2A000001; };
 
 		/* Diagnostic Workbench */
 		97C1E0602A000001 = { isa = PBXBuildFile; fileRef = 97C1B0402A000001; };
@@ -622,6 +625,7 @@
 				97C1B0372A000001, /* SpotifySetupSheet.swift */
 				97C1B0382A000001, /* OilTempTachoSettingsView.swift */
 				97C1B0392A000001, /* OBDDragTimerCard.swift */
+				97C1B03A2A000001, /* HandyLayoutStudioSettingsView.swift */
 			);
 			name = Cockpit;
 			path = Cockpit;

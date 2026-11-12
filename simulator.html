@@ -433,6 +433,35 @@
             margin-top: 2px;
         }
 
+        /* ── Handy Modus Subtabs (Cockpit | Lyrics | Dyno) ── */
+        .handy-subtabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            gap: 2px;
+        }
+        .handy-subtab-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .handy-subtab-btn:hover {
+            color: #ffffff;
+        }
+        .handy-subtab-btn.active {
+            background: rgba(0, 240, 255, 0.32);
+            color: #ffffff;
+            font-weight: 800;
+        }
+
         /* ── 🛠️ DASHBOARD STUDIO / EDIT MODE ── */
         .studio-banner {
             background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(255, 153, 25, 0.15));
@@ -786,7 +815,7 @@
 
                 <!-- ════════ TAB 2: HANDY MODUS MIT STUDIO & GT3 RS WIDGET ════════ -->
                 <div class="tab-content" id="tabHandy">
-                    <!-- Status Strip oben mit Studio & Dyno Button -->
+                    <!-- Status Strip oben mit 3-Mode Subtabs (Cockpit | Lyrics | Dyno) -->
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <div style="display:flex; gap:5px; align-items:center;">
                             <span style="font-size:10px; font-weight:800; color:var(--green); background:rgba(0,255,136,0.12); padding:3px 7px; border-radius:10px; border:1px solid rgba(0,255,136,0.2);">
@@ -797,29 +826,11 @@
                             </span>
                         </div>
 
-                        <div style="display:flex; gap:6px;">
-                            <!-- ✏️ STUDIO LAYOUT ANPASSEN BUTTON -->
-                            <button class="btn" style="padding:4px 8px; font-size:10.5px; font-weight:700; border-radius:10px;" id="btnToggleStudio" onclick="toggleStudioMode()">
-                                ✏️ Anordnen
-                            </button>
-                            <!-- 📈 DYNO BUTTON -->
-                            <button class="btn btn-cyan" style="padding:4px 9px; font-size:10.5px; font-weight:800; border-radius:10px;" onclick="openDynoView()">
-                                📈 Dyno
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 🛠️ STUDIO TOOLBAR (Erscheint beim Klick auf Anordnen) -->
-                    <div class="studio-banner" id="studioBanner">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:11px; font-weight:800; color:var(--cyan)">🛠️ DASHBOARD STUDIO AKTIV</span>
-                            <span style="font-size:9.5px; color:var(--text-sub)">Verschiebe & skaliere Kacheln frei</span>
-                        </div>
-                        <div class="studio-actions">
-                            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="undoLayout()">↩ Rückgängig</button>
-                            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="resetLayout()">🔄 Reset</button>
-                            <button class="btn btn-cyan" style="padding:4px 8px; font-size:10px;" onclick="exportLayoutJSON()">📋 Layout kopieren / senden</button>
-                            <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="cycleBoostStyle()">⚡ Balken: <span id="boostStyleName">Standard</span></button>
+                        <!-- 3-MODE PICKER: [ Cockpit | Lyrics | Dyno ] -->
+                        <div class="handy-subtabs">
+                            <button class="handy-subtab-btn active" id="subtabBtnCockpit" onclick="switchHandySubTab('cockpit')">Cockpit</button>
+                            <button class="handy-subtab-btn" id="subtabBtnLyrics" onclick="switchHandySubTab('lyrics')">Lyrics</button>
+                            <button class="handy-subtab-btn" id="subtabBtnDyno" onclick="switchHandySubTab('dyno')">Dyno</button>
                         </div>
                     </div>
 
@@ -1019,6 +1030,66 @@
                         </div>
 
                     </div>
+
+                    <!-- ════ STAGE LYRICS (Wenn Tab "Lyrics" gewählt ist) ════ -->
+                    <div id="handyStageLyrics" style="display:none;">
+                        <div class="glass-card" style="padding:16px; min-height:380px;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+                                <div style="width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg, #1db954, #191414); display:flex; align-items:center; justify-content:center;">
+                                    <svg viewBox="0 0 24 24" style="width:28px; height:28px; fill:#fff;"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                                </div>
+                                <div>
+                                    <div style="font-size:15px; font-weight:800; color:#fff;">Starboy (Live Sync)</div>
+                                    <div style="font-size:12px; color:var(--text-sub);">The Weeknd, Daft Punk</div>
+                                </div>
+                            </div>
+                            <div style="font-size:15px; font-weight:700; line-height:2.0; color:rgba(255,255,255,0.35);">
+                                <div>I'm tryna put you in the worst mood, ah</div>
+                                <div>P1 cleaner than your church shoes, ah</div>
+                                <div style="color:var(--cyan); font-size:17px; font-weight:900; text-shadow:0 0 16px rgba(0,240,255,0.6);">Milli point two just to hurt you, ah</div>
+                                <div>All red Lamb' just to tease you, ah</div>
+                                <div>None of these toys on lease too, ah</div>
+                                <div>Made your whole year in a week too, yah</div>
+                                <div>Main bitch out your league too, ah</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ════ STAGE DYNO (Wenn Tab "Dyno" gewählt ist) ════ -->
+                    <div id="handyStageDyno" style="display:none;">
+                        <div class="glass-card" style="padding:12px; border:1px solid rgba(0,240,255,0.3);">
+                            <div style="border-bottom:1px solid rgba(0,240,255,0.2); padding-bottom:6px; margin-bottom:8px;">
+                                <div style="font-size:12px; font-weight:900; color:#fff;">DIN corrected Engine power (hp) Vs. EngSpd</div>
+                                <div style="font-size:9.5px; color:var(--cyan); font-family:'JetBrains Mono';">VW_Golf5_GTI_EA113_Stage1: 268,9 PS / 395 Nm</div>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:6px; text-align:center;">
+                                    <div style="font-size:8.5px; color:var(--text-sub); font-weight:700;">LIVE LEISTUNG (PS)</div>
+                                    <div style="font-size:20px; font-weight:900; font-family:'JetBrains Mono'; color:var(--orange);" id="dynoStagePS">0 PS</div>
+                                </div>
+                                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:6px; text-align:center;">
+                                    <div style="font-size:8.5px; color:var(--text-sub); font-weight:700;">LIVE DREHMOMENT (Nm)</div>
+                                    <div style="font-size:20px; font-weight:900; font-family:'JetBrains Mono'; color:var(--cyan);" id="dynoStageNm">0 Nm</div>
+                                </div>
+                            </div>
+                            <!-- Inline SVG Dyno Graph -->
+                            <div style="width:100%; background:#03050a; border:1px solid rgba(0,240,255,0.25); border-radius:10px; overflow:hidden;">
+                                <svg viewBox="0 0 680 340" style="width:100%; height:auto; display:block;">
+                                    <rect x="55" y="20" width="600" height="280" fill="#070a12" stroke="rgba(0,240,255,0.15)" stroke-width="1"/>
+                                    <!-- Stock & Stage 1 Curves -->
+                                    <path d="M 55 272 C 100 260, 160 215, 230 185 C 310 160, 420 152, 510 152 C 580 158, 620 178, 655 200" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="4,4"/>
+                                    <path d="M 55 240 C 120 200, 180 145, 220 135 C 280 135, 340 140, 420 158 C 500 180, 580 220, 655 248" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="2" stroke-dasharray="4,4"/>
+                                    <!-- Stage 1 Curves -->
+                                    <path d="M 55 275 C 95 265, 140 215, 210 160 C 290 115, 410 75, 520 62 C 570 63, 620 85, 655 118" fill="none" stroke="#ff9919" stroke-width="3"/>
+                                    <path d="M 55 210 C 110 170, 160 88, 205 68 C 245 68, 305 72, 380 95 C 460 125, 550 175, 655 220" fill="none" stroke="#00f0ff" stroke-width="3"/>
+                                    <!-- Live RPM vertical sweep line & dots -->
+                                    <line id="dynoStageLine" x1="55" y1="20" x2="55" y2="300" stroke="#ffffff" stroke-width="2" stroke-dasharray="2,2"/>
+                                    <circle id="dynoStageDotNm" cx="55" cy="180" r="5" fill="#00f0ff" stroke="#ffffff" stroke-width="1.5"/>
+                                    <circle id="dynoStageDotPS" cx="55" cy="275" r="5" fill="#ff9919" stroke="#ffffff" stroke-width="1.5"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ════════ TAB 3: SETUP (0-100 Drag Timer ist hier!) ════════ -->
@@ -1071,6 +1142,67 @@
                                 <div style="font-size:11px; color:var(--text-sub);">Golf 5 GTI EA113: 268,9 PS / 395 Nm</div>
                             </div>
                             <input type="checkbox" checked style="accent-color:var(--cyan); transform:scale(1.2);">
+                        </div>
+                    </div>
+
+                    <!-- 🛠️ HANDY DASHBOARD ANORDNUNG & STYLING -->
+                    <div class="glass-card" style="border:1px solid rgba(0,240,255,0.3);">
+                        <div class="card-header">
+                            <span style="color:var(--cyan)">🛠️ Handy-Dashboard Anordnung & Styling</span>
+                            <button class="btn btn-cyan" id="btnStudioToggleSettings" style="padding:4px 10px; font-size:10.5px;" onclick="toggleStudioMode()">
+                                ✏️ Anordnen aktivieren
+                            </button>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-sub); margin-bottom:12px; line-height:1.4;">
+                            Hier kannst du das Layout des Handy-Tabs nach deinen Wünschen gestalten, Widgets verschieben und den Stil des Ladedruck-Balkens anpassen.
+                        </div>
+
+                        <!-- Actions: Undo, Reset, JSON Export -->
+                        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                            <button class="btn" style="padding:5px 9px; font-size:10.5px;" onclick="undoLayout()">↩ Rückgängig</button>
+                            <button class="btn btn-red" style="padding:5px 9px; font-size:10.5px;" onclick="resetLayout()">🔄 Reset</button>
+                            <button class="btn btn-cyan" style="padding:5px 9px; font-size:10.5px;" onclick="exportLayoutJSON()">📋 Layout kopieren / senden</button>
+                            <button class="btn" style="padding:5px 9px; font-size:10.5px;" onclick="cycleBoostStyle()">⚡ Balken: <span id="boostStyleName">Standard</span></button>
+                        </div>
+
+                        <!-- Widget Sortierung direkt in Settings -->
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            <div style="font-size:10px; font-weight:700; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.5px;">Reihenfolge der Widgets:</div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">
+                                <span style="font-size:12px; font-weight:600;">Porsche GT3 RS Torque Curve</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="w-btn" onclick="moveWidgetUp('w_gt3')">▲</button>
+                                    <button class="w-btn" onclick="moveWidgetDown('w_gt3')">▼</button>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">
+                                <span style="font-size:12px; font-weight:600;">Haupt-Gauges (RPM, Boost, Öl)</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="w-btn" onclick="moveWidgetUp('w_gauges')">▲</button>
+                                    <button class="w-btn" onclick="moveWidgetDown('w_gauges')">▼</button>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">
+                                <span style="font-size:12px; font-weight:600;">Spotify CarPlay Lyrics</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="w-btn" onclick="moveWidgetUp('w_lyrics')">▲</button>
+                                    <button class="w-btn" onclick="moveWidgetDown('w_lyrics')">▼</button>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">
+                                <span style="font-size:12px; font-weight:600;">G-Kräfte Radar HUD</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="w-btn" onclick="moveWidgetUp('w_gforce')">▲</button>
+                                    <button class="w-btn" onclick="moveWidgetDown('w_gforce')">▼</button>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">
+                                <span style="font-size:12px; font-weight:600;">Telemetrie Stats (8 Kacheln)</span>
+                                <div style="display:flex; gap:4px;">
+                                    <button class="w-btn" onclick="moveWidgetUp('w_stats')">▲</button>
+                                    <button class="w-btn" onclick="moveWidgetDown('w_stats')">▼</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1283,21 +1415,53 @@
             document.getElementById('dynoScreen').classList.remove('active');
         }
 
+        // ── Handy Subtab Switcher (Cockpit | Lyrics | Dyno) ──
+        function switchHandySubTab(mode) {
+            document.querySelectorAll('.handy-subtab-btn').forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('subtabBtn' + mode.charAt(0).toUpperCase() + mode.slice(1));
+            if (btn) btn.classList.add('active');
+
+            const stageCockpit = document.getElementById('widgetsList');
+            const stageLyrics = document.getElementById('handyStageLyrics');
+            const stageDyno = document.getElementById('handyStageDyno');
+
+            if (mode === 'cockpit') {
+                stageCockpit.style.display = 'flex';
+                stageLyrics.style.display = 'none';
+                stageDyno.style.display = 'none';
+            } else if (mode === 'lyrics') {
+                stageCockpit.style.display = 'none';
+                stageLyrics.style.display = 'block';
+                stageDyno.style.display = 'none';
+            } else if (mode === 'dyno') {
+                stageCockpit.style.display = 'none';
+                stageLyrics.style.display = 'none';
+                stageDyno.style.display = 'block';
+                updateDynoScreenPosition();
+            }
+        }
+
         // ── 🛠️ STUDIO / EDIT MODE SYSTEM ──
         function toggleStudioMode() {
             isStudioActive = !isStudioActive;
             const handyEl = document.getElementById('tabHandy');
-            const btn = document.getElementById('btnToggleStudio');
+            const btnSettings = document.getElementById('btnStudioToggleSettings');
             
             if (isStudioActive) {
                 handyEl.classList.add('edit-active');
-                btn.innerText = '💾 Fertig';
-                btn.classList.add('btn-cyan');
+                if (btnSettings) {
+                    btnSettings.innerText = '💾 Anordnen beenden';
+                    btnSettings.classList.remove('btn-cyan');
+                    btnSettings.classList.add('btn-red');
+                }
                 saveLayoutState();
             } else {
                 handyEl.classList.remove('edit-active');
-                btn.innerText = '✏️ Anordnen';
-                btn.classList.remove('btn-cyan');
+                if (btnSettings) {
+                    btnSettings.innerText = '✏️ Anordnen aktivieren';
+                    btnSettings.classList.remove('btn-red');
+                    btnSettings.classList.add('btn-cyan');
+                }
             }
         }
 
@@ -1551,6 +1715,24 @@
                 dotNm.setAttribute('cy', yNm);
                 dotPS.setAttribute('cx', xPos);
                 dotPS.setAttribute('cy', yPS);
+            }
+
+            // Also update inline dyno stage in Handy Tab
+            const stagePS = document.getElementById('dynoStagePS');
+            const stageNm = document.getElementById('dynoStageNm');
+            if (stagePS) stagePS.innerText = ps + ' PS';
+            if (stageNm) stageNm.innerText = nm + ' Nm';
+
+            const stageLine = document.getElementById('dynoStageLine');
+            const stageDotNm = document.getElementById('dynoStageDotNm');
+            const stageDotPS = document.getElementById('dynoStageDotPS');
+            if (stageLine && stageDotNm && stageDotPS) {
+                stageLine.setAttribute('x1', xPos);
+                stageLine.setAttribute('x2', xPos);
+                stageDotNm.setAttribute('cx', xPos);
+                stageDotNm.setAttribute('cy', yNm);
+                stageDotPS.setAttribute('cx', xPos);
+                stageDotPS.setAttribute('cy', yPS);
             }
         }
 

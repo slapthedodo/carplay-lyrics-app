@@ -14,6 +14,7 @@ public struct HandyModusLandscapeView: View {
     public enum LandscapeLayoutMode: String, CaseIterable {
         case cockpit = "Cockpit"
         case lyrics  = "Lyrics"
+        case dyno    = "Dyno"
     }
 
     @AppStorage("carlyrics_landscape_layout_mode")
@@ -208,6 +209,10 @@ public struct HandyModusLandscapeView: View {
 
                     WidescreenTachoConsole(obd: obd, width: width * 0.380, height: height)
                 }
+
+            case .dyno:
+                // SuperFlow WinDyn Live Dyno Graph
+                HandyModusDynoView(obd: obd, isPresented: .constant(true), showCloseButton: false)
             }
         }
         .frame(width: width, height: height)

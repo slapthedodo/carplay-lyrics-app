@@ -10,10 +10,12 @@ public struct HandyModusDynoView: View {
     @ObservedObject var obd: OBDManager
     @ObservedObject private var dyno = EA113DynoCalculator.shared
     @Binding var isPresented: Bool
+    var showCloseButton: Bool = true
 
-    public init(obd: OBDManager, isPresented: Binding<Bool>) {
+    public init(obd: OBDManager, isPresented: Binding<Bool> = .constant(true), showCloseButton: Bool = true) {
         self.obd = obd
         self._isPresented = isPresented
+        self.showCloseButton = showCloseButton
     }
 
     private let cyanGlow = Color(red: 0.0, green: 0.94, blue: 1.0)
@@ -47,14 +49,16 @@ public struct HandyModusDynoView: View {
 
                     Spacer()
 
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            isPresented = false
+                    if showCloseButton {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isPresented = false
+                            }
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
                         }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal, 16)
