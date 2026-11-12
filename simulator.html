@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarLyrics – Golf 5 GTI EA113 Cockpit & Dyno Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #07090e;
+            --panel-bg: #0d111a;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --cyan: #00f0ff;
+            --orange: #ff9919;
+            --green: #00ff88;
+            --red: #ff3838;
+            --yellow: #ffd32a;
+            --text-main: #ffffff;
+            --text-sub: #8e95a5;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── Linke Spalte: iPhone Simulator ── */
+        .emulator-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: radial-gradient(circle at center, #141926 0%, #06070a 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .phone-frame {
+            width: 393px;
+            height: 852px;
+            background: #000;
+            border-radius: 54px;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.85), 0 0 0 12px #1c202b, 0 0 0 14px #2c3242;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* Landscape Mode: Exakt wie iPhone Querformat im Golf 5 Halter */
+        .phone-frame.landscape {
+            width: 852px;
+            height: 393px;
+            border-radius: 46px;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 11px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 126px;
+            height: 35px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+            transition: all 0.4s;
+        }
+        .landscape .dynamic-island {
+            top: 50%;
+            left: 18px;
+            transform: translateY(-50%) rotate(-90deg);
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 48px;
+            padding: 14px 28px 0;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 900;
+            color: #fff;
+        }
+        .landscape .status-bar {
+            display: none;
+        }
+
+        /* App Screen */
+        .app-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #07090e;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px 84px;
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .tab-content::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+
+        /* ── Glass Cards ── */
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 15px;
+            margin-bottom: 12px;
+            backdrop-filter: blur(16px);
+            position: relative;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* ── Bottom Tab Bar (Strikt 4 Tabs) ── */
+        .tab-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 74px;
+            background: rgba(10, 12, 18, 0.88);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: 14px;
+            z-index: 800;
+            transition: all 0.3s;
+        }
+        .landscape .tab-bar {
+            display: none; /* Im Renn-Querformat volle Ausnutzung für das Widescreen Cockpit */
+        }
+
+        .tab-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            color: #646b80;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.15s;
+            padding: 6px 12px;
+        }
+        .tab-btn.active {
+            color: var(--cyan);
+        }
+        .tab-btn svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        /* ── Cockpit Komponenten ── */
+        .dial-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .dial-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 12px 10px;
+            text-align: center;
+        }
+        .dial-title {
+            font-size: 9.5px;
+            color: var(--text-sub);
+            font-weight: 700;
+            letter-spacing: 0.6px;
+        }
+        .dial-value {
+            font-size: 32px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            margin: 3px 0;
+            line-height: 1;
+        }
+        .dial-sub {
+            font-size: 10px;
+            color: var(--text-sub);
+        }
+
+        /* Ladedruck Balken */
+        .boost-bar-container {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .boost-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00f0ff, #ff9919, #ff3838);
+            width: 0%;
+            transition: width 0.05s ease-out;
+        }
+
+        /* ── Dyno / Prüfstand ── */
+        .dyno-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .dyno-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .dyno-val {
+            font-size: 36px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.1;
+        }
+
+        /* ── 0–100 Drag Timer ── */
+        .timer-hero {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            margin: 10px 0;
+            position: relative;
+        }
+        .timer-clock {
+            font-size: 46px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+        .timer-status {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--cyan);
+            margin-top: 4px;
+            letter-spacing: 0.5px;
+        }
+        .timer-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .stat-col {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 8px 4px;
+            text-align: center;
+        }
+        .stat-col .label {
+            font-size: 9px;
+            color: var(--text-sub);
+        }
+        .stat-col .val {
+            font-size: 14px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+
+        /* ── Fehlerspeicher (DTC) ── */
+        .dtc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .dtc-item {
+            background: rgba(255, 56, 56, 0.08);
+            border: 1px solid rgba(255, 56, 56, 0.25);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+        .dtc-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--red);
+        }
+        .dtc-title {
+            font-size: 12px;
+            font-weight: 700;
+            margin: 3px 0;
+        }
+        .dtc-desc {
+            font-size: 11px;
+            color: var(--text-sub);
+            line-height: 1.35;
+        }
+
+        /* ── Buttons ── */
+        .btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #fff;
+            padding: 9px 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.16);
+        }
+        .btn-cyan {
+            background: var(--cyan);
+            color: #000;
+            border: none;
+        }
+        .btn-cyan:hover {
+            background: #52f4ff;
+        }
+        .btn-red {
+            background: var(--red);
+            color: #fff;
+            border: none;
+        }
+        .btn-red:hover {
+            background: #ff5252;
+        }
+
+        /* ── Widescreen Track Cockpit (Querformat) ── */
+        .landscape-cockpit {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            padding: 14px 24px 10px 56px; /* Dynamic Island Freiraum links */
+            box-sizing: border-box;
+        }
+        .landscape .landscape-cockpit {
+            display: flex;
+        }
+        .landscape .portrait-view {
+            display: none;
+        }
+
+        /* Top 18 Shift-Light Runway */
+        .shift-runway {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 24px;
+            margin-bottom: 8px;
+            padding: 0 4px;
+        }
+        .runway-led {
+            flex: 1;
+            height: 6px;
+            border-radius: 2px;
+            background: rgba(255,255,255,0.08);
+            transition: background 0.04s, box-shadow 0.04s;
+        }
+
+        /* Tri-Zone Cockpit */
+        .trizone-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 240px 1fr 240px;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .zone-card {
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 18px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* Bottom Flight-Bar */
+        .flight-bar {
+            height: 32px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 16px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 8px;
+        }
+        .flight-item span {
+            color: var(--text-sub);
+            font-size: 9.5px;
+            margin-right: 4px;
+        }
+
+        /* ── Rechte Spalte: PC-Steuerpult (Telemetry Injector) ── */
+        .controls-panel {
+            width: 460px;
+            background: var(--panel-bg);
+            border-left: 1px solid rgba(255,255,255,0.08);
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+        .controls-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .controls-panel::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 3px;
+        }
+
+        .controls-panel h2 {
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--cyan);
+        }
+
+        .control-group {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+        }
+        .control-label span {
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #1c2230;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--cyan);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--cyan);
+        }
+
+        .launch-btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00f0ff, #0088ff);
+            color: #000;
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0, 240, 255, 0.3);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .launch-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(0, 240, 255, 0.45);
+        }
+
+        .sub-segmented {
+            display: flex;
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 3px;
+            margin-bottom: 12px;
+        }
+        .sub-btn {
+            flex: 1;
+            padding: 7px;
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .sub-btn.active {
+            background: rgba(255,255,255,0.16);
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Linke Seite: iPhone Cockpit ── -->
+    <div class="emulator-container">
+        <div class="phone-frame" id="phoneFrame">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island">
+                <span style="color:var(--orange)" id="islandOil">ÖL ~82°C</span>
+                <span style="color:var(--cyan)" id="islandBoost">0.00 bar</span>
+            </div>
+
+            <!-- Status Bar (nur Hochkant) -->
+            <div class="status-bar">
+                <span id="clockTime">12:30</span>
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <span style="font-size:11px;">5G</span>
+                    <span style="font-size:11px;">OBD ●</span>
+                </div>
+            </div>
+
+            <!-- App Screen -->
+            <div class="app-screen">
+
+                <!-- ════════ HOCHKANT ANSICHTEN (PORTRAIT) ════════ -->
+                <div class="portrait-view" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+                    
+                    <!-- TAB 0: COCKPIT -->
+                    <div class="tab-content active" id="tabCockpit">
+                        <!-- Warmup Banner -->
+                        <div class="glass-card" style="border-left: 4px solid var(--orange);" id="warmupBanner">
+                            <div class="card-header">
+                                <span>🔥 EA113 Kaltstart & Thermik</span>
+                                <span id="cockpitOilStatus" style="font-size:10px; color:var(--orange); font-weight:800; background:rgba(255,153,25,0.15); padding:3px 8px; border-radius:10px;">WARMFAHREN</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; font-size:13px;">
+                                <span>Kühlmittel: <b id="valCoolant" style="color:var(--cyan)">89°C</b></span>
+                                <span>Öl: <b id="valOil" style="color:var(--orange)">~82°C (Modell)</b></span>
+                            </div>
+                        </div>
+
+                        <!-- Gauges 2x2 -->
+                        <div class="dial-grid">
+                            <div class="dial-box">
+                                <div class="dial-title">GESCHWINDIGKEIT</div>
+                                <div class="dial-value" id="valSpeed" style="color:#fff">0</div>
+                                <div class="dial-sub">km/h</div>
+                            </div>
+
+                            <div class="dial-box">
+                                <div class="dial-title">DREHZAHL</div>
+                                <div class="dial-value" id="valRPM" style="color:var(--cyan)">820</div>
+                                <div class="dial-sub">U/min</div>
+                            </div>
+
+                            <div class="dial-box">
+                                <div class="dial-title">LADEDRUCK (MAP)</div>
+                                <div class="dial-value" id="valBoost" style="color:var(--cyan)">0.00</div>
+                                <div class="dial-sub">bar</div>
+                                <div class="boost-bar-container">
+                                    <div class="boost-bar-fill" id="boostFill"></div>
+                                </div>
+                            </div>
+
+                            <div class="dial-box">
+                                <div class="dial-title">LUFTMASSE (MAF)</div>
+                                <div class="dial-value" id="valMAF" style="color:var(--orange)">3.4</div>
+                                <div class="dial-sub">g/s</div>
+                            </div>
+                        </div>
+
+                        <!-- Music / Spotify CarPlay Sync -->
+                        <div class="glass-card" style="margin-top:12px;">
+                            <div class="card-header" style="margin-bottom:6px;">
+                                <span style="font-size:11px; color:var(--text-sub)">SPOTIFY CARPLAY SYNC</span>
+                                <span style="font-size:10px; color:var(--green)">● LIVE</span>
+                            </div>
+                            <div style="font-size:14px; font-weight:700;">GTI Stage 1 Soundcheck</div>
+                            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">EA113 2.0 TFSI • Turbo Spool & DSG Farts</div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 1: OBD LABOR -->
+                    <div class="tab-content" id="tabLabor">
+                        <!-- Sub-Segmented Picker -->
+                        <div class="sub-segmented">
+                            <button class="sub-btn active" onclick="switchLaborSub('dyno', this)">⏱ Dyno</button>
+                            <button class="sub-btn" onclick="switchLaborSub('dtc', this)">🚨 Fehler</button>
+                            <button class="sub-btn" onclick="switchLaborSub('probe', this)">⚡ Öltemp</button>
+                        </div>
+
+                        <!-- SUB 1: DYNO & DRAG TIMER -->
+                        <div id="laborDyno">
+                            <!-- Stage 1 Dyno Card -->
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <span style="color:var(--orange)">⚡ Stage 1 Virtual Dyno</span>
+                                    <span style="font-size:10px; color:var(--text-sub)">EA113 (268,9 PS / 395 Nm)</span>
+                                </div>
+
+                                <div class="dyno-grid">
+                                    <div class="dyno-box">
+                                        <div class="dial-title">LEISTUNG</div>
+                                        <div class="dyno-val" id="dynoPS" style="color:var(--orange)">0</div>
+                                        <div class="dial-sub">PS (Peak: <span id="peakPS" style="color:#fff; font-weight:800;">0</span>)</div>
+                                    </div>
+
+                                    <div class="dyno-box">
+                                        <div class="dial-title">DREHMOMENT</div>
+                                        <div class="dyno-val" id="dynoNm" style="color:var(--cyan)">0</div>
+                                        <div class="dial-sub">Nm (Peak: <span id="peakNm" style="color:#fff; font-weight:800;">0</span>)</div>
+                                    </div>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-sub);">
+                                    <span>Berechnet aus MAF, MAP & RPM</span>
+                                    <a href="#" onclick="resetPeaks(); return false;" style="color:var(--cyan); font-weight:700; text-decoration:none;">Peak Reset</a>
+                                </div>
+                            </div>
+
+                            <!-- 0-100 km/h Drag Timer Card -->
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <span style="color:var(--green)">⏱ 0–100 km/h Drag Timer</span>
+                                    <span id="prioBadge" style="display:none; font-size:9px; background:rgba(0,255,136,0.2); color:var(--green); padding:2px 8px; border-radius:10px; font-weight:800;">⚡ 100% PRIO SPEED</span>
+                                </div>
+
+                                <div class="timer-hero">
+                                    <div class="timer-clock" id="timerClock">0.00 s</div>
+                                    <div class="timer-status" id="timerStatus">BEREIT (Warte auf Stillstand)</div>
+                                </div>
+
+                                <div class="timer-stats">
+                                    <div class="stat-col">
+                                        <div class="label">0–60 km/h</div>
+                                        <div class="val" id="stat60">--</div>
+                                    </div>
+                                    <div class="stat-col">
+                                        <div class="label">Letzter Lauf</div>
+                                        <div class="val" id="statLast">--</div>
+                                    </div>
+                                    <div class="stat-col">
+                                        <div class="label">Bestzeit 🏆</div>
+                                        <div class="val" id="statBest" style="color:var(--yellow)">5.74 s</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB 2: DTC FEHLERSPEICHER -->
+                        <div id="laborDTC" style="display:none;">
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <span style="color:var(--yellow)">🚨 Fehlerspeicher (DTC)</span>
+                                    <span style="font-size:11px; color:var(--green)">Mode 03 / 07</span>
+                                </div>
+                                <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:12px;">Liest Fehlercodes aus dem Bosch MED9.1 Motorsteuergerät aus.</p>
+                                
+                                <div style="display:flex; gap:8px;">
+                                    <button class="btn btn-cyan" style="flex:1" onclick="scanDTC()">🔍 Fehler auslesen</button>
+                                    <button class="btn btn-red" style="flex:1" onclick="clearDTC()">🗑 Löschen</button>
+                                </div>
+
+                                <div class="dtc-list" id="dtcList">
+                                    <div style="text-align:center; padding:16px; color:var(--text-sub); font-size:12px;">Kein Scan aktiv. Klicke auf "Fehler auslesen".</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUB 3: ÖLTEMP PROBE -->
+                        <div id="laborProbe" style="display:none;">
+                            <div class="glass-card">
+                                <div class="card-header">
+                                    <span style="color:var(--cyan)">⚡ Tacho Öltemp Probe</span>
+                                    <span style="font-size:10px; color:var(--text-sub)">23 Methoden</span>
+                                </div>
+                                <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:10px;">
+                                    Testet alle bekannten Diagnose-DIDs für Golf 5 GTI (Bosch MED9.1).
+                                </p>
+                                <button class="btn btn-cyan" style="width:100%" onclick="simulateOilProbe()">▶ Jetzt alle 23 Methoden testen</button>
+                                <div id="probeResults" style="margin-top:10px; font-size:11px; font-family:'JetBrains Mono';"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: HANDY-MODUS (RACING HUD) -->
+                    <div class="tab-content" id="tabHandy">
+                        <div class="glass-card" style="text-align:center; padding:20px;">
+                            <div style="font-size:11px; color:var(--text-sub); font-weight:700; letter-spacing:1px;">TRACK HUD</div>
+                            <div style="font-size:64px; font-weight:900; font-family:'JetBrains Mono'; margin:8px 0; line-height:1;" id="handySpeed">0</div>
+                            <div style="font-size:12px; color:var(--cyan); font-weight:800;">KM/H</div>
+
+                            <!-- RPM Indicator -->
+                            <div style="display:flex; gap:3px; justify-content:center; margin:16px 0;" id="shiftLedsPortrait">
+                                <!-- Dynamic LEDs -->
+                            </div>
+
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; font-family:'JetBrains Mono';">
+                                <div class="dial-box">
+                                    <div class="dial-title">LADEDRUCK</div>
+                                    <div style="font-size:20px; font-weight:800; color:var(--cyan);" id="handyBoost">0.00 bar</div>
+                                </div>
+                                <div class="dial-box">
+                                    <div class="dial-title">LEISTUNG</div>
+                                    <div style="font-size:20px; font-weight:800; color:var(--orange);" id="handyPS">0 PS</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="text-align:center; margin-top:10px;">
+                            <button class="btn btn-cyan" style="width:100%; padding:12px;" onclick="toggleOrientation()">🔄 Widescreen Querformat starten</button>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: SETUP -->
+                    <div class="tab-content" id="tabSetup">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <span>⚙️ Golf 5 GTI Einstellungen</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+                                <div>
+                                    <div style="font-weight:600; font-size:13px;">Tacho Öltemp Auslese</div>
+                                    <div style="font-size:11px; color:var(--text-sub);">KWP2000 MWB 134 (OBDeleven / VCDS)</div>
+                                </div>
+                                <input type="checkbox" checked style="accent-color:var(--orange); transform:scale(1.2);">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+                                <div>
+                                    <div style="font-weight:600; font-size:13px;">High-Speed 0-100 Prio</div>
+                                    <div style="font-size:11px; color:var(--text-sub);">Pausiert alle anderen PIDs während Launch</div>
+                                </div>
+                                <input type="checkbox" checked style="accent-color:var(--green); transform:scale(1.2);">
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0;">
+                                <div>
+                                    <div style="font-weight:600; font-size:13px;">Virtual Dyno (Stage 1)</div>
+                                    <div style="font-size:11px; color:var(--text-sub);">Kalibriert auf 268,9 PS / 395 Nm</div>
+                                </div>
+                                <input type="checkbox" checked style="accent-color:var(--cyan); transform:scale(1.2);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Tab Bar (Strikt 4 Tabs!) -->
+                    <div class="tab-bar">
+                        <button class="tab-btn active" onclick="switchTab(0, this)">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                            Cockpit
+                        </button>
+                        <button class="tab-btn" onclick="switchTab(1, this)">
+                            <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                            OBD Labor
+                        </button>
+                        <button class="tab-btn" onclick="switchTab(2, this)">
+                            <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                            Handy
+                        </button>
+                        <button class="tab-btn" onclick="switchTab(3, this)">
+                            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                            Setup
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ════════ QUERFORMAT (WIDESCREEN TRACK COCKPIT) ════════ -->
+                <div class="landscape-cockpit">
+                    <!-- Top 18 Shift-Light Runway -->
+                    <div class="shift-runway" id="shiftRunwayLandscape">
+                        <!-- 18 LEDs -->
+                    </div>
+
+                    <!-- Tri-Zone Stage -->
+                    <div class="trizone-container">
+                        <!-- Zone 1: Speed & Gear Indicator -->
+                        <div class="zone-card" style="text-align:center;">
+                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
+                                <span>TACHO</span>
+                                <span id="gearIndicator" style="font-weight:900; color:var(--cyan); font-size:13px;">GANG 2</span>
+                            </div>
+                            <div>
+                                <div style="font-size:72px; font-weight:900; font-family:'JetBrains Mono'; line-height:0.9;" id="widescreenSpeed">0</div>
+                                <div style="font-size:12px; font-weight:800; color:var(--cyan); margin-top:4px;">KM/H</div>
+                            </div>
+                            <div style="font-size:11px; font-family:'JetBrains Mono'; color:var(--text-sub);">
+                                RPM: <span id="widescreenRPM" style="color:#fff; font-weight:700;">820</span>
+                            </div>
+                        </div>
+
+                        <!-- Zone 2: Dyno & Boost Center Stage -->
+                        <div class="zone-card" style="text-align:center;">
+                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
+                                <span>BOOST & DYNO</span>
+                                <span style="color:var(--orange); font-weight:800;">STAGE 1</span>
+                            </div>
+                            <div>
+                                <div style="font-size:10px; color:var(--text-sub);">LADEDRUCK</div>
+                                <div style="font-size:32px; font-weight:900; font-family:'JetBrains Mono'; color:var(--cyan);" id="widescreenBoost">0.00 bar</div>
+                                <div class="boost-bar-container" style="height:10px; margin:6px 0;">
+                                    <div class="boost-bar-fill" id="widescreenBoostFill"></div>
+                                </div>
+                            </div>
+                            <div style="display:flex; justify-content:space-around; font-family:'JetBrains Mono';">
+                                <div>
+                                    <div style="font-size:9px; color:var(--text-sub);">LEISTUNG</div>
+                                    <div style="font-size:18px; font-weight:800; color:var(--orange);" id="widescreenPS">0 PS</div>
+                                </div>
+                                <div>
+                                    <div style="font-size:9px; color:var(--text-sub);">DREHMOMENT</div>
+                                    <div style="font-size:18px; font-weight:800; color:#fff;" id="widescreenNm">0 Nm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Zone 3: Lyrics & CarPlay Telemetrie -->
+                        <div class="zone-card">
+                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
+                                <span>SPOTIFY LYRICS</span>
+                                <span style="color:var(--green)">● SYNC</span>
+                            </div>
+                            <div style="font-size:13px; font-weight:700; line-height:1.3; color:#fff; margin:auto 0;" id="lyricsLine">
+                                ♪ Der Ladedruck steigt, K03 spult hoch...<br>
+                                <span style="font-size:11px; color:var(--text-sub);">Golf 5 GTI • EA113 Stage 1</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="toggleOrientation()">Hochkant</button>
+                                <span style="font-size:9.5px; color:var(--text-sub);">0–100: <b id="widescreenBest" style="color:var(--yellow)">5.74 s</b></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom MoTeC Flight-Bar -->
+                    <div class="flight-bar">
+                        <div class="flight-item"><span>WASSER</span><b id="flightCoolant" style="color:var(--cyan)">89°C</b></div>
+                        <div class="flight-item"><span>ÖL</span><b id="flightOil" style="color:var(--orange)">~82°C</b></div>
+                        <div class="flight-item"><span>ANSAUG (IAT)</span><b id="flightIAT" style="color:#fff">24°C</b></div>
+                        <div class="flight-item"><span>BORDNETZ</span><b style="color:var(--green)">14.2V</b></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Rechte Seite: PC Steuerung / Telemetrie Injector ── -->
+    <div class="controls-panel">
+        <h2>🎮 CarLyrics Live-Steuerpult</h2>
+        <p style="font-size:12px; color:var(--text-sub); line-height:1.4;">
+            Hier simulierst du in Echtzeit die Fahrt deines <b>Golf 5 GTI EA113</b> auf deinem PC. Alle Formeln (Dyno 268,9 PS / 395 Nm & 0-100 High-Speed Polling) reagieren 1:1 identisch zur Swift-App!
+        </p>
+
+        <!-- 🚀 0-100 Launch Button -->
+        <button class="launch-btn" onclick="triggerLaunchSimulation()">
+            🚀 0–100 km/h VOLLGAS LAUNCH TESTEN
+        </button>
+
+        <!-- Schnellwahltasten -->
+        <div class="control-group">
+            <div class="control-label"><span>EA113 FAHRZUSTÄNDE</span></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <button class="btn" onclick="setPreset('idle')">💤 Leerlauf (820 U/min)</button>
+                <button class="btn" onclick="setPreset('city')">🚗 Stadt (50 km/h)</button>
+                <button class="btn" onclick="setPreset('spool')">💥 Overboost (395 Nm)</button>
+                <button class="btn" onclick="setPreset('peak')">🏁 Peak (268,9 PS)</button>
+            </div>
+        </div>
+
+        <!-- Slider RPM -->
+        <div class="control-group">
+            <div class="control-label">
+                <span>DREHZAHL (RPM)</span>
+                <span id="sliderValRPM">820 U/min</span>
+            </div>
+            <input type="range" id="inputRPM" min="800" max="6800" step="50" value="820" oninput="onTelemetryChange()">
+        </div>
+
+        <!-- Slider Ladedruck -->
+        <div class="control-group">
+            <div class="control-label">
+                <span>LADEDRUCK (BOOST)</span>
+                <span id="sliderValBoost">0.00 bar</span>
+            </div>
+            <input type="range" id="inputBoost" min="0.0" max="1.55" step="0.05" value="0.0" oninput="onTelemetryChange()">
+        </div>
+
+        <!-- Slider Speed -->
+        <div class="control-group">
+            <div class="control-label">
+                <span>GESCHWINDIGKEIT</span>
+                <span id="sliderValSpeed">0 km/h</span>
+            </div>
+            <input type="range" id="inputSpeed" min="0" max="260" step="1" value="0" oninput="onTelemetryChange()">
+        </div>
+
+        <!-- Slider MAF -->
+        <div class="control-group">
+            <div class="control-label">
+                <span>LUFTMASSE (MAF)</span>
+                <span id="sliderValMAF">3.4 g/s</span>
+            </div>
+            <input type="range" id="inputMAF" min="3" max="225" step="1" value="3" oninput="onTelemetryChange()">
+        </div>
+
+        <!-- Slider Kühlmittel -->
+        <div class="control-group">
+            <div class="control-label">
+                <span>KÜHLMITTELTEMPERATUR</span>
+                <span id="sliderValCoolant">89°C</span>
+            </div>
+            <input type="range" id="inputCoolant" min="15" max="115" step="1" value="89" oninput="onTelemetryChange()">
+        </div>
+
+        <!-- Orientierungs Toggle -->
+        <button class="btn" style="width:100%; padding:10px;" onclick="toggleOrientation()">
+            🔄 Hochkant / Widescreen Querformat umschalten
+        </button>
+    </div>
+
+    <!-- ── JavaScript Logik ── -->
+    <script>
+        let currentTab = 0;
+        let peakPS = 0;
+        let peakNm = 0;
+        
+        // Drag Timer State
+        let timerState = 'idle'; // 'idle', 'armed', 'running', 'completed'
+        let timerStart = 0;
+        let timerInterval = null;
+        let bestTime = 5.74;
+        let time60 = null;
+
+        // Shift LEDs aufbauen (Portrait: 12 LEDs, Landscape: 18 LEDs)
+        const ledPortrait = document.getElementById('shiftLedsPortrait');
+        for (let i = 0; i < 12; i++) {
+            const led = document.createElement('div');
+            led.style.width = '10px';
+            led.style.height = '14px';
+            led.style.borderRadius = '3px';
+            led.style.background = '#1a202c';
+            led.id = 'ledPort_' + i;
+            ledPortrait.appendChild(led);
+        }
+
+        const ledLandscape = document.getElementById('shiftRunwayLandscape');
+        for (let i = 0; i < 18; i++) {
+            const led = document.createElement('div');
+            led.className = 'runway-led';
+            led.id = 'ledLand_' + i;
+            ledLandscape.appendChild(led);
+        }
+
+        function switchTab(index, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const tabs = ['tabCockpit', 'tabLabor', 'tabHandy', 'tabSetup'];
+            document.getElementById(tabs[index]).classList.add('active');
+            currentTab = index;
+        }
+
+        function switchLaborSub(sub, btn) {
+            document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('laborDyno').style.display = sub === 'dyno' ? 'block' : 'none';
+            document.getElementById('laborDTC').style.display = sub === 'dtc' ? 'block' : 'none';
+            document.getElementById('laborProbe').style.display = sub === 'probe' ? 'block' : 'none';
+        }
+
+        function toggleOrientation() {
+            document.getElementById('phoneFrame').classList.toggle('landscape');
+        }
+
+        function calculateGear(speed, rpm) {
+            if (speed < 2) return 'N';
+            const ratio = (speed / Math.max(rpm, 800)) * 1000;
+            if (ratio < 11) return 'GANG 1';
+            if (ratio < 18) return 'GANG 2';
+            if (ratio < 26) return 'GANG 3';
+            if (ratio < 34) return 'GANG 4';
+            if (ratio < 43) return 'GANG 5';
+            return 'GANG 6';
+        }
+
+        // Telemetrie Aktualisierung
+        function onTelemetryChange() {
+            const rpm = parseInt(document.getElementById('inputRPM').value);
+            const boost = parseFloat(document.getElementById('inputBoost').value);
+            const speed = parseInt(document.getElementById('inputSpeed').value);
+            let maf = parseFloat(document.getElementById('inputMAF').value);
+            const coolant = parseInt(document.getElementById('inputCoolant').value);
+
+            // Slider Labels
+            document.getElementById('sliderValRPM').innerText = rpm + ' U/min';
+            document.getElementById('sliderValBoost').innerText = boost.toFixed(2) + ' bar';
+            document.getElementById('sliderValSpeed').innerText = speed + ' km/h';
+            document.getElementById('sliderValMAF').innerText = maf.toFixed(1) + ' g/s';
+            document.getElementById('sliderValCoolant').innerText = coolant + '°C';
+
+            // Displays
+            document.getElementById('valRPM').innerText = rpm;
+            document.getElementById('valSpeed').innerText = speed;
+            document.getElementById('valBoost').innerText = boost.toFixed(2);
+            document.getElementById('valMAF').innerText = maf.toFixed(1);
+            document.getElementById('valCoolant').innerText = coolant + '°C';
+            document.getElementById('flightCoolant').innerText = coolant + '°C';
+
+            // Widescreen
+            document.getElementById('widescreenSpeed').innerText = speed;
+            document.getElementById('widescreenRPM').innerText = rpm;
+            document.getElementById('widescreenBoost').innerText = boost.toFixed(2) + ' bar';
+            document.getElementById('handySpeed').innerText = speed;
+            document.getElementById('handyBoost').innerText = boost.toFixed(2) + ' bar';
+            document.getElementById('islandBoost').innerText = boost.toFixed(2) + ' bar';
+            document.getElementById('gearIndicator').innerText = calculateGear(speed, rpm);
+
+            // Boost Balken
+            const pct = Math.min(100, Math.max(0, (boost / 1.55) * 100));
+            document.getElementById('boostFill').style.width = pct + '%';
+            document.getElementById('widescreenBoostFill').style.width = pct + '%';
+
+            // Warmup Status
+            const oilStatusEl = document.getElementById('cockpitOilStatus');
+            const warmupBanner = document.getElementById('warmupBanner');
+            if (coolant < 75) {
+                oilStatusEl.innerText = 'KALTSTART / SCHONEN';
+                oilStatusEl.style.color = 'var(--red)';
+                oilStatusEl.style.background = 'rgba(255,56,56,0.15)';
+                warmupBanner.style.borderLeftColor = 'var(--red)';
+            } else if (coolant < 85) {
+                oilStatusEl.innerText = 'WARMFAHREN';
+                oilStatusEl.style.color = 'var(--orange)';
+                oilStatusEl.style.background = 'rgba(255,153,25,0.15)';
+                warmupBanner.style.borderLeftColor = 'var(--orange)';
+            } else {
+                oilStatusEl.innerText = 'BETRIEBSTEMPERATUR';
+                oilStatusEl.style.color = 'var(--green)';
+                oilStatusEl.style.background = 'rgba(0,255,136,0.15)';
+                warmupBanner.style.borderLeftColor = 'var(--green)';
+            }
+
+            // ── VIRTUAL DYNO FORMEL (EA113 Stage 1: 268.9 PS / 395 Nm) ──
+            let ps = 0;
+            let nm = 0;
+
+            if (rpm > 750) {
+                // Physikalische Formel aus EA113DynoCalculator.swift
+                let basePS = maf * 1.25;
+                if (boost > 0.1) {
+                    basePS *= Math.min(1.15, Math.max(0.9, 1.0 + (boost - 1.2) * 0.15));
+                }
+                ps = Math.min(269, Math.round(basePS));
+                // Formel: M = (PS * 7023.5) / RPM
+                nm = Math.min(395, Math.round((ps * 7023.5) / Math.max(rpm, 800)));
+            }
+
+            document.getElementById('dynoPS').innerText = ps;
+            document.getElementById('dynoNm').innerText = nm;
+            document.getElementById('widescreenPS').innerText = ps + ' PS';
+            document.getElementById('widescreenNm').innerText = nm + ' Nm';
+            document.getElementById('handyPS').innerText = ps + ' PS';
+
+            if (rpm > 2500) {
+                if (ps > peakPS) { peakPS = ps; document.getElementById('peakPS').innerText = peakPS; }
+                if (nm > peakNm) { peakNm = nm; document.getElementById('peakNm').innerText = peakNm; }
+            }
+
+            // Shift LEDs Portrait
+            const ledPortCount = Math.floor((rpm - 2500) / (6500 - 2500) * 12);
+            for (let i = 0; i < 12; i++) {
+                const el = document.getElementById('ledPort_' + i);
+                if (i < ledPortCount) {
+                    el.style.background = i < 6 ? '#00ff88' : (i < 9 ? '#ffd32a' : '#ff3838');
+                } else {
+                    el.style.background = '#1a202c';
+                }
+            }
+
+            // Shift LEDs Widescreen (18 Runway LEDs)
+            const ledLandCount = Math.floor((rpm - 2000) / (6600 - 2000) * 18);
+            for (let i = 0; i < 18; i++) {
+                const el = document.getElementById('ledLand_' + i);
+                if (i < ledLandCount) {
+                    const col = i < 6 ? '#00ff88' : (i < 12 ? '#ffd32a' : (i < 15 ? '#ff9919' : '#ff3838'));
+                    el.style.background = col;
+                    el.style.boxShadow = '0 0 6px ' + col;
+                } else {
+                    el.style.background = 'rgba(255,255,255,0.08)';
+                    el.style.boxShadow = 'none';
+                }
+            }
+
+            // Drag Timer
+            handleDragSpeed(speed);
+        }
+
+        function handleDragSpeed(speed) {
+            const statusEl = document.getElementById('timerStatus');
+            const prioBadge = document.getElementById('prioBadge');
+
+            if (speed === 0) {
+                if (timerState !== 'running') {
+                    timerState = 'armed';
+                    statusEl.innerText = 'LAUNCH BEREIT! (TRITT DRAUF!)';
+                    statusEl.style.color = 'var(--green)';
+                    prioBadge.style.display = 'none';
+                }
+            } else if (timerState === 'armed' && speed > 0) {
+                timerState = 'running';
+                timerStart = performance.now();
+                time60 = null;
+                statusEl.innerText = 'MESSE 0–100 KM/H… (100% OBD BANDBREITE)';
+                statusEl.style.color = 'var(--yellow)';
+                prioBadge.style.display = 'inline-block';
+
+                timerInterval = setInterval(() => {
+                    const elapsed = (performance.now() - timerStart) / 1000;
+                    document.getElementById('timerClock').innerText = elapsed.toFixed(2) + ' s';
+                }, 30);
+            } else if (timerState === 'running') {
+                const elapsed = (performance.now() - timerStart) / 1000;
+                if (speed >= 60 && !time60) {
+                    time60 = elapsed;
+                    document.getElementById('stat60').innerText = time60.toFixed(2) + ' s';
+                }
+                if (speed >= 100) {
+                    clearInterval(timerInterval);
+                    timerState = 'completed';
+                    statusEl.innerText = 'ZIEL ERREICHT! 100 KM/H';
+                    statusEl.style.color = 'var(--cyan)';
+                    prioBadge.style.display = 'none';
+                    document.getElementById('statLast').innerText = elapsed.toFixed(2) + ' s';
+                    if (elapsed < bestTime) {
+                        bestTime = elapsed;
+                        document.getElementById('statBest').innerText = bestTime.toFixed(2) + ' s';
+                        document.getElementById('widescreenBest').innerText = bestTime.toFixed(2) + ' s';
+                    }
+                }
+            }
+        }
+
+        // 🚀 Vollautomatischer 0-100 Launch Simulator
+        function triggerLaunchSimulation() {
+            setPreset('idle');
+            setTimeout(() => {
+                let currentSpd = 0;
+                let currentR = 2500;
+                let boost = 1.45;
+                let maf = 150;
+
+                const runInterval = setInterval(() => {
+                    currentSpd += 2.8;
+                    currentR = 3000 + (currentSpd * 32);
+                    maf = Math.min(215, 60 + (currentSpd * 1.6));
+                    boost = currentSpd < 70 ? 1.45 : 1.15;
+
+                    document.getElementById('inputSpeed').value = Math.floor(currentSpd);
+                    document.getElementById('inputRPM').value = Math.floor(currentR);
+                    document.getElementById('inputBoost').value = boost.toFixed(2);
+                    document.getElementById('inputMAF').value = Math.floor(maf);
+                    onTelemetryChange();
+
+                    if (currentSpd >= 105) {
+                        clearInterval(runInterval);
+                    }
+                }, 90);
+            }, 1000);
+        }
+
+        function setPreset(type) {
+            if (type === 'idle') {
+                document.getElementById('inputRPM').value = 820;
+                document.getElementById('inputBoost').value = 0.0;
+                document.getElementById('inputSpeed').value = 0;
+                document.getElementById('inputMAF').value = 3.5;
+            } else if (type === 'city') {
+                document.getElementById('inputRPM').value = 1950;
+                document.getElementById('inputBoost').value = 0.15;
+                document.getElementById('inputSpeed').value = 52;
+                document.getElementById('inputMAF').value = 24.0;
+            } else if (type === 'spool') {
+                // Overboost 3500 RPM = 395 Nm!
+                document.getElementById('inputRPM').value = 3500;
+                document.getElementById('inputBoost').value = 1.45;
+                document.getElementById('inputSpeed').value = 75;
+                document.getElementById('inputMAF').value = 155.0;
+            } else if (type === 'peak') {
+                // Peak Power 6000 RPM = 268.9 PS!
+                document.getElementById('inputRPM').value = 6000;
+                document.getElementById('inputBoost').value = 1.05;
+                document.getElementById('inputSpeed').value = 145;
+                document.getElementById('inputMAF').value = 215.0;
+            }
+            onTelemetryChange();
+        }
+
+        function resetPeaks() {
+            peakPS = 0;
+            peakNm = 0;
+            document.getElementById('peakPS').innerText = 0;
+            document.getElementById('peakNm').innerText = 0;
+        }
+
+        // DTC Simulator
+        function scanDTC() {
+            const list = document.getElementById('dtcList');
+            list.innerHTML = `
+                <div class="dtc-item">
+                    <div class="dtc-code">P0299</div>
+                    <div class="dtc-title">Ladedruckregelung: Regelgrenze unterschritten</div>
+                    <div class="dtc-desc">Der Turbolader erreicht den Solldruck nicht. Typischer EA113 Fehler: Schubumluftventil (SUV) Membran prüfen!</div>
+                </div>
+                <div class="dtc-item" style="background:rgba(255,153,25,0.08); border-color:rgba(255,153,25,0.3)">
+                    <div class="dtc-code" style="color:var(--orange)">P2187</div>
+                    <div class="dtc-title">Gemisch zu mager bei Leerlaufdrehzahl (Bank 1)</div>
+                    <div class="dtc-desc">Kurbelgehäuseentlüftung (PCV-Ventil) undicht oder Falschluft im Ansaugtrakt.</div>
+                </div>
+            `;
+        }
+
+        function clearDTC() {
+            if (confirm("Fehlerspeicher wirklich löschen? (Mode 04 an Bosch MED9.1 senden)")) {
+                document.getElementById('dtcList').innerHTML = `
+                    <div style="text-align:center; padding:16px; color:var(--green); font-weight:700;">
+                        ✅ Fehlerspeicher erfolgreich gelöscht! Motorkontrollleuchte zurückgesetzt.
+                    </div>
+                `;
+            }
+        }
+
+        // Oil Probe Simulator (OBDeleven KWP2000 MWB 134)
+        function simulateOilProbe() {
+            const el = document.getElementById('probeResults');
+            el.innerHTML = '<div style="color:var(--yellow); padding:6px 0;">Teste Methoden 1 bis 23...</div>';
+            setTimeout(() => {
+                el.innerHTML = `
+                    <div style="color:var(--red)">1. OBD Standard 015C: NO DATA</div>
+                    <div style="color:var(--green); font-weight:bold; margin-top:4px;">
+                        2. KWP2000 MWB 134 + 1089 (OBDeleven): 84°C [ERFOLG! ✓]
+                    </div>
+                    <div style="color:var(--text-sub); font-size:10px; margin-top:4px;">
+                        -> Geber G266 über VAG-Diagnosesitzung 1089 erfolgreich ausgelesen!
+                    </div>
+                `;
+                document.getElementById('valOil').innerText = '84°C (KWP2000)';
+                document.getElementById('valOil').style.color = 'var(--green)';
+                document.getElementById('islandOil').innerText = 'ÖL 84°C';
+                document.getElementById('flightOil').innerText = '84°C';
+                document.getElementById('flightOil').style.color = 'var(--green)';
+            }, 900);
+        }
+
+        // Init
+        onTelemetryChange();
+    </script>
+</body>
+</html>
