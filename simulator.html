@@ -4,18 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CarLyrics – Golf 5 GTI EA113 Cockpit & Dyno Simulator</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-body: #07090e;
-            --panel-bg: #0d111a;
-            --card-bg: rgba(255, 255, 255, 0.04);
+            --bg-body: #06080d;
+            --panel-bg: #0c1018;
+            --card-bg: rgba(255, 255, 255, 0.045);
             --card-border: rgba(255, 255, 255, 0.08);
             --cyan: #00f0ff;
             --orange: #ff9919;
             --green: #00ff88;
             --red: #ff3838;
             --yellow: #ffd32a;
+            --blue-dyno: #1e88e5;
             --text-main: #ffffff;
             --text-sub: #8e95a5;
         }
@@ -62,7 +63,7 @@
             transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* Landscape Mode: Exakt wie iPhone Querformat im Golf 5 Halter */
+        /* Landscape Mode */
         .phone-frame.landscape {
             width: 852px;
             height: 393px;
@@ -158,7 +159,7 @@
             font-size: 14px;
         }
 
-        /* ── Bottom Tab Bar (Strikt 4 Tabs) ── */
+        /* ── Bottom Tab Bar (Strikt 4 Tabs: Cockpit, OBD Labor, Handy, Setup) ── */
         .tab-bar {
             position: absolute;
             bottom: 0;
@@ -176,7 +177,7 @@
             transition: all 0.3s;
         }
         .landscape .tab-bar {
-            display: none; /* Im Renn-Querformat volle Ausnutzung für das Widescreen Cockpit */
+            display: none;
         }
 
         .tab-btn {
@@ -234,7 +235,6 @@
             color: var(--text-sub);
         }
 
-        /* Ladedruck Balken */
         .boost-bar-container {
             width: 100%;
             height: 8px;
@@ -250,28 +250,7 @@
             transition: width 0.05s ease-out;
         }
 
-        /* ── Dyno / Prüfstand ── */
-        .dyno-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin: 10px 0;
-        }
-        .dyno-box {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 12px;
-            padding: 12px 8px;
-            text-align: center;
-        }
-        .dyno-val {
-            font-size: 36px;
-            font-weight: 900;
-            font-family: 'JetBrains Mono', monospace;
-            line-height: 1.1;
-        }
-
-        /* ── 0–100 Drag Timer ── */
+        /* ── 0–100 Drag Timer (In Settings Tab) ── */
         .timer-hero {
             background: rgba(0,0,0,0.5);
             border: 1px solid rgba(255,255,255,0.08);
@@ -318,7 +297,7 @@
             margin-top: 2px;
         }
 
-        /* ── Fehlerspeicher (DTC) ── */
+        /* ── Fehlerspeicher (DTC in OBD Labor) ── */
         .dtc-list {
             display: flex;
             flex-direction: column;
@@ -384,76 +363,125 @@
             background: #ff5252;
         }
 
-        /* ── Widescreen Track Cockpit (Querformat) ── */
-        .landscape-cockpit {
+        /* ── SUPERFLOW WINDYN LIVE PRÜFSTAND (DYNO ANSICHT) ── */
+        .dyno-screen-overlay {
             display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #05080f;
+            z-index: 700;
+            padding: 14px 16px 20px;
             flex-direction: column;
-            height: 100%;
-            padding: 14px 24px 10px 56px; /* Dynamic Island Freiraum links */
-            box-sizing: border-box;
+            overflow-y: auto;
         }
-        .landscape .landscape-cockpit {
+        .dyno-screen-overlay.active {
             display: flex;
         }
-        .landscape .portrait-view {
-            display: none;
-        }
 
-        /* Top 18 Shift-Light Runway */
-        .shift-runway {
+        .dyno-header-banner {
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .dyno-title {
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 0.5px;
             display: flex;
-            align-items: center;
-            gap: 4px;
-            height: 24px;
-            margin-bottom: 8px;
-            padding: 0 4px;
-        }
-        .runway-led {
-            flex: 1;
-            height: 6px;
-            border-radius: 2px;
-            background: rgba(255,255,255,0.08);
-            transition: background 0.04s, box-shadow 0.04s;
-        }
-
-        /* Tri-Zone Cockpit */
-        .trizone-container {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 240px 1fr 240px;
-            gap: 12px;
-            align-items: stretch;
-        }
-
-        .zone-card {
-            background: rgba(255,255,255,0.035);
-            border: 1px solid rgba(255,255,255,0.07);
-            border-radius: 18px;
-            padding: 12px 14px;
-            display: flex;
-            flex-direction: column;
             justify-content: space-between;
-            position: relative;
+            align-items: center;
+        }
+        .dyno-subtitle {
+            font-size: 10px;
+            color: var(--cyan);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
         }
 
-        /* Bottom Flight-Bar */
-        .flight-bar {
-            height: 32px;
-            background: rgba(0,0,0,0.4);
+        /* SVG Graph Canvas Container */
+        .dyno-chart-container {
+            width: 100%;
+            background: #03050a;
+            border: 1px solid rgba(0, 240, 255, 0.25);
+            border-radius: 12px;
+            position: relative;
+            box-shadow: inset 0 0 30px rgba(0, 240, 255, 0.05);
+            margin-bottom: 12px;
+        }
+
+        .dyno-live-badges {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .dyno-badge {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        .dyno-badge .b-label {
+            font-size: 9px;
+            color: var(--text-sub);
+            font-weight: 700;
+        }
+        .dyno-badge .b-val {
+            font-size: 22px;
+            font-weight: 900;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+
+        /* ── G-Force & Handy Tab Elemente ── */
+        .g-force-grid {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15);
+            margin: 0 auto;
+            position: relative;
+            background: radial-gradient(circle, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.4) 100%);
+        }
+        .g-force-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--cyan);
+            box-shadow: 0 0 12px var(--cyan);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.08s ease-out;
+        }
+
+        .stats-grid-8 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .stat-tile {
+            background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.06);
             border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            padding: 0 16px;
-            font-size: 11px;
-            font-family: 'JetBrains Mono', monospace;
-            margin-top: 8px;
+            padding: 8px 10px;
         }
-        .flight-item span {
+        .stat-tile-label {
+            font-size: 9px;
             color: var(--text-sub);
-            font-size: 9.5px;
-            margin-right: 4px;
+            font-weight: 700;
+        }
+        .stat-tile-val {
+            font-size: 15px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
         }
 
         /* ── Rechte Spalte: PC-Steuerpult (Telemetry Injector) ── */
@@ -579,7 +607,7 @@
                 <span style="color:var(--cyan)" id="islandBoost">0.00 bar</span>
             </div>
 
-            <!-- Status Bar (nur Hochkant) -->
+            <!-- Status Bar -->
             <div class="status-bar">
                 <span id="clockTime">12:30</span>
                 <div style="display:flex; gap:6px; align-items:center;">
@@ -591,319 +619,432 @@
             <!-- App Screen -->
             <div class="app-screen">
 
-                <!-- ════════ HOCHKANT ANSICHTEN (PORTRAIT) ════════ -->
-                <div class="portrait-view" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
-                    
-                    <!-- TAB 0: COCKPIT -->
-                    <div class="tab-content active" id="tabCockpit">
-                        <!-- Warmup Banner -->
-                        <div class="glass-card" style="border-left: 4px solid var(--orange);" id="warmupBanner">
-                            <div class="card-header">
-                                <span>🔥 EA113 Kaltstart & Thermik</span>
-                                <span id="cockpitOilStatus" style="font-size:10px; color:var(--orange); font-weight:800; background:rgba(255,153,25,0.15); padding:3px 8px; border-radius:10px;">WARMFAHREN</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; font-size:13px;">
-                                <span>Kühlmittel: <b id="valCoolant" style="color:var(--cyan)">89°C</b></span>
-                                <span>Öl: <b id="valOil" style="color:var(--orange)">~82°C (Modell)</b></span>
-                            </div>
+                <!-- ════════ TAB 0: COCKPIT ════════ -->
+                <div class="tab-content active" id="tabCockpit">
+                    <!-- Warmup Banner -->
+                    <div class="glass-card" style="border-left: 4px solid var(--orange);" id="warmupBanner">
+                        <div class="card-header">
+                            <span>🔥 EA113 Kaltstart & Thermik</span>
+                            <span id="cockpitOilStatus" style="font-size:10px; color:var(--orange); font-weight:800; background:rgba(255,153,25,0.15); padding:3px 8px; border-radius:10px;">WARMFAHREN</span>
                         </div>
-
-                        <!-- Gauges 2x2 -->
-                        <div class="dial-grid">
-                            <div class="dial-box">
-                                <div class="dial-title">GESCHWINDIGKEIT</div>
-                                <div class="dial-value" id="valSpeed" style="color:#fff">0</div>
-                                <div class="dial-sub">km/h</div>
-                            </div>
-
-                            <div class="dial-box">
-                                <div class="dial-title">DREHZAHL</div>
-                                <div class="dial-value" id="valRPM" style="color:var(--cyan)">820</div>
-                                <div class="dial-sub">U/min</div>
-                            </div>
-
-                            <div class="dial-box">
-                                <div class="dial-title">LADEDRUCK (MAP)</div>
-                                <div class="dial-value" id="valBoost" style="color:var(--cyan)">0.00</div>
-                                <div class="dial-sub">bar</div>
-                                <div class="boost-bar-container">
-                                    <div class="boost-bar-fill" id="boostFill"></div>
-                                </div>
-                            </div>
-
-                            <div class="dial-box">
-                                <div class="dial-title">LUFTMASSE (MAF)</div>
-                                <div class="dial-value" id="valMAF" style="color:var(--orange)">3.4</div>
-                                <div class="dial-sub">g/s</div>
-                            </div>
-                        </div>
-
-                        <!-- Music / Spotify CarPlay Sync -->
-                        <div class="glass-card" style="margin-top:12px;">
-                            <div class="card-header" style="margin-bottom:6px;">
-                                <span style="font-size:11px; color:var(--text-sub)">SPOTIFY CARPLAY SYNC</span>
-                                <span style="font-size:10px; color:var(--green)">● LIVE</span>
-                            </div>
-                            <div style="font-size:14px; font-weight:700;">GTI Stage 1 Soundcheck</div>
-                            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">EA113 2.0 TFSI • Turbo Spool & DSG Farts</div>
+                        <div style="display:flex; justify-content:space-between; font-size:13px;">
+                            <span>Kühlmittel: <b id="valCoolant" style="color:var(--cyan)">89°C</b></span>
+                            <span>Öl: <b id="valOil" style="color:var(--orange)">~82°C (Modell)</b></span>
                         </div>
                     </div>
 
-                    <!-- TAB 1: OBD LABOR -->
-                    <div class="tab-content" id="tabLabor">
-                        <!-- Sub-Segmented Picker -->
-                        <div class="sub-segmented">
-                            <button class="sub-btn active" onclick="switchLaborSub('dyno', this)">⏱ Dyno</button>
-                            <button class="sub-btn" onclick="switchLaborSub('dtc', this)">🚨 Fehler</button>
-                            <button class="sub-btn" onclick="switchLaborSub('probe', this)">⚡ Öltemp</button>
+                    <!-- Gauges 2x2 -->
+                    <div class="dial-grid">
+                        <div class="dial-box">
+                            <div class="dial-title">GESCHWINDIGKEIT</div>
+                            <div class="dial-value" id="valSpeed" style="color:#fff">0</div>
+                            <div class="dial-sub">km/h</div>
                         </div>
 
-                        <!-- SUB 1: DYNO & DRAG TIMER -->
-                        <div id="laborDyno">
-                            <!-- Stage 1 Dyno Card -->
-                            <div class="glass-card">
-                                <div class="card-header">
-                                    <span style="color:var(--orange)">⚡ Stage 1 Virtual Dyno</span>
-                                    <span style="font-size:10px; color:var(--text-sub)">EA113 (268,9 PS / 395 Nm)</span>
-                                </div>
+                        <div class="dial-box">
+                            <div class="dial-title">DREHZAHL</div>
+                            <div class="dial-value" id="valRPM" style="color:var(--cyan)">820</div>
+                            <div class="dial-sub">U/min</div>
+                        </div>
 
-                                <div class="dyno-grid">
-                                    <div class="dyno-box">
-                                        <div class="dial-title">LEISTUNG</div>
-                                        <div class="dyno-val" id="dynoPS" style="color:var(--orange)">0</div>
-                                        <div class="dial-sub">PS (Peak: <span id="peakPS" style="color:#fff; font-weight:800;">0</span>)</div>
-                                    </div>
-
-                                    <div class="dyno-box">
-                                        <div class="dial-title">DREHMOMENT</div>
-                                        <div class="dyno-val" id="dynoNm" style="color:var(--cyan)">0</div>
-                                        <div class="dial-sub">Nm (Peak: <span id="peakNm" style="color:#fff; font-weight:800;">0</span>)</div>
-                                    </div>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-sub);">
-                                    <span>Berechnet aus MAF, MAP & RPM</span>
-                                    <a href="#" onclick="resetPeaks(); return false;" style="color:var(--cyan); font-weight:700; text-decoration:none;">Peak Reset</a>
-                                </div>
-                            </div>
-
-                            <!-- 0-100 km/h Drag Timer Card -->
-                            <div class="glass-card">
-                                <div class="card-header">
-                                    <span style="color:var(--green)">⏱ 0–100 km/h Drag Timer</span>
-                                    <span id="prioBadge" style="display:none; font-size:9px; background:rgba(0,255,136,0.2); color:var(--green); padding:2px 8px; border-radius:10px; font-weight:800;">⚡ 100% PRIO SPEED</span>
-                                </div>
-
-                                <div class="timer-hero">
-                                    <div class="timer-clock" id="timerClock">0.00 s</div>
-                                    <div class="timer-status" id="timerStatus">BEREIT (Warte auf Stillstand)</div>
-                                </div>
-
-                                <div class="timer-stats">
-                                    <div class="stat-col">
-                                        <div class="label">0–60 km/h</div>
-                                        <div class="val" id="stat60">--</div>
-                                    </div>
-                                    <div class="stat-col">
-                                        <div class="label">Letzter Lauf</div>
-                                        <div class="val" id="statLast">--</div>
-                                    </div>
-                                    <div class="stat-col">
-                                        <div class="label">Bestzeit 🏆</div>
-                                        <div class="val" id="statBest" style="color:var(--yellow)">5.74 s</div>
-                                    </div>
-                                </div>
+                        <div class="dial-box">
+                            <div class="dial-title">LADEDRUCK (MAP)</div>
+                            <div class="dial-value" id="valBoost" style="color:var(--cyan)">0.00</div>
+                            <div class="dial-sub">bar</div>
+                            <div class="boost-bar-container">
+                                <div class="boost-bar-fill" id="boostFill"></div>
                             </div>
                         </div>
 
-                        <!-- SUB 2: DTC FEHLERSPEICHER -->
-                        <div id="laborDTC" style="display:none;">
-                            <div class="glass-card">
-                                <div class="card-header">
-                                    <span style="color:var(--yellow)">🚨 Fehlerspeicher (DTC)</span>
-                                    <span style="font-size:11px; color:var(--green)">Mode 03 / 07</span>
-                                </div>
-                                <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:12px;">Liest Fehlercodes aus dem Bosch MED9.1 Motorsteuergerät aus.</p>
-                                
-                                <div style="display:flex; gap:8px;">
-                                    <button class="btn btn-cyan" style="flex:1" onclick="scanDTC()">🔍 Fehler auslesen</button>
-                                    <button class="btn btn-red" style="flex:1" onclick="clearDTC()">🗑 Löschen</button>
-                                </div>
-
-                                <div class="dtc-list" id="dtcList">
-                                    <div style="text-align:center; padding:16px; color:var(--text-sub); font-size:12px;">Kein Scan aktiv. Klicke auf "Fehler auslesen".</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SUB 3: ÖLTEMP PROBE -->
-                        <div id="laborProbe" style="display:none;">
-                            <div class="glass-card">
-                                <div class="card-header">
-                                    <span style="color:var(--cyan)">⚡ Tacho Öltemp Probe</span>
-                                    <span style="font-size:10px; color:var(--text-sub)">23 Methoden</span>
-                                </div>
-                                <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:10px;">
-                                    Testet alle bekannten Diagnose-DIDs für Golf 5 GTI (Bosch MED9.1).
-                                </p>
-                                <button class="btn btn-cyan" style="width:100%" onclick="simulateOilProbe()">▶ Jetzt alle 23 Methoden testen</button>
-                                <div id="probeResults" style="margin-top:10px; font-size:11px; font-family:'JetBrains Mono';"></div>
-                            </div>
+                        <div class="dial-box">
+                            <div class="dial-title">LUFTMASSE (MAF)</div>
+                            <div class="dial-value" id="valMAF" style="color:var(--orange)">3.4</div>
+                            <div class="dial-sub">g/s</div>
                         </div>
                     </div>
 
-                    <!-- TAB 2: HANDY-MODUS (RACING HUD) -->
-                    <div class="tab-content" id="tabHandy">
-                        <div class="glass-card" style="text-align:center; padding:20px;">
-                            <div style="font-size:11px; color:var(--text-sub); font-weight:700; letter-spacing:1px;">TRACK HUD</div>
-                            <div style="font-size:64px; font-weight:900; font-family:'JetBrains Mono'; margin:8px 0; line-height:1;" id="handySpeed">0</div>
-                            <div style="font-size:12px; color:var(--cyan); font-weight:800;">KM/H</div>
-
-                            <!-- RPM Indicator -->
-                            <div style="display:flex; gap:3px; justify-content:center; margin:16px 0;" id="shiftLedsPortrait">
-                                <!-- Dynamic LEDs -->
-                            </div>
-
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; font-family:'JetBrains Mono';">
-                                <div class="dial-box">
-                                    <div class="dial-title">LADEDRUCK</div>
-                                    <div style="font-size:20px; font-weight:800; color:var(--cyan);" id="handyBoost">0.00 bar</div>
-                                </div>
-                                <div class="dial-box">
-                                    <div class="dial-title">LEISTUNG</div>
-                                    <div style="font-size:20px; font-weight:800; color:var(--orange);" id="handyPS">0 PS</div>
-                                </div>
-                            </div>
+                    <!-- Spotify CarPlay Sync Karte -->
+                    <div class="glass-card" style="margin-top:12px;">
+                        <div class="card-header" style="margin-bottom:6px;">
+                            <span style="font-size:11px; color:var(--text-sub)">SPOTIFY CARPLAY SYNC</span>
+                            <span style="font-size:10px; color:var(--green)">● LIVE</span>
                         </div>
-
-                        <div style="text-align:center; margin-top:10px;">
-                            <button class="btn btn-cyan" style="width:100%; padding:12px;" onclick="toggleOrientation()">🔄 Widescreen Querformat starten</button>
-                        </div>
-                    </div>
-
-                    <!-- TAB 3: SETUP -->
-                    <div class="tab-content" id="tabSetup">
-                        <div class="glass-card">
-                            <div class="card-header">
-                                <span>⚙️ Golf 5 GTI Einstellungen</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
-                                <div>
-                                    <div style="font-weight:600; font-size:13px;">Tacho Öltemp Auslese</div>
-                                    <div style="font-size:11px; color:var(--text-sub);">KWP2000 MWB 134 (OBDeleven / VCDS)</div>
-                                </div>
-                                <input type="checkbox" checked style="accent-color:var(--orange); transform:scale(1.2);">
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
-                                <div>
-                                    <div style="font-weight:600; font-size:13px;">High-Speed 0-100 Prio</div>
-                                    <div style="font-size:11px; color:var(--text-sub);">Pausiert alle anderen PIDs während Launch</div>
-                                </div>
-                                <input type="checkbox" checked style="accent-color:var(--green); transform:scale(1.2);">
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0;">
-                                <div>
-                                    <div style="font-weight:600; font-size:13px;">Virtual Dyno (Stage 1)</div>
-                                    <div style="font-size:11px; color:var(--text-sub);">Kalibriert auf 268,9 PS / 395 Nm</div>
-                                </div>
-                                <input type="checkbox" checked style="accent-color:var(--cyan); transform:scale(1.2);">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Tab Bar (Strikt 4 Tabs!) -->
-                    <div class="tab-bar">
-                        <button class="tab-btn active" onclick="switchTab(0, this)">
-                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                            Cockpit
-                        </button>
-                        <button class="tab-btn" onclick="switchTab(1, this)">
-                            <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
-                            OBD Labor
-                        </button>
-                        <button class="tab-btn" onclick="switchTab(2, this)">
-                            <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
-                            Handy
-                        </button>
-                        <button class="tab-btn" onclick="switchTab(3, this)">
-                            <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-                            Setup
-                        </button>
+                        <div style="font-size:14px; font-weight:700;">GTI Stage 1 Soundcheck</div>
+                        <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">EA113 2.0 TFSI • Turbo Spool & Wastegate</div>
                     </div>
                 </div>
 
-                <!-- ════════ QUERFORMAT (WIDESCREEN TRACK COCKPIT) ════════ -->
-                <div class="landscape-cockpit">
-                    <!-- Top 18 Shift-Light Runway -->
-                    <div class="shift-runway" id="shiftRunwayLandscape">
-                        <!-- 18 LEDs -->
+                <!-- ════════ TAB 1: OBD LABOR (Reine Diagnose, KEIN Dyno / Drag Timer!) ════════ -->
+                <div class="tab-content" id="tabLabor">
+                    <!-- Segmented Picker im Labor -->
+                    <div class="sub-segmented">
+                        <button class="sub-btn active" onclick="switchLaborSub('dtc', this)">🚨 Fehler (DTC)</button>
+                        <button class="sub-btn" onclick="switchLaborSub('probe', this)">⚡ Öltemp Probe</button>
+                        <button class="sub-btn" onclick="switchLaborSub('live', this)">📊 Live Werte</button>
                     </div>
 
-                    <!-- Tri-Zone Stage -->
-                    <div class="trizone-container">
-                        <!-- Zone 1: Speed & Gear Indicator -->
-                        <div class="zone-card" style="text-align:center;">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
-                                <span>TACHO</span>
-                                <span id="gearIndicator" style="font-weight:900; color:var(--cyan); font-size:13px;">GANG 2</span>
+                    <!-- SUB 1: DTC FEHLERSPEICHER -->
+                    <div id="laborDTC">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <span style="color:var(--yellow)">🚨 Fehlerspeicher (DTC)</span>
+                                <span style="font-size:11px; color:var(--green)">Mode 03 / 07</span>
                             </div>
+                            <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:12px;">Liest Fehlercodes aus dem Bosch MED9.1 Motorsteuergerät aus.</p>
+                            
+                            <div style="display:flex; gap:8px;">
+                                <button class="btn btn-cyan" style="flex:1" onclick="scanDTC()">🔍 Fehler auslesen</button>
+                                <button class="btn btn-red" style="flex:1" onclick="clearDTC()">🗑 Löschen</button>
+                            </div>
+
+                            <div class="dtc-list" id="dtcList">
+                                <div style="text-align:center; padding:16px; color:var(--text-sub); font-size:12px;">Kein Scan aktiv. Klicke auf "Fehler auslesen".</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SUB 2: ÖLTEMP PROBE -->
+                    <div id="laborProbe" style="display:none;">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <span style="color:var(--cyan)">⚡ Tacho Öltemp Probe</span>
+                                <span style="font-size:10px; color:var(--text-sub)">23 Methoden</span>
+                            </div>
+                            <p style="font-size:11.5px; color:var(--text-sub); margin-bottom:10px;">
+                                Testet KWP2000 MWB 134 (OBDeleven / VCDS Geber G266) und alle 23 Fallback-Methoden.
+                            </p>
+                            <button class="btn btn-cyan" style="width:100%" onclick="simulateOilProbe()">▶ Jetzt alle 23 Methoden testen</button>
+                            <div id="probeResults" style="margin-top:10px; font-size:11px; font-family:'JetBrains Mono';"></div>
+                        </div>
+                    </div>
+
+                    <!-- SUB 3: LIVE SENSOR MATRIX -->
+                    <div id="laborLive" style="display:none;">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <span style="color:var(--green)">📊 Live Messwertblöcke</span>
+                                <span style="font-size:10px; color:var(--text-sub)">Bosch MED9.1</span>
+                            </div>
+                            <div style="font-size:12px; font-family:'JetBrains Mono'; line-height:1.8;">
+                                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.06); padding:4px 0;">
+                                    <span>PID 010C Drehzahl:</span><b id="liveOBD_rpm" style="color:var(--cyan)">820 U/min</b>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.06); padding:4px 0;">
+                                    <span>PID 010B Saugrohrdruck (MAP):</span><b id="liveOBD_map" style="color:var(--cyan)">101 kPa</b>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.06); padding:4px 0;">
+                                    <span>PID 0110 Luftmasse (MAF):</span><b id="liveOBD_maf" style="color:var(--orange)">3.4 g/s</b>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.06); padding:4px 0;">
+                                    <span>PID 0105 Kühlmitteltemperatur:</span><b id="liveOBD_coolant" style="color:var(--green)">89°C</b>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; padding:4px 0;">
+                                    <span>PID 010F Ansaugluft (IAT):</span><b style="color:#fff">24°C</b>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ TAB 2: HANDY MODUS (Alles bleibt wie es war + Oben Rechts Dyno-Button!) ════════ -->
+                <div class="tab-content" id="tabHandy">
+                    <!-- Status Strip oben mit Dyno Button -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span style="font-size:10px; font-weight:800; color:var(--green); background:rgba(0,255,136,0.12); padding:3px 8px; border-radius:12px; border:1px solid rgba(0,255,136,0.25);">
+                                OBD LIVE ●
+                            </span>
+                            <span style="font-size:10px; font-weight:800; color:var(--yellow); background:rgba(255,211,42,0.12); padding:3px 8px; border-radius:12px;">
+                                Kein Standby 🌙
+                            </span>
+                        </div>
+
+                        <!-- 🌟 NEUER DYNO PRÜFSTAND BUTTON OBEN RECHTS 🌟 -->
+                        <button class="btn btn-cyan" style="padding:5px 10px; font-size:11px; font-weight:800; border-radius:14px; box-shadow:0 0 12px rgba(0,240,255,0.4);" onclick="openDynoView()">
+                            📈 Dyno Prüfstand
+                        </button>
+                    </div>
+
+                    <!-- 1. Lyrics Panel -->
+                    <div class="glass-card" style="padding:12px 14px;">
+                        <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub); margin-bottom:4px;">
+                            <span>NOW PLAYING</span>
+                            <span style="color:var(--green)">● CARPLAY SYNC</span>
+                        </div>
+                        <div style="font-size:15px; font-weight:800;">GTI Stage 1 Soundcheck</div>
+                        <div style="font-size:11.5px; color:var(--text-sub);">EA113 2.0 TFSI • Turbo Spool</div>
+                        <div style="font-size:12.5px; color:#fff; font-weight:600; margin-top:8px; line-height:1.4; border-left:2px solid var(--cyan); padding-left:8px;">
+                            ♪ Der Ladedruck steigt, K03 spult hoch…
+                        </div>
+                    </div>
+
+                    <!-- 2. Haupt-Gauges: RPM, Ladedruck, Öltemp -->
+                    <div class="dial-grid">
+                        <div class="dial-box">
+                            <div class="dial-title">DREHZAHL</div>
+                            <div class="dial-value" id="handyValRPM" style="color:var(--cyan)">820</div>
+                            <div class="dial-sub">U/min</div>
+                        </div>
+
+                        <div class="dial-box">
+                            <div class="dial-title">LADEDRUCK</div>
+                            <div class="dial-value" id="handyValBoost" style="color:var(--cyan)">0.00</div>
+                            <div class="dial-sub">bar</div>
+                        </div>
+                    </div>
+
+                    <!-- 3. G-Kräfte Panel -->
+                    <div class="glass-card" style="margin-top:10px; text-align:center;">
+                        <div class="card-header" style="margin-bottom:8px;">
+                            <span>G-Kräfte Radar</span>
+                            <span style="font-size:11px; font-family:'JetBrains Mono';" id="gForceLabel">0.02 G</span>
+                        </div>
+                        <div class="g-force-grid">
+                            <div class="g-force-dot" id="gDot"></div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Stats-Grid (8 Kacheln) -->
+                    <div class="stats-grid-8" style="margin-top:10px;">
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">SPEED</div>
+                            <div class="stat-tile-val" id="handyGridSpeed">0 km/h</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">LUFTMASSE (MAF)</div>
+                            <div class="stat-tile-val" id="handyGridMAF" style="color:var(--orange)">3.4 g/s</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">KÜHLMITTEL</div>
+                            <div class="stat-tile-val" id="handyGridCoolant" style="color:var(--cyan)">89°C</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">ANSAUGLUFT (IAT)</div>
+                            <div class="stat-tile-val">24°C</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">BORDNETZ</div>
+                            <div class="stat-tile-val" style="color:var(--green)">14.2 V</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">ÖLTEMPERATUR</div>
+                            <div class="stat-tile-val" id="handyGridOil" style="color:var(--orange)">~82°C</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">LEISTUNG LIVE</div>
+                            <div class="stat-tile-val" id="handyGridPS" style="color:var(--orange)">0 PS</div>
+                        </div>
+                        <div class="stat-tile">
+                            <div class="stat-tile-label">DREHMOMENT</div>
+                            <div class="stat-tile-val" id="handyGridNm" style="color:var(--cyan)">0 Nm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════════ TAB 3: SETUP (Hier ist jetzt der 0-100 Drag Timer!) ════════ -->
+                <div class="tab-content" id="tabSetup">
+                    <!-- ⏱ 0-100 KM/H DRAG TIMER HIER IN SETTINGS -->
+                    <div class="glass-card" style="border:1px solid rgba(0,255,136,0.3);">
+                        <div class="card-header">
+                            <span style="color:var(--green)">⏱ 0–100 km/h Drag Timer</span>
+                            <span id="prioBadge" style="display:none; font-size:9px; background:rgba(0,255,136,0.2); color:var(--green); padding:2px 8px; border-radius:10px; font-weight:800;">⚡ 100% PRIO SPEED</span>
+                        </div>
+
+                        <div class="timer-hero">
+                            <div class="timer-clock" id="timerClock">0.00 s</div>
+                            <div class="timer-status" id="timerStatus">BEREIT (Warte auf Stillstand 0 km/h)</div>
+                        </div>
+
+                        <div class="timer-stats">
+                            <div class="stat-col">
+                                <div class="label">0–60 km/h</div>
+                                <div class="val" id="stat60">--</div>
+                            </div>
+                            <div class="stat-col">
+                                <div class="label">Letzter Lauf</div>
+                                <div class="val" id="statLast">--</div>
+                            </div>
+                            <div class="stat-col">
+                                <div class="label">Bestzeit 🏆</div>
+                                <div class="val" id="statBest" style="color:var(--yellow)">5.74 s</div>
+                            </div>
+                        </div>
+
+                        <div style="font-size:11px; color:var(--text-sub); margin-top:10px; line-height:1.35;">
+                            ⚡ Startet vollautomatisch beim Anfahren. Während der Messung werden 100% der OBD-Bandbreite ausschließlich für Geschwindigkeits-PIDs genutzt.
+                        </div>
+                    </div>
+
+                    <!-- Weitere Einstellungen -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span>⚙️ Fahrzeugeinstellungen</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
                             <div>
-                                <div style="font-size:72px; font-weight:900; font-family:'JetBrains Mono'; line-height:0.9;" id="widescreenSpeed">0</div>
-                                <div style="font-size:12px; font-weight:800; color:var(--cyan); margin-top:4px;">KM/H</div>
+                                <div style="font-weight:600; font-size:13px;">Tacho Öltemp Auslese</div>
+                                <div style="font-size:11px; color:var(--text-sub);">KWP2000 MWB 134 (OBDeleven / VCDS)</div>
                             </div>
-                            <div style="font-size:11px; font-family:'JetBrains Mono'; color:var(--text-sub);">
-                                RPM: <span id="widescreenRPM" style="color:#fff; font-weight:700;">820</span>
-                            </div>
+                            <input type="checkbox" checked style="accent-color:var(--orange); transform:scale(1.2);">
                         </div>
-
-                        <!-- Zone 2: Dyno & Boost Center Stage -->
-                        <div class="zone-card" style="text-align:center;">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
-                                <span>BOOST & DYNO</span>
-                                <span style="color:var(--orange); font-weight:800;">STAGE 1</span>
-                            </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0;">
                             <div>
-                                <div style="font-size:10px; color:var(--text-sub);">LADEDRUCK</div>
-                                <div style="font-size:32px; font-weight:900; font-family:'JetBrains Mono'; color:var(--cyan);" id="widescreenBoost">0.00 bar</div>
-                                <div class="boost-bar-container" style="height:10px; margin:6px 0;">
-                                    <div class="boost-bar-fill" id="widescreenBoostFill"></div>
-                                </div>
+                                <div style="font-weight:600; font-size:13px;">Stage 1 Kalibrierung</div>
+                                <div style="font-size:11px; color:var(--text-sub);">Golf 5 GTI EA113: 268,9 PS / 395 Nm</div>
                             </div>
-                            <div style="display:flex; justify-content:space-around; font-family:'JetBrains Mono';">
-                                <div>
-                                    <div style="font-size:9px; color:var(--text-sub);">LEISTUNG</div>
-                                    <div style="font-size:18px; font-weight:800; color:var(--orange);" id="widescreenPS">0 PS</div>
-                                </div>
-                                <div>
-                                    <div style="font-size:9px; color:var(--text-sub);">DREHMOMENT</div>
-                                    <div style="font-size:18px; font-weight:800; color:#fff;" id="widescreenNm">0 Nm</div>
-                                </div>
-                            </div>
+                            <input type="checkbox" checked style="accent-color:var(--cyan); transform:scale(1.2);">
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Zone 3: Lyrics & CarPlay Telemetrie -->
-                        <div class="zone-card">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-sub);">
-                                <span>SPOTIFY LYRICS</span>
-                                <span style="color:var(--green)">● SYNC</span>
-                            </div>
-                            <div style="font-size:13px; font-weight:700; line-height:1.3; color:#fff; margin:auto 0;" id="lyricsLine">
-                                ♪ Der Ladedruck steigt, K03 spult hoch...<br>
-                                <span style="font-size:11px; color:var(--text-sub);">Golf 5 GTI • EA113 Stage 1</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="toggleOrientation()">Hochkant</button>
-                                <span style="font-size:9.5px; color:var(--text-sub);">0–100: <b id="widescreenBest" style="color:var(--yellow)">5.74 s</b></span>
-                            </div>
+                <!-- ════════ SUPERFLOW WINDYN LIVE PRÜFSTAND SCREEN ════════ -->
+                <div class="dyno-screen-overlay" id="dynoScreen">
+                    <div class="dyno-header-banner">
+                        <div class="dyno-title">
+                            <span>DIN corrected Engine power (hp) Vs. EngSpd</span>
+                            <button class="btn btn-red" style="padding:4px 10px; font-size:10px;" onclick="closeDynoView()">✕ Schließen</button>
+                        </div>
+                        <div class="dyno-subtitle">
+                            VW_Golf5_GTI_2.0TFSI_EA113_[customized_Stage1]: CEngHp-CHp / CEngTq-CNm
+                        </div>
+                        <div style="display:flex; gap:12px; font-size:9.5px; margin-top:4px; font-family:'JetBrains Mono';">
+                            <span style="color:var(--cyan)">● Blau: Ausgangsmessung (268,9 PS / 395 Nm)</span>
+                            <span style="color:#64748b">● Grau: Eingangsmessung Serie (200 PS / 280 Nm)</span>
                         </div>
                     </div>
 
-                    <!-- Bottom MoTeC Flight-Bar -->
-                    <div class="flight-bar">
-                        <div class="flight-item"><span>WASSER</span><b id="flightCoolant" style="color:var(--cyan)">89°C</b></div>
-                        <div class="flight-item"><span>ÖL</span><b id="flightOil" style="color:var(--orange)">~82°C</b></div>
-                        <div class="flight-item"><span>ANSAUG (IAT)</span><b id="flightIAT" style="color:#fff">24°C</b></div>
-                        <div class="flight-item"><span>BORDNETZ</span><b style="color:var(--green)">14.2V</b></div>
+                    <!-- Live Badges -->
+                    <div class="dyno-live-badges">
+                        <div class="dyno-badge">
+                            <div class="b-label">LIVE LEISTUNG (PS)</div>
+                            <div class="b-val" id="dynoLivePS" style="color:var(--orange)">0 PS</div>
+                            <div style="font-size:9px; color:var(--text-sub);">Peak: <span id="dynoPeakPS">0</span> / Ziel: 268,9</div>
+                        </div>
+
+                        <div class="dyno-badge">
+                            <div class="b-label">LIVE DREHMOMENT (Nm)</div>
+                            <div class="b-val" id="dynoLiveNm" style="color:var(--cyan)">0 Nm</div>
+                            <div style="font-size:9px; color:var(--text-sub);">Peak: <span id="dynoPeakNm">0</span> / Ziel: 395</div>
+                        </div>
                     </div>
+
+                    <!-- SVG PRÜFSTAND GRAPH (1:1 SuperFlow WinDyn Style) -->
+                    <div class="dyno-chart-container">
+                        <svg viewBox="0 0 680 340" style="width:100%; height:auto; display:block;" id="dynoSvg">
+                            <!-- Hintergrund Grid Linien -->
+                            <defs>
+                                <pattern id="dynoGrid" width="55.45" height="31.1" patternUnits="userSpaceOnUse">
+                                    <path d="M 55.45 0 L 0 0 0 31.1" fill="none" stroke="rgba(0, 240, 255, 0.08)" stroke-width="0.8"/>
+                                </pattern>
+                                <!-- Glow Filter -->
+                                <filter id="glowCyan" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                                <filter id="glowOrange" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                            </defs>
+
+                            <!-- Grid Raster -->
+                            <rect x="55" y="20" width="600" height="280" fill="url(#dynoGrid)" />
+                            <!-- Rahmen -->
+                            <rect x="55" y="20" width="600" height="280" fill="none" stroke="rgba(0, 240, 255, 0.25)" stroke-width="1.2" />
+
+                            <!-- Y-Achsen Beschriftung (Nm & PS) -->
+                            <g fill="#64748b" font-size="9" font-family="JetBrains Mono" text-anchor="end">
+                                <text x="50" y="26">450</text>
+                                <text x="50" y="57">400</text>
+                                <text x="50" y="88">350</text>
+                                <text x="50" y="119">300</text>
+                                <text x="50" y="150">250</text>
+                                <text x="50" y="181">200</text>
+                                <text x="50" y="212">150</text>
+                                <text x="50" y="243">100</text>
+                                <text x="50" y="274">50</text>
+                                <text x="50" y="303">0</text>
+                            </g>
+
+                            <!-- X-Achsen Beschriftung (EngSpd RPM) -->
+                            <g fill="#64748b" font-size="9" font-family="JetBrains Mono" text-anchor="middle">
+                                <text x="55" y="316">1500</text>
+                                <text x="110" y="316">2000</text>
+                                <text x="165" y="316">2500</text>
+                                <text x="220" y="316">3000</text>
+                                <text x="275" y="316">3500</text>
+                                <text x="330" y="316">4000</text>
+                                <text x="385" y="316">4500</text>
+                                <text x="440" y="316">5000</text>
+                                <text x="495" y="316">5500</text>
+                                <text x="550" y="316">6000</text>
+                                <text x="605" y="316">6500</text>
+                                <text x="655" y="316">7000</text>
+                            </g>
+
+                            <!-- ── EINGANGSMESSUNG SERIE (Grau / Schwarz wie im Bild) ── -->
+                            <!-- Serie Drehmoment (~280 Nm) -->
+                            <path d="M 55 220 Q 110 140 165 125 T 330 125 T 495 155 T 605 200 L 635 290" 
+                                  fill="none" stroke="#334155" stroke-width="2" stroke-dasharray="3,3" />
+                            <!-- Serie Leistung (~200 PS) -->
+                            <path d="M 55 270 Q 165 240 330 195 T 495 175 T 605 180 L 635 295" 
+                                  fill="none" stroke="#1e293b" stroke-width="2" stroke-dasharray="3,3" />
+
+                            <!-- ── AUSGANGSMESSUNG STAGE 1 (BLAU / CYAN WIE IM BILD) ── -->
+                            <!-- Drehmomentkurve Stage 1 (Peak 395-419 Nm) -->
+                            <path d="M 55 180 C 110 90, 160 55, 204 54 C 275 54, 385 58, 440 72 C 495 88, 550 108, 605 128 L 625 150 L 635 285" 
+                                  fill="none" stroke="#00f0ff" stroke-width="3" filter="url(#glowCyan)" />
+
+                            <!-- Leistungskurve Stage 1 (Peak 268.9 - 271.4 PS) -->
+                            <path d="M 55 275 C 110 250, 165 210, 220 195 C 330 160, 440 140, 550 133 C 580 132, 605 137, 625 155 L 635 290" 
+                                  fill="none" stroke="#ff9919" stroke-width="3" filter="url(#glowOrange)" />
+
+                            <!-- Peak Labels -->
+                            <text x="210" y="46" fill="#00f0ff" font-size="8.5" font-family="JetBrains Mono" font-weight="bold">CEngTq [Max = 395 Nm]</text>
+                            <text x="530" y="124" fill="#ff9919" font-size="8.5" font-family="JetBrains Mono" font-weight="bold">CEngHp [Max = 268.9 PS]</text>
+
+                            <!-- ── 🌟 LIVE DYNAMISCHE LINIE & PUNKTE 🌟 ── -->
+                            <!-- Live Drehzahl Cursor Linie -->
+                            <line id="dynoLiveLine" x1="55" y1="20" x2="55" y2="300" stroke="#ffffff" stroke-width="1.8" stroke-dasharray="2,2" filter="url(#glowCyan)" />
+
+                            <!-- Live Punkt Drehmoment -->
+                            <circle id="dynoDotNm" cx="55" cy="180" r="5" fill="#00f0ff" stroke="#ffffff" stroke-width="2" filter="url(#glowCyan)" />
+
+                            <!-- Live Punkt Leistung -->
+                            <circle id="dynoDotPS" cx="55" cy="275" r="5" fill="#ff9919" stroke="#ffffff" stroke-width="2" filter="url(#glowOrange)" />
+                        </svg>
+                    </div>
+
+                    <!-- Footer Details -->
+                    <div style="font-size:10px; color:var(--text-sub); text-align:center; font-family:'JetBrains Mono';">
+                        custom-chips GmbH • SuperFlow WinDyn™ V3.2 • EA113 Bosch MED9.1
+                    </div>
+                </div>
+
+                <!-- Bottom Tab Bar (Strikt 4 Tabs!) -->
+                <div class="tab-bar">
+                    <button class="tab-btn active" onclick="switchTab(0, this)">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        Cockpit
+                    </button>
+                    <button class="tab-btn" onclick="switchTab(1, this)">
+                        <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+                        OBD Labor
+                    </button>
+                    <button class="tab-btn" onclick="switchTab(2, this)">
+                        <svg viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                        Handy
+                    </button>
+                    <button class="tab-btn" onclick="switchTab(3, this)">
+                        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        Setup
+                    </button>
                 </div>
 
             </div>
@@ -914,7 +1055,7 @@
     <div class="controls-panel">
         <h2>🎮 CarLyrics Live-Steuerpult</h2>
         <p style="font-size:12px; color:var(--text-sub); line-height:1.4;">
-            Hier simulierst du in Echtzeit die Fahrt deines <b>Golf 5 GTI EA113</b> auf deinem PC. Alle Formeln (Dyno 268,9 PS / 395 Nm & 0-100 High-Speed Polling) reagieren 1:1 identisch zur Swift-App!
+            Steuere Drehzahl, Ladedruck und Speed in Echtzeit. Beobachte, wie die <b>Live-Linie auf dem SuperFlow Prüfstand</b> mitwandert!
         </p>
 
         <!-- 🚀 0-100 Launch Button -->
@@ -924,12 +1065,12 @@
 
         <!-- Schnellwahltasten -->
         <div class="control-group">
-            <div class="control-label"><span>EA113 FAHRZUSTÄNDE</span></div>
+            <div class="control-label"><span>FAHRZUSTÄNDE</span></div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
                 <button class="btn" onclick="setPreset('idle')">💤 Leerlauf (820 U/min)</button>
                 <button class="btn" onclick="setPreset('city')">🚗 Stadt (50 km/h)</button>
-                <button class="btn" onclick="setPreset('spool')">💥 Overboost (395 Nm)</button>
-                <button class="btn" onclick="setPreset('peak')">🏁 Peak (268,9 PS)</button>
+                <button class="btn" onclick="setPreset('spool')">💥 Overboost (395 Nm!)</button>
+                <button class="btn" onclick="setPreset('peak')">🏁 Peak (268,9 PS!)</button>
             </div>
         </div>
 
@@ -939,7 +1080,7 @@
                 <span>DREHZAHL (RPM)</span>
                 <span id="sliderValRPM">820 U/min</span>
             </div>
-            <input type="range" id="inputRPM" min="800" max="6800" step="50" value="820" oninput="onTelemetryChange()">
+            <input type="range" id="inputRPM" min="800" max="6800" step="25" value="820" oninput="onTelemetryChange()">
         </div>
 
         <!-- Slider Ladedruck -->
@@ -978,9 +1119,9 @@
             <input type="range" id="inputCoolant" min="15" max="115" step="1" value="89" oninput="onTelemetryChange()">
         </div>
 
-        <!-- Orientierungs Toggle -->
-        <button class="btn" style="width:100%; padding:10px;" onclick="toggleOrientation()">
-            🔄 Hochkant / Widescreen Querformat umschalten
+        <!-- Dyno Ansicht Schnellstart -->
+        <button class="btn btn-cyan" style="width:100%; padding:11px; font-weight:800;" onclick="openDynoView()">
+            📈 SuperFlow Prüfstand aufrufen
         </button>
     </div>
 
@@ -990,32 +1131,12 @@
         let peakPS = 0;
         let peakNm = 0;
         
-        // Drag Timer State
+        // Drag Timer State (Jetzt in Settings!)
         let timerState = 'idle'; // 'idle', 'armed', 'running', 'completed'
         let timerStart = 0;
         let timerInterval = null;
         let bestTime = 5.74;
         let time60 = null;
-
-        // Shift LEDs aufbauen (Portrait: 12 LEDs, Landscape: 18 LEDs)
-        const ledPortrait = document.getElementById('shiftLedsPortrait');
-        for (let i = 0; i < 12; i++) {
-            const led = document.createElement('div');
-            led.style.width = '10px';
-            led.style.height = '14px';
-            led.style.borderRadius = '3px';
-            led.style.background = '#1a202c';
-            led.id = 'ledPort_' + i;
-            ledPortrait.appendChild(led);
-        }
-
-        const ledLandscape = document.getElementById('shiftRunwayLandscape');
-        for (let i = 0; i < 18; i++) {
-            const led = document.createElement('div');
-            led.className = 'runway-led';
-            led.id = 'ledLand_' + i;
-            ledLandscape.appendChild(led);
-        }
 
         function switchTab(index, btn) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1025,29 +1146,29 @@
             const tabs = ['tabCockpit', 'tabLabor', 'tabHandy', 'tabSetup'];
             document.getElementById(tabs[index]).classList.add('active');
             currentTab = index;
+            // Schließe Dyno falls offen
+            closeDynoView();
         }
 
         function switchLaborSub(sub, btn) {
             document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            document.getElementById('laborDyno').style.display = sub === 'dyno' ? 'block' : 'none';
             document.getElementById('laborDTC').style.display = sub === 'dtc' ? 'block' : 'none';
             document.getElementById('laborProbe').style.display = sub === 'probe' ? 'block' : 'none';
+            document.getElementById('laborLive').style.display = sub === 'live' ? 'block' : 'none';
         }
 
-        function toggleOrientation() {
-            document.getElementById('phoneFrame').classList.toggle('landscape');
+        function openDynoView() {
+            // Wechsle zu Handy-Tab falls nicht aktiv
+            if (currentTab !== 2) {
+                switchTab(2, document.querySelectorAll('.tab-btn')[2]);
+            }
+            document.getElementById('dynoScreen').classList.add('active');
+            updateDynoScreenPosition();
         }
 
-        function calculateGear(speed, rpm) {
-            if (speed < 2) return 'N';
-            const ratio = (speed / Math.max(rpm, 800)) * 1000;
-            if (ratio < 11) return 'GANG 1';
-            if (ratio < 18) return 'GANG 2';
-            if (ratio < 26) return 'GANG 3';
-            if (ratio < 34) return 'GANG 4';
-            if (ratio < 43) return 'GANG 5';
-            return 'GANG 6';
+        function closeDynoView() {
+            document.getElementById('dynoScreen').classList.remove('active');
         }
 
         // Telemetrie Aktualisierung
@@ -1065,27 +1186,37 @@
             document.getElementById('sliderValMAF').innerText = maf.toFixed(1) + ' g/s';
             document.getElementById('sliderValCoolant').innerText = coolant + '°C';
 
-            // Displays
+            // Displays Cockpit Tab
             document.getElementById('valRPM').innerText = rpm;
             document.getElementById('valSpeed').innerText = speed;
             document.getElementById('valBoost').innerText = boost.toFixed(2);
             document.getElementById('valMAF').innerText = maf.toFixed(1);
             document.getElementById('valCoolant').innerText = coolant + '°C';
-            document.getElementById('flightCoolant').innerText = coolant + '°C';
 
-            // Widescreen
-            document.getElementById('widescreenSpeed').innerText = speed;
-            document.getElementById('widescreenRPM').innerText = rpm;
-            document.getElementById('widescreenBoost').innerText = boost.toFixed(2) + ' bar';
-            document.getElementById('handySpeed').innerText = speed;
-            document.getElementById('handyBoost').innerText = boost.toFixed(2) + ' bar';
+            // Displays Handy Tab
+            document.getElementById('handyValRPM').innerText = rpm;
+            document.getElementById('handyValBoost').innerText = boost.toFixed(2);
+            document.getElementById('handyGridSpeed').innerText = speed + ' km/h';
+            document.getElementById('handyGridMAF').innerText = maf.toFixed(1) + ' g/s';
+            document.getElementById('handyGridCoolant').innerText = coolant + '°C';
+
+            // Displays OBD Labor Live
+            document.getElementById('liveOBD_rpm').innerText = rpm + ' U/min';
+            document.getElementById('liveOBD_map').innerText = Math.round(101 + (boost * 100)) + ' kPa';
+            document.getElementById('liveOBD_maf').innerText = maf.toFixed(1) + ' g/s';
+            document.getElementById('liveOBD_coolant').innerText = coolant + '°C';
+
             document.getElementById('islandBoost').innerText = boost.toFixed(2) + ' bar';
-            document.getElementById('gearIndicator').innerText = calculateGear(speed, rpm);
 
             // Boost Balken
             const pct = Math.min(100, Math.max(0, (boost / 1.55) * 100));
             document.getElementById('boostFill').style.width = pct + '%';
-            document.getElementById('widescreenBoostFill').style.width = pct + '%';
+
+            // G-Kräfte Simulation (beim Beschleunigen)
+            const gVal = (speed > 5) ? Math.min(0.95, (boost * 0.5) + (rpm / 8000)).toFixed(2) : '0.02';
+            document.getElementById('gForceLabel').innerText = gVal + ' G';
+            const gOffset = Math.min(45, (gVal * 35));
+            document.getElementById('gDot').style.transform = `translate(-50%, calc(-50% + ${gOffset}px))`;
 
             // Warmup Status
             const oilStatusEl = document.getElementById('cockpitOilStatus');
@@ -1107,59 +1238,62 @@
                 warmupBanner.style.borderLeftColor = 'var(--green)';
             }
 
-            // ── VIRTUAL DYNO FORMEL (EA113 Stage 1: 268.9 PS / 395 Nm) ──
+            // ── VIRTUAL DYNO BERECHNUNG (EA113 Stage 1) ──
             let ps = 0;
             let nm = 0;
 
             if (rpm > 750) {
-                // Physikalische Formel aus EA113DynoCalculator.swift
                 let basePS = maf * 1.25;
                 if (boost > 0.1) {
                     basePS *= Math.min(1.15, Math.max(0.9, 1.0 + (boost - 1.2) * 0.15));
                 }
                 ps = Math.min(269, Math.round(basePS));
-                // Formel: M = (PS * 7023.5) / RPM
                 nm = Math.min(395, Math.round((ps * 7023.5) / Math.max(rpm, 800)));
             }
 
-            document.getElementById('dynoPS').innerText = ps;
-            document.getElementById('dynoNm').innerText = nm;
-            document.getElementById('widescreenPS').innerText = ps + ' PS';
-            document.getElementById('widescreenNm').innerText = nm + ' Nm';
-            document.getElementById('handyPS').innerText = ps + ' PS';
+            document.getElementById('handyGridPS').innerText = ps + ' PS';
+            document.getElementById('handyGridNm').innerText = nm + ' Nm';
+            document.getElementById('dynoLivePS').innerText = ps + ' PS';
+            document.getElementById('dynoLiveNm').innerText = nm + ' Nm';
 
             if (rpm > 2500) {
-                if (ps > peakPS) { peakPS = ps; document.getElementById('peakPS').innerText = peakPS; }
-                if (nm > peakNm) { peakNm = nm; document.getElementById('peakNm').innerText = peakNm; }
+                if (ps > peakPS) { peakPS = ps; document.getElementById('dynoPeakPS').innerText = peakPS; }
+                if (nm > peakNm) { peakNm = nm; document.getElementById('dynoPeakNm').innerText = peakNm; }
             }
 
-            // Shift LEDs Portrait
-            const ledPortCount = Math.floor((rpm - 2500) / (6500 - 2500) * 12);
-            for (let i = 0; i < 12; i++) {
-                const el = document.getElementById('ledPort_' + i);
-                if (i < ledPortCount) {
-                    el.style.background = i < 6 ? '#00ff88' : (i < 9 ? '#ffd32a' : '#ff3838');
-                } else {
-                    el.style.background = '#1a202c';
-                }
-            }
+            // ── DYNO GRAPH LIVE LINIE & PUNKTE BEWEGEN ──
+            updateDynoScreenPosition();
 
-            // Shift LEDs Widescreen (18 Runway LEDs)
-            const ledLandCount = Math.floor((rpm - 2000) / (6600 - 2000) * 18);
-            for (let i = 0; i < 18; i++) {
-                const el = document.getElementById('ledLand_' + i);
-                if (i < ledLandCount) {
-                    const col = i < 6 ? '#00ff88' : (i < 12 ? '#ffd32a' : (i < 15 ? '#ff9919' : '#ff3838'));
-                    el.style.background = col;
-                    el.style.boxShadow = '0 0 6px ' + col;
-                } else {
-                    el.style.background = 'rgba(255,255,255,0.08)';
-                    el.style.boxShadow = 'none';
-                }
-            }
-
-            // Drag Timer
+            // ── DRAG TIMER (Settings Tab) ──
             handleDragSpeed(speed);
+        }
+
+        // Dynamische Positionierung der Linie und Punkte auf dem Prüfstand
+        function updateDynoScreenPosition() {
+            const rpm = parseInt(document.getElementById('inputRPM').value);
+            const ps = parseInt(document.getElementById('dynoLivePS').innerText);
+            const nm = parseInt(document.getElementById('dynoLiveNm').innerText);
+
+            // X-Koordinate: 1500 RPM = 55px, 7000 RPM = 655px (600px Breite)
+            const clampedRPM = Math.max(1500, Math.min(7000, rpm));
+            const xPos = 55 + ((clampedRPM - 1500) / (7000 - 1500)) * 600;
+
+            // Y-Koordinaten: 0 = 300px, 450 = 20px (280px Höhe)
+            const yNm = 300 - (Math.min(450, nm) / 450) * 280;
+            const yPS = 300 - (Math.min(450, ps) / 450) * 280;
+
+            const line = document.getElementById('dynoLiveLine');
+            const dotNm = document.getElementById('dynoDotNm');
+            const dotPS = document.getElementById('dynoDotPS');
+
+            if (line && dotNm && dotPS) {
+                line.setAttribute('x1', xPos);
+                line.setAttribute('x2', xPos);
+                dotNm.setAttribute('cx', xPos);
+                dotNm.setAttribute('cy', yNm);
+                dotPS.setAttribute('cx', xPos);
+                dotPS.setAttribute('cy', yPS);
+            }
         }
 
         function handleDragSpeed(speed) {
@@ -1201,7 +1335,6 @@
                     if (elapsed < bestTime) {
                         bestTime = elapsed;
                         document.getElementById('statBest').innerText = bestTime.toFixed(2) + ' s';
-                        document.getElementById('widescreenBest').innerText = bestTime.toFixed(2) + ' s';
                     }
                 }
             }
@@ -1218,7 +1351,7 @@
 
                 const runInterval = setInterval(() => {
                     currentSpd += 2.8;
-                    currentR = 3000 + (currentSpd * 32);
+                    currentR = 2800 + (currentSpd * 34);
                     maf = Math.min(215, 60 + (currentSpd * 1.6));
                     boost = currentSpd < 70 ? 1.45 : 1.15;
 
@@ -1262,13 +1395,6 @@
             onTelemetryChange();
         }
 
-        function resetPeaks() {
-            peakPS = 0;
-            peakNm = 0;
-            document.getElementById('peakPS').innerText = 0;
-            document.getElementById('peakNm').innerText = 0;
-        }
-
         // DTC Simulator
         function scanDTC() {
             const list = document.getElementById('dtcList');
@@ -1296,7 +1422,7 @@
             }
         }
 
-        // Oil Probe Simulator (OBDeleven KWP2000 MWB 134)
+        // Oil Probe Simulator
         function simulateOilProbe() {
             const el = document.getElementById('probeResults');
             el.innerHTML = '<div style="color:var(--yellow); padding:6px 0;">Teste Methoden 1 bis 23...</div>';
@@ -1312,9 +1438,9 @@
                 `;
                 document.getElementById('valOil').innerText = '84°C (KWP2000)';
                 document.getElementById('valOil').style.color = 'var(--green)';
+                document.getElementById('handyGridOil').innerText = '84°C (KWP2000)';
+                document.getElementById('handyGridOil').style.color = 'var(--green)';
                 document.getElementById('islandOil').innerText = 'ÖL 84°C';
-                document.getElementById('flightOil').innerText = '84°C';
-                document.getElementById('flightOil').style.color = 'var(--green)';
             }, 900);
         }
 

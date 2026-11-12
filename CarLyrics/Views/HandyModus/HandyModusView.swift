@@ -22,6 +22,8 @@ public struct HandyModusView: View {
     @State private var idleTimerDisabled = false
     // Show calibration hint once
     @State private var showCalibHint = true
+    // Live Prüfstand Dyno Sheet
+    @State private var showDynoSheet = false
 
     // Auto-hiding Tab Bar: Leiste geht nach Inaktivität langsam weg und ploppt bei Berührung wieder auf
     @State private var isTabBarVisible: Bool = true
@@ -127,6 +129,9 @@ public struct HandyModusView: View {
                 }
         )
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showDynoSheet) {
+            HandyModusDynoView(obd: obd, isPresented: $showDynoSheet)
+        }
         .overlay(
             Group {
                 if obd.isColdOverloaded {
@@ -152,7 +157,7 @@ public struct HandyModusView: View {
     // ─────────────────────────────────────────────────────────────────────────
 
     private var statusStrip: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             // OBD Verbindung
             connectionPill(
                 label:  obdLabel,
@@ -166,6 +171,23 @@ public struct HandyModusView: View {
             }
 
             Spacer()
+
+            // 📈 SuperFlow Dyno Prüfstand Button (Oben Rechts)
+            Button {
+                showDynoSheet = true
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("Dyno")
+                        .font(.system(size: 9, weight: .black, design: .rounded))
+                }
+                .foregroundStyle(.cyan)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.cyan.opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(Color.cyan.opacity(0.3), lineWidth: 1))
+            }
 
             // Bildschirm aktiv
             HStack(spacing: 4) {

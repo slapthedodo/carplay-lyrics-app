@@ -25,11 +25,10 @@ public struct OBDDiagnosticWorkbenchView: View {
 
                 Picker("Bereich", selection: $activeSection) {
                     Text("🚨 Fehler").tag(0)
-                    Text("⏱ Dyno").tag(1)
-                    Text("⚡ Öltemp").tag(2)
-                    Text("📊 Sensoren").tag(3)
-                    Text("💻 Terminal").tag(4)
-                    Text("📡 BT").tag(5)
+                    Text("⚡ Öltemp").tag(1)
+                    Text("📊 Sensoren").tag(2)
+                    Text("💻 Terminal").tag(3)
+                    Text("📡 BT").tag(4)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -41,14 +40,12 @@ public struct OBDDiagnosticWorkbenchView: View {
                     case 0:
                         OBDDTCCard(obd: obd)
                     case 1:
-                        OBDPerformanceCard(obd: obd)
-                    case 2:
                         OBDMethodProbeSection(obd: obd)
-                    case 3:
+                    case 2:
                         OBDSensorMatrixSection(obd: obd)
-                    case 4:
+                    case 3:
                         OBDTerminalSection(obd: obd, manualCommand: $manualCommand, showCopiedToast: $showCopiedToast)
-                    case 5:
+                    case 4:
                         OBDBluetoothScannerSection(obd: obd)
                     default:
                         EmptyView()

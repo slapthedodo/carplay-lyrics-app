@@ -25,7 +25,8 @@ public struct SettingsTabView: View {
             // ── Interner Tab-Picker ─────────────────────────────
             Picker("", selection: $selectedSettingsTab) {
                 Label("Allgemein", systemImage: "gearshape").tag(0)
-                Label("Tacho Öltemp", systemImage: "thermometer.medium").tag(1)
+                Label("0–100 Drag", systemImage: "stopwatch.fill").tag(1)
+                Label("Tacho Öltemp", systemImage: "thermometer.medium").tag(2)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
@@ -34,6 +35,9 @@ public struct SettingsTabView: View {
             Divider().opacity(0.3)
 
             if selectedSettingsTab == 1 {
+                // ── 0–100 km/h Drag Timer Tab ──────────────────────
+                OBDDragTimerCard(obd: obd)
+            } else if selectedSettingsTab == 2 {
                 // ── Tacho Öltemperatur Tab ──────────────────────────
                 OilTempTachoSettingsView(obd: obd)
             } else {
