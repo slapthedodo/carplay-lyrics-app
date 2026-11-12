@@ -97,6 +97,9 @@ public struct HandyModusView: View {
                             // ── 2. Lyrics Panel ─────────────────────────────────────
                             HandyModusLyricsPanel(observer: observer)
 
+                            // ── 2b. Porsche GT3 RS Performance Torque Widget ────────
+                            PorscheGT3TorqueWidget(obd: obd)
+
                             // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
                             mainGaugesRow
 
