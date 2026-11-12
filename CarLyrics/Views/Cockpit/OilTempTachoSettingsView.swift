@@ -153,7 +153,7 @@ public struct OilTempTachoSettingsView: View {
                                         .fontWeight(.bold)
                                 } else {
                                     Image(systemName: "thermometer.and.liquid.waves")
-                                    Text("Jetzt messen (18 Methoden testen)")
+                                    Text("Jetzt messen (\(OBDManager.oilTempProbeMethods.count) Methoden testen)")
                                         .fontWeight(.bold)
                                 }
                                 Spacer()
@@ -181,11 +181,11 @@ public struct OilTempTachoSettingsView: View {
                 // ── Fallback Methoden Status ──
                 GlassCard {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Fallback-Methoden (18 Versuche)", systemImage: "list.bullet.clipboard")
+                        Label("Fallback-Methoden (\(OBDManager.oilTempProbeMethods.count) Versuche)", systemImage: "list.bullet.clipboard")
                             .font(.headline)
                             .foregroundStyle(.cyan)
 
-                        Text("Jede Methode wird der Reihe nach ausprobiert. Die erste erfolgreiche wird dauerhaft verwendet. 18 Methoden mit Kelvin- & Celsius-Multidecoder = maximale Chance!")
+                        Text("Jede Methode wird der Reihe nach ausprobiert. Die erste erfolgreiche wird dauerhaft verwendet. Inklusive KWP2000 Messwertblöcke (OBDeleven / VCDS Block 134) & Multidecoder = maximale Chance!")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -216,40 +216,34 @@ public struct OilTempTachoSettingsView: View {
                         Group {
                             MethodInfoRow(num: 1, name: "OBD Standard PID 015C",
                                 desc: "SAE-Standard. Erster Versuch.")
-                            MethodInfoRow(num: 2, name: "VAG Mode22 7E0+1106 ★",
+                            MethodInfoRow(num: 2, name: "KWP2000 MWB 134 + 1089 ★★★",
+                                desc: "OBDeleven & VCDS Methode! Liest Block 134 (Geber G266 Öltemperatur).")
+                            MethodInfoRow(num: 3, name: "KWP2000 MWB 134 direkt",
+                                desc: "Block 134 ohne Session-Wechsel.")
+                            MethodInfoRow(num: 4, name: "KWP2000 MWB 005 + 1089",
+                                desc: "Block 005 Motorbetriebsdaten inkl. Öltemp.")
+                            MethodInfoRow(num: 5, name: "KWP2000 MWB 005 direkt",
+                                desc: "Block 005 Direktabfrage.")
+                            MethodInfoRow(num: 6, name: "Cluster 0x760 + MWB 050",
+                                desc: "Tacho KWP2000 Geber-Auslese.")
+                            MethodInfoRow(num: 7, name: "VAG Mode22 7E0+1106 ★",
                                 desc: "Torque Pro MED9.1 Top-Favorit (16-Bit Kelvin/0.1°C).")
-                            MethodInfoRow(num: 3, name: "VAG Mode22 7E0+115C ★",
+                            MethodInfoRow(num: 8, name: "VAG Mode22 7E0+115C ★",
                                 desc: "Häufigste VAG MED9.1 Öltemp-Adresse.")
-                            MethodInfoRow(num: 4, name: "VAG Mode22 7E0+11BE",
+                            MethodInfoRow(num: 9, name: "VAG Mode22 7E0+11BE",
                                 desc: "Standard VAG UDS ReadDataByIdentifier.")
-                            MethodInfoRow(num: 5, name: "VAG Mode22 7E0+1152",
+                            MethodInfoRow(num: 10, name: "VAG Mode22 7E0+1152",
                                 desc: "Car Scanner VAG Profil Standard.")
-                            MethodInfoRow(num: 6, name: "VAG Mode22 7E0+F43C",
+                            MethodInfoRow(num: 11, name: "VAG Mode22 7E0+F43C",
                                 desc: "Zweithäufigster VAG Öltemp-DID auf MED9.x.")
-                            MethodInfoRow(num: 7, name: "VAG Mode22 1C1F",
+                            MethodInfoRow(num: 12, name: "VAG Mode22 1C1F",
                                 desc: "PQ35 Instrument-Cluster-Kanal (kein Header).")
-                            MethodInfoRow(num: 8, name: "VAG Mode22 7E0+1C1F",
+                            MethodInfoRow(num: 13, name: "VAG Mode22 7E0+1C1F",
                                 desc: "1C1F mit explizitem ECU-Header 7E0.")
-                            MethodInfoRow(num: 9, name: "VAG Mode22 1140",
-                                desc: "Alternativer VAG-Öltemp-DID auf MED9.x.")
-                            MethodInfoRow(num: 10, name: "VAG Mode22 7E0+1140",
-                                desc: "1140 mit explizitem ECU-Header 7E0.")
-                            MethodInfoRow(num: 11, name: "VAG Mode22 7E0+2002",
-                                desc: "Car Scanner VAG Alternative.")
-                            MethodInfoRow(num: 12, name: "VAG Mode22 7E0+F450",
-                                desc: "Weitere F4xx-Familie (EA113 Varianten).")
-                            MethodInfoRow(num: 13, name: "VAG Mode22 7E0+F435",
-                                desc: "Weitere F4xx-Variante.")
                             MethodInfoRow(num: 14, name: "Cluster 0x760+1C1F ★",
                                 desc: "Standard VAG MK5 Instrument-Cluster Diagnose-Adresse!")
-                            MethodInfoRow(num: 15, name: "Cluster 0x730+1C1F",
-                                desc: "Alternative Cluster-Adresse einiger VAG MK5.")
-                            MethodInfoRow(num: 16, name: "Cluster 0x7C4+0C01",
-                                desc: "Legacy Cluster-Adresse.")
-                            MethodInfoRow(num: 17, name: "Broadcast 7DF+015C",
+                            MethodInfoRow(num: 15, name: "Broadcast 7DF+015C",
                                 desc: "Alle ECUs gleichzeitig antworten lassen.")
-                            MethodInfoRow(num: 18, name: "KWP2000 (ATSP5)+015C",
-                                desc: "Letzter Fallback: altes ISO 14230 Protokoll.")
                         }
                     }
                 }

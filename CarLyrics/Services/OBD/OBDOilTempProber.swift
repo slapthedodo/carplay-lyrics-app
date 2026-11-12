@@ -31,7 +31,38 @@ extension OBDManager {
             command: "015C"
         ),
 
-        // ── 2. VAG Mode 22 DID 1106 mit ECU-Header 7E0 ─────────────────────
+        // ── 2. VAG KWP2000 MWB 134 + Session 1089 (OBDeleven / VCDS Favorit ★★★) ──
+        // Liest Block 134 (0x86) via KWP2000: Feld 1 = G266 Öltemperatur!
+        OilTempProbeStatus(
+            methodName: "KWP2000 MWB 134 + 1089 (OBDeleven/VCDS Block 134 ★★★)",
+            command: "ATSH7E0||1089||2186"
+        ),
+
+        // ── 3. VAG KWP2000 MWB 134 direkt ──────────────────────────────────
+        OilTempProbeStatus(
+            methodName: "KWP2000 MWB 134 direkt (Block 134 ohne 1089)",
+            command: "ATSH7E0||2186"
+        ),
+
+        // ── 4. VAG KWP2000 MWB 005 + Session 1089 ──────────────────────────
+        OilTempProbeStatus(
+            methodName: "KWP2000 MWB 005 + 1089 (Block 005 Motor/Öl)",
+            command: "ATSH7E0||1089||2105"
+        ),
+
+        // ── 5. VAG KWP2000 MWB 005 direkt ──────────────────────────────────
+        OilTempProbeStatus(
+            methodName: "KWP2000 MWB 005 direkt",
+            command: "ATSH7E0||2105"
+        ),
+
+        // ── 6. Kombiinstrument 0x760 + MWB 050 (Tacho-Ölsensor) ────────────
+        OilTempProbeStatus(
+            methodName: "Cluster 0x760 + MWB 050 (Tacho KWP2000 Geber)",
+            command: "ATSH760||1089||2132"
+        ),
+
+        // ── 7. VAG Mode 22 DID 1106 mit ECU-Header 7E0 ─────────────────────
         // ★ HÄUFIGSTER MED9.1 Custom-PID in Torque Pro / VAG-Foren!
         // Liefert oft 2-Byte Kelvin oder 0.1°C
         OilTempProbeStatus(
@@ -243,25 +274,31 @@ extension OBDManager {
             return await probeWithProtocolSwitch(method)
         }
 
-        // Normalfall: Header-Switch oder direkter PID
+        // Normalfall: Header-Switch oder verkettete Befehle (z.B. "ATSH7E0||1089||2186")
         if cmd.contains("||") {
             let parts = cmd.components(separatedBy: "||")
-            guard parts.count == 2 else {
+            guard !parts.isEmpty else {
                 return OilTempProbeResult(rawResponse: "Ungültiger Befehl", parsedValue: nil, success: false, isNoData: false)
             }
-            let headerCmd = parts[0]
-            let queryCmd  = parts[1]
 
-            let headerResp = await sendSingleOBDCommand(headerCmd, timeout: 1.5)
-            logSystem("     → \(headerCmd): \(headerResp.prefix(20))")
+            var lastResp = ""
+            var lastCmd = ""
+            for (idx, part) in parts.enumerated() {
+                let isLast = (idx == parts.count - 1)
+                let timeout: TimeInterval = isLast ? 2.5 : 1.5
+                let resp = await sendSingleOBDCommand(part, timeout: timeout)
+                logSystem("     → \(part): \(resp.prefix(35))")
+                lastResp = resp
+                lastCmd = part
+                if !isLast {
+                    try? await Task.sleep(nanoseconds: 60_000_000) // 60ms Pause in der Kette
+                }
+            }
 
-            let queryResp = await sendSingleOBDCommand(queryCmd, timeout: 2.5)
-            logSystem("     → \(queryCmd): \(queryResp.prefix(40))")
-
-            let parsed = parseOilTempFromResponse(queryResp, pid: queryCmd)
-            let compact = queryResp.uppercased()
+            let parsed = parseOilTempFromResponse(lastResp, pid: lastCmd)
+            let compact = lastResp.uppercased()
             return OilTempProbeResult(
-                rawResponse: String(queryResp.prefix(80)),
+                rawResponse: String(lastResp.prefix(80)),
                 parsedValue: parsed,
                 success: parsed != nil,
                 isNoData: compact.contains("NODATA") || compact.contains("NO DATA")
@@ -387,6 +424,40 @@ extension OBDManager {
         return nil
     }
 
+    /// Dekodiert VAG KWP2000 Messwertblöcke (Triple-Byte: [Type, ValA, ValB])
+    /// Verwendet von OBDeleven & VCDS für Block 134, 005 und Kombiinstrument.
+    internal func decodeVAGMeasuringBlock(_ hex: String) -> Int? {
+        guard hex.count >= 4 else { return nil }
+
+        // VAG Standard Triplett: Type (2 chars), ValA (2 chars), ValB (2 chars)
+        if hex.count >= 6,
+           let typeByte = UInt8(hex.prefix(2), radix: 16),
+           let valA = UInt8(hex.dropFirst(2).prefix(2), radix: 16),
+           let valB = UInt8(hex.dropFirst(4).prefix(2), radix: 16) {
+
+            // Type 0x05: Temperatur °C -> A * (B - 100) * 0.1
+            if typeByte == 0x05 {
+                let temp = Int(Double(valA) * (Double(valB) - 100.0) * 0.1)
+                if temp >= -20 && temp <= 160 { return temp }
+            }
+            // Type 0x37: Temperatur direkt °C (A - 50 oder A)
+            if typeByte == 0x37 || typeByte == 0x25 {
+                let temp = Int(valA) - 50
+                if temp >= -20 && temp <= 160 { return temp }
+            }
+        }
+
+        // Direkte Bytes (ohne Type-Header)
+        if let firstByte = UInt8(hex.prefix(2), radix: 16) {
+            let tempOffset = Int(firstByte) - 40
+            if tempOffset >= -20 && tempOffset <= 160 { return tempOffset }
+            let tempOffset50 = Int(firstByte) - 50
+            if tempOffset50 >= -20 && tempOffset50 <= 160 { return tempOffset50 }
+            if firstByte >= 45 && firstByte <= 150 { return Int(firstByte) }
+        }
+        return nil
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // MARK: Oil Temp Parsing (unterstützt alle Antwortformate & DIDs)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -412,6 +483,37 @@ extension OBDManager {
             let after = String(compact[range.upperBound...])
             if let val = decodeTemperatureBytes(after) {
                 return val
+            }
+        }
+
+        // ── KWP2000 Mode 21 Messwertblöcke (61 86 = MWB 134, 61 05 = MWB 005, 61 32 = MWB 50) ──
+        // OBDeleven & VCDS Protokoll für Geber G266 auf Golf 5 GTI EA113 Bosch MED9.1
+        if let range = compact.range(of: "6186") {
+            let dataPart = String(compact[range.upperBound...])
+            if let temp = decodeVAGMeasuringBlock(dataPart) ?? decodeTemperatureBytes(dataPart) {
+                return temp
+            }
+        }
+        if let range = compact.range(of: "6105") {
+            let dataPart = String(compact[range.upperBound...])
+            if let temp = decodeVAGMeasuringBlock(dataPart) ?? decodeTemperatureBytes(dataPart) {
+                return temp
+            }
+        }
+        if let range = compact.range(of: "6132") {
+            let dataPart = String(compact[range.upperBound...])
+            if let temp = decodeVAGMeasuringBlock(dataPart) ?? decodeTemperatureBytes(dataPart) {
+                return temp
+            }
+        }
+        // Generisches Mode 21: "61" + 2 Hex Block-ID + Daten
+        if let range = compact.range(of: "61") {
+            let after = String(compact[range.upperBound...])
+            if after.count >= 4 {
+                let dataPart = String(after.dropFirst(2))
+                if let temp = decodeVAGMeasuringBlock(dataPart) ?? decodeTemperatureBytes(dataPart) {
+                    return temp
+                }
             }
         }
 
