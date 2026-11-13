@@ -14,6 +14,7 @@ public enum PerformanceRunState: String {
     case aborted   = "Abgebrochen"
 }
 
+@MainActor
 public final class OBDPerformanceTimer: ObservableObject {
     public static let shared = OBDPerformanceTimer()
 
@@ -60,7 +61,6 @@ public final class OBDPerformanceTimer: ObservableObject {
     }
 
     /// Wird bei jedem Eintreffen einer neuen Geschwindigkeit (PID 01 0D) aufgerufen
-    @MainActor
     public func updateSpeed(_ speed: Int) {
         liveSpeed = speed
         guard isEnabled else {
@@ -71,6 +71,9 @@ public final class OBDPerformanceTimer: ObservableObject {
         let now = CFAbsoluteTimeGetCurrent()
 
         switch state {
+        case .disabled:
+            isDedicatedSpeedPollingRequired = false
+
         case .idle, .completed, .aborted:
             if speed == 0 {
                 if stoppedAtZeroTimestamp == nil {

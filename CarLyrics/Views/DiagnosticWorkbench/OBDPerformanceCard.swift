@@ -191,6 +191,7 @@ public struct OBDPerformanceCard: View {
 
     private var statusColor: Color {
         switch timer.state {
+        case .disabled:  return .secondary
         case .idle:      return .secondary
         case .armed:     return .green
         case .running:   return .yellow
