@@ -11,7 +11,7 @@ public struct HandyLayoutStudioSettingsView: View {
 
     @AppStorage("carlyrics_studio_edit_mode") private var isEditModeActive: Bool = false
     @AppStorage("carlyrics_boost_bar_style")  private var boostBarStyle: String = "standard"
-    @AppStorage("carlyrics_widget_order")     private var widgetOrderRaw: String = "w_gt3,w_lyrics,w_gauges,w_gforce,w_stats"
+    @AppStorage("carlyrics_widget_order")     private var widgetOrderRaw: String = "w_lyrics,w_gauges,w_gforce,w_stats"
 
     @State private var copiedSuccess: Bool = false
     @State private var undoSuccess: Bool = false
@@ -22,13 +22,11 @@ public struct HandyLayoutStudioSettingsView: View {
     }
 
     private var widgets: [String] {
-        widgetOrderRaw.components(separatedBy: ",").filter { !$0.isEmpty }
+        widgetOrderRaw.components(separatedBy: ",").filter { !$0.isEmpty && $0 != "w_gt3" }
     }
 
     private func widgetTitle(_ id: String) -> (title: String, icon: String, subtitle: String) {
         switch id {
-        case "w_gt3":
-            return ("Porsche GT3 RS Torque", "gauge.with.needle.fill", "Performance Silhouette & Nm-Kurve")
         case "w_lyrics":
             return ("Spotify CarPlay Lyrics", "music.note.list", "Synchronisierte Live-Songtexte")
         case "w_gauges":
@@ -271,8 +269,9 @@ public struct HandyLayoutStudioSettingsView: View {
 
     private func resetToDefault() {
         saveToHistory()
-        widgetOrderRaw = "w_gt3,w_lyrics,w_gauges,w_gforce,w_stats"
+        widgetOrderRaw = "w_lyrics,w_gauges,w_gforce,w_stats"
         boostBarStyle = "standard"
+        HandyLayoutStudioManager.shared.resetAll()
     }
 
     private func copyLayoutJSON() {
@@ -281,6 +280,12 @@ public struct HandyLayoutStudioSettingsView: View {
             "widgetsOrder": widgets,
             "boostBarStyle": boostBarStyle,
             "editModeActive": isEditModeActive,
+            "transforms": HandyLayoutStudioManager.shared.transforms.mapValues { [
+                "x": $0.x,
+                "y": $0.y,
+                "widthOffset": $0.widthOffset,
+                "heightOffset": $0.heightOffset
+            ] },
             "timestamp": ISO8601DateFormatter().string(from: Date())
         ]
         if let data = try? JSONSerialization.data(withJSONObject: jsonDict, options: .prettyPrinted),

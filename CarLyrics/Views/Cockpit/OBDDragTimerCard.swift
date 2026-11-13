@@ -19,18 +19,30 @@ public struct OBDDragTimerCard: View {
                 GlassCard {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
-                            Label("0–100 km/h Drag Timer", systemImage: "stopwatch.fill")
-                                .font(.headline)
-                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Label("0–100 km/h Drag Timer", systemImage: "stopwatch.fill")
+                                    .font(.headline)
+                                    .foregroundStyle(.green)
+                                Text(timer.isEnabled ? "Messung scharfgeschaltet (Launch bereit bei 0 km/h)" : "Inaktiv – schalte ein für 0–100 Messung")
+                                    .font(.caption2)
+                                    .foregroundStyle(timer.isEnabled ? .green : .secondary)
+                            }
                             Spacer()
-                            if timer.isDedicatedSpeedPollingRequired {
-                                Text("⚡ 100% PRIO SPEED")
+                            Toggle("", isOn: $timer.isEnabled)
+                                .labelsHidden()
+                                .tint(.green)
+                        }
+
+                        if timer.isDedicatedSpeedPollingRequired {
+                            HStack {
+                                Text("⚡ 100% OBD BANDBREITE FÜR SPEED")
                                     .font(.system(size: 9, weight: .black))
                                     .foregroundStyle(.green)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.2), in: Capsule())
+                                Spacer()
                             }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.green.opacity(0.15), in: Capsule())
                         }
 
                         // Status Banner
@@ -53,8 +65,8 @@ public struct OBDDragTimerCard: View {
                         VStack(spacing: 4) {
                             Text(timeDisplayString)
                                 .font(.system(size: 54, weight: .black, design: .monospaced))
-                                .foregroundStyle(timer.state == .completed ? .green : .white)
-                            Text(timer.state == .running ? "ZEIT LÄUFT… (100% OBD PRIO)" : (timer.state == .completed ? "0–100 GEMESSEN" : "BEREIT FÜR LAUNCH"))
+                                .foregroundStyle(timer.state == .completed ? .green : (timer.isEnabled ? .white : .secondary))
+                            Text(timer.state == .running ? "ZEIT LÄUFT… (100% OBD PRIO)" : (timer.state == .completed ? "0–100 GEMESSEN" : (timer.isEnabled ? "BEREIT FÜR LAUNCH" : "SCHALTER AUS (KEINE UNTERBRECHUNG)")))
                                 .font(.caption.bold())
                                 .foregroundStyle(.secondary)
                         }
@@ -102,18 +114,22 @@ public struct OBDDragTimerCard: View {
                         }
 
                         HStack {
-                            Text("Bleibe kurz bei 0 km/h stehen (schaltet automatisch 'Launch bereit' ein). Sobald du losfährst, stoppt die App die Zeit mit 100% Sensor-Priorität!")
+                            Text(timer.isEnabled
+                                ? "Bleibe kurz bei 0 km/h stehen (schaltet auf 'Launch bereit'). Sobald du losfährst, stoppt die App die Zeit mit 100% Prio!"
+                                : "Schalte den Schalter oben ein, um eine Messung zu starten. So wird der normale OBD-Betrieb an Ampeln nicht gestört.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Button("Scharf") {
-                                timer.manualArm()
+                            if timer.isEnabled {
+                                Button("Scharf") {
+                                    timer.manualArm()
+                                }
+                                .font(.caption.bold())
+                                .foregroundStyle(.green)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.green.opacity(0.15), in: Capsule())
                             }
-                            .font(.caption.bold())
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Color.green.opacity(0.15), in: Capsule())
                         }
                     }
                 }
@@ -124,6 +140,7 @@ public struct OBDDragTimerCard: View {
 
     private var statusColor: Color {
         switch timer.state {
+        case .disabled:  return .secondary
         case .idle:      return .secondary
         case .armed:     return .green
         case .running:   return .yellow

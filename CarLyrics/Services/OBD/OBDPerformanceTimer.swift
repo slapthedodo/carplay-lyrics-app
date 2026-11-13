@@ -6,6 +6,7 @@
 import Foundation
 
 public enum PerformanceRunState: String {
+    case disabled  = "Inaktiv (Schalter aus)"
     case idle      = "Bereit (Warte auf Stillstand)"
     case armed     = "Launch bereit! (Tritt drauf!)"
     case running   = "Messe 0–100 km/h…"
@@ -16,8 +17,18 @@ public enum PerformanceRunState: String {
 public final class OBDPerformanceTimer: ObservableObject {
     public static let shared = OBDPerformanceTimer()
 
-    @Published public var state: PerformanceRunState = .idle
-    @Published public var isEnabled: Bool = true
+    @Published public var state: PerformanceRunState = .disabled
+    @Published public var isEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isEnabled, forKey: "carlyrics_drag_timer_armed")
+            if !isEnabled {
+                reset()
+                state = .disabled
+            } else if state == .disabled {
+                state = .idle
+            }
+        }
+    }
 
     // ── Live Messdaten ──
     @Published public var liveSpeed: Int = 0
@@ -36,6 +47,11 @@ public final class OBDPerformanceTimer: ObservableObject {
     @Published public var isDedicatedSpeedPollingRequired: Bool = false
 
     public init() {
+        // Scharfschalt-Zustand laden (Standard: AUS)
+        let savedArmed = UserDefaults.standard.bool(forKey: "carlyrics_drag_timer_armed")
+        self.isEnabled = savedArmed
+        self.state = savedArmed ? .idle : .disabled
+
         // Bestzeit laden
         let savedBest = UserDefaults.standard.double(forKey: "CarLyrics_Best_0_100")
         if savedBest > 0.1 {
@@ -46,8 +62,11 @@ public final class OBDPerformanceTimer: ObservableObject {
     /// Wird bei jedem Eintreffen einer neuen Geschwindigkeit (PID 01 0D) aufgerufen
     @MainActor
     public func updateSpeed(_ speed: Int) {
-        guard isEnabled else { return }
         liveSpeed = speed
+        guard isEnabled else {
+            isDedicatedSpeedPollingRequired = false
+            return
+        }
 
         let now = CFAbsoluteTimeGetCurrent()
 

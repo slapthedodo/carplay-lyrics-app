@@ -1,7 +1,7 @@
 // MARK: - HandyModusDynoView.swift
-// SuperFlow WinDyn 1:1 Live Prüfstand-Ansicht für Golf 5 GTI EA113 Stage 1
-// Inspiriert von custom-chips DIN corrected Engine power (hp) Vs. EngSpd
-// Mit Live-RPM-Linie und dynamischen Live-Messpunkten auf den Leistungskurven
+// SuperFlow WinDyn™ V3.2 1:1 Live Prüfstand für Golf 5 GTI EA113 Stage 1
+// Kalibriert nach custom-chips GmbH Prüfbericht (268,9 PS / 392 Nm)
+// Ultra-cleane Vollbild-Ansicht mit schwebenden Live-Pills direkt an den Kurvenpunkten
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -18,32 +18,48 @@ public struct HandyModusDynoView: View {
         self.showCloseButton = showCloseButton
     }
 
-    private let cyanGlow = Color(red: 0.0, green: 0.94, blue: 1.0)
-    private let orangeGlow = Color(red: 1.0, green: 0.6, blue: 0.1)
+    // Farben laut custom-chips SuperFlow WinDyn Original-Prüfbericht:
+    // CEngTq (Drehmoment) = Rot
+    // CEngHp (Leistung)   = Blau
+    private let redTorque = Color(red: 1.0, green: 0.23, blue: 0.19)
+    private let bluePower = Color(red: 0.12, green: 0.58, blue: 1.0)
+    private let cyanGlow  = Color(red: 0.0, green: 0.94, blue: 1.0)
 
     public var body: some View {
         ZStack {
-            Color(red: 0.02, green: 0.03, blue: 0.06).ignoresSafeArea()
+            Color(red: 0.03, green: 0.04, blue: 0.07).ignoresSafeArea()
 
-            VStack(spacing: 12) {
-                // ── 1. Header Banner (SuperFlow WinDyn Style) ──
+            VStack(spacing: 8) {
+                // ── 1. Authentischer SuperFlow WinDyn Banner ──
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("DIN corrected Engine power (hp) Vs. EngSpd")
                             .font(.system(size: 13, weight: .black, design: .monospaced))
                             .foregroundStyle(.white)
 
-                        Text("VW_Golf5_GTI_2.0TFSI_EA113_[customized_Stage1]")
+                        Text("SuperFlow WinDyn™ V3.2 • custom-chips GmbH")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
                             .foregroundStyle(cyanGlow)
 
-                        HStack(spacing: 10) {
-                            Text("● Blau/Cyan: Ausgang 268,9 PS / 395 Nm")
-                                .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(cyanGlow)
-                            Text("● Grau: Serie 200 PS / 280 Nm")
-                                .font(.system(size: 8.5, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Circle().fill(redTorque).frame(width: 6, height: 6)
+                                Text("CEngTq (392 Nm @ 2800)")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(redTorque)
+                            }
+                            HStack(spacing: 4) {
+                                Circle().fill(bluePower).frame(width: 6, height: 6)
+                                Text("CEngHp (268,9 PS @ 6300)")
+                                    .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(bluePower)
+                            }
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.gray).frame(width: 6, height: 6)
+                                Text("Serie (200 PS / 280 Nm)")
+                                    .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
 
@@ -62,134 +78,145 @@ public struct HandyModusDynoView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 14)
+                .padding(.top, 10)
 
-                // ── 2. Live Telemetrie Badges ──
-                HStack(spacing: 10) {
-                    // Live Leistung
-                    VStack(spacing: 2) {
-                        Text("LIVE LEISTUNG")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("\(dyno.livePS)")
-                                .font(.system(size: 26, weight: .black, design: .rounded))
-                                .foregroundStyle(orangeGlow)
-                            Text("PS")
-                                .font(.caption.bold())
-                                .foregroundStyle(orangeGlow)
-                        }
-                        Text("Peak: \(dyno.peakPS) / Ziel: 268,9")
-                            .font(.system(size: 8.5, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-
-                    // Live Drehmoment
-                    VStack(spacing: 2) {
-                        Text("LIVE DREHMOMENT")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("\(dyno.liveNm)")
-                                .font(.system(size: 26, weight: .black, design: .rounded))
-                                .foregroundStyle(cyanGlow)
-                            Text("Nm")
-                                .font(.caption.bold())
-                                .foregroundStyle(cyanGlow)
-                        }
-                        Text("Peak: \(dyno.peakNm) / Ziel: 395")
-                            .font(.system(size: 8.5, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.08), lineWidth: 1))
-                }
-                .padding(.horizontal, 16)
-
-                // ── 3. Authentischer Prüfstand-Graph mit Live-Linie ──
+                // ── 2. Vollbild WinDyn Prüfstand-Graph ──
                 GeometryReader { geo in
                     let w = geo.size.width
                     let h = geo.size.height
+                    let left: CGFloat = 40
+                    let right = w - 16
+                    let top: CGFloat = 16
+                    let bottom = h - 26
+                    let plotW = right - left
+                    let plotH = bottom - top
 
-                    ZStack {
-                        // Raster & Achsen
+                    ZStack(alignment: .topLeading) {
+                        // Raster & Achsenbeschriftung
                         DynoGridBackground(width: w, height: h)
 
                         // Serienkurven (Grau gestrichelt)
                         StockDynoCurves(width: w, height: h)
 
-                        // Stage 1 Drehmoment-Kurve (Cyan / Blau)
+                        // Stage 1 Drehmoment-Kurve: ROT (392 Nm Peak @ 2800)
                         Stage1TorquePath(width: w, height: h)
-                            .stroke(cyanGlow, style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round))
-                            .shadow(color: cyanGlow.opacity(0.6), radius: 5)
+                            .stroke(redTorque, style: StrokeStyle(lineWidth: 3.0, lineCap: .round, lineJoin: .round))
+                            .shadow(color: redTorque.opacity(0.65), radius: 6)
 
-                        // Stage 1 Leistungskurve (Orange / Gelb)
+                        // Stage 1 Leistungskurve: BLAU (268.9 PS Peak @ 6300)
                         Stage1PowerPath(width: w, height: h)
-                            .stroke(orangeGlow, style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round))
-                            .shadow(color: orangeGlow.opacity(0.6), radius: 5)
+                            .stroke(bluePower, style: StrokeStyle(lineWidth: 3.0, lineCap: .round, lineJoin: .round))
+                            .shadow(color: bluePower.opacity(0.65), radius: 6)
 
-                        // ── DYNAMISCHE LIVE-LINIE AN DER AKTUELLEN DREHZAHL ──
-                        let rpmClamped = max(1500, min(7000, Double(obd.liveRPM)))
-                        let xRatio = (rpmClamped - 1500.0) / 5500.0
-                        let xPos = 42.0 + (xRatio * (w - 62.0))
+                        // ── LIVE-MESSUNG & SCHWEBENDE PILLS DIREKT AN DEN PUNKTEN ──
+                        let currentRPM = Double(obd.liveRPM)
+                        let isUnder1700 = currentRPM < 1700
 
-                        // Vertikale Sweep-Linie
-                        Path { path in
-                            path.move(to: CGPoint(x: xPos, y: 15))
-                            path.addLine(to: CGPoint(x: xPos, y: h - 25))
+                        // X-Position für Sweep-Linie
+                        let rpmForDisplay = isUnder1700 ? 2800.0 : max(1500, min(7000, currentRPM))
+                        let xRatio = (rpmForDisplay - 1500.0) / 5500.0
+                        let xSweep = left + (xRatio * plotW)
+
+                        // Vertikale Sweep-Linie (nur wenn Motor dreht >1700)
+                        if !isUnder1700 {
+                            Path { path in
+                                path.move(to: CGPoint(x: xSweep, y: top))
+                                path.addLine(to: CGPoint(x: xSweep, y: bottom))
+                            }
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                            .shadow(color: .white.opacity(0.5), radius: 3)
                         }
-                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
-                        .shadow(color: cyanGlow, radius: 4)
 
-                        // Live-Punkt auf Drehmoment
-                        let nmY = (h - 25.0) - (min(450.0, Double(dyno.liveNm)) / 450.0) * (h - 40.0)
-                        Circle()
-                            .fill(cyanGlow)
-                            .frame(width: 9, height: 9)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                            .shadow(color: cyanGlow, radius: 6)
-                            .position(x: xPos, y: nmY)
+                        // ── DREHMOMENT PUNKT + SCHWEBENDER PILL (ROT) ──
+                        let displayNm = isUnder1700 ? dyno.peakNm : (dyno.liveNm > 0 ? dyno.liveNm : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).nm)))
+                        let nmRPM = isUnder1700 ? 2800.0 : currentRPM
+                        let nmX = left + (((max(1500, min(7000, nmRPM)) - 1500.0) / 5500.0) * plotW)
+                        let nmY = bottom - (min(450.0, Double(displayNm)) / 450.0 * plotH)
 
-                        // Live-Punkt auf Leistung
-                        let psY = (h - 25.0) - (min(450.0, Double(dyno.livePS)) / 450.0) * (h - 40.0)
+                        // Roter Live-Punkt
                         Circle()
-                            .fill(orangeGlow)
-                            .frame(width: 9, height: 9)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-                            .shadow(color: orangeGlow, radius: 6)
-                            .position(x: xPos, y: psY)
+                            .fill(redTorque)
+                            .frame(width: 10, height: 10)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .shadow(color: redTorque, radius: 8)
+                            .position(x: nmX, y: nmY)
+
+                        // Schwebender Pill direkt am Punkt
+                        HStack(spacing: 3) {
+                            Text(isUnder1700 ? "PEAK" : "LIVE")
+                                .font(.system(size: 7.5, weight: .black))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                            Text("\(displayNm) Nm")
+                                .font(.system(size: 11, weight: .black, design: .monospaced))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3.5)
+                        .background(redTorque.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.6), lineWidth: 1))
+                        .shadow(color: redTorque.opacity(0.7), radius: 6)
+                        .position(x: min(right - 45, max(left + 45, nmX)), y: max(top + 18, nmY - 20))
+
+                        // ── LEISTUNG PUNKT + SCHWEBENDER PILL (BLAU) ──
+                        let displayPS = isUnder1700 ? dyno.peakPS : (dyno.livePS > 0 ? dyno.livePS : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).ps)))
+                        let psRPM = isUnder1700 ? 6300.0 : currentRPM
+                        let psX = left + (((max(1500, min(7000, psRPM)) - 1500.0) / 5500.0) * plotW)
+                        let psY = bottom - (min(450.0, Double(displayPS)) / 450.0 * plotH)
+
+                        // Blauer Live-Punkt
+                        Circle()
+                            .fill(bluePower)
+                            .frame(width: 10, height: 10)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2))
+                            .shadow(color: bluePower, radius: 8)
+                            .position(x: psX, y: psY)
+
+                        // Schwebender Pill direkt am Punkt
+                        HStack(spacing: 3) {
+                            Text(isUnder1700 ? "PEAK" : "LIVE")
+                                .font(.system(size: 7.5, weight: .black))
+                                .foregroundStyle(Color.white.opacity(0.7))
+                            Text("\(displayPS) PS")
+                                .font(.system(size: 11, weight: .black, design: .monospaced))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3.5)
+                        .background(bluePower.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.6), lineWidth: 1))
+                        .shadow(color: bluePower.opacity(0.7), radius: 6)
+                        .position(x: min(right - 45, max(left + 45, psX)), y: max(top + 18, psY - 20))
                     }
                 }
-                .padding(.horizontal, 12)
-                .frame(maxHeight: 330)
+                .padding(.horizontal, 10)
+                .frame(maxHeight: .infinity)
 
-                // ── 4. Footer & Peak Reset ──
+                // ── 3. Footer mit Peak Reset ──
                 HStack {
-                    Text("custom-chips GmbH • SuperFlow WinDyn™ • Bosch MED9.1")
+                    Text("VW Golf 5 GTI 2.0 TFSI EA113 • Bosch MED9.1 Stage 1")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button("Peaks Reset") {
+                    Button {
                         dyno.resetPeaks()
+                    } label: {
+                        Text("Reset Peaks")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(cyanGlow)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.cyan.opacity(0.12), in: Capsule())
                     }
-                    .font(.caption.bold())
-                    .foregroundStyle(cyanGlow)
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 10)
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: Subviews für Prüfstand Raster & Kurven
+// MARK: Subviews für WinDyn Raster & Kurven
 // ─────────────────────────────────────────────────────────────────────────────
 
 private struct DynoGridBackground: View {
@@ -198,10 +225,10 @@ private struct DynoGridBackground: View {
 
     var body: some View {
         Canvas { context, size in
-            let left: CGFloat = 42
-            let right = size.width - 20
-            let top: CGFloat = 15
-            let bottom = size.height - 25
+            let left: CGFloat = 40
+            let right = size.width - 16
+            let top: CGFloat = 16
+            let bottom = size.height - 26
             let plotW = right - left
             let plotH = bottom - top
 
@@ -217,7 +244,7 @@ private struct DynoGridBackground: View {
                 let text = Text("\(val)")
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundColor(Color.gray)
-                context.draw(text, at: CGPoint(x: 22, y: y))
+                context.draw(text, at: CGPoint(x: 20, y: y))
             }
 
             // Raster vertikal (1500 bis 7000 RPM)
@@ -249,28 +276,44 @@ private struct StockDynoCurves: View {
 
     var body: some View {
         Path { path in
-            let left: CGFloat = 42
-            let plotW = width - 62
-            let bottom = height - 25
-            let plotH = bottom - 15
+            let left: CGFloat = 40
+            let plotW = width - 56
+            let bottom = height - 26
+            let plotH = bottom - 16
 
-            // Serie Drehmoment (~280 Nm)
-            path.move(to: CGPoint(x: left, y: bottom - (220.0 / 450.0 * plotH)))
-            path.addQuadCurve(to: CGPoint(x: left + (1000.0 / 5500.0 * plotW), y: bottom - (280.0 / 450.0 * plotH)),
-                              control: CGPoint(x: left + 30, y: bottom - (270.0 / 450.0 * plotH)))
-            path.addLine(to: CGPoint(x: left + (2700.0 / 5500.0 * plotW), y: bottom - (280.0 / 450.0 * plotH)))
-            path.addLine(to: CGPoint(x: left + (4500.0 / 5500.0 * plotW), y: bottom - (220.0 / 450.0 * plotH)))
+            func pt(_ rpm: Double, _ val: Double) -> CGPoint {
+                let x = left + ((rpm - 1500.0) / 5500.0 * plotW)
+                let y = bottom - (val / 450.0 * plotH)
+                return CGPoint(x: x, y: y)
+            }
+
+            // Serie Drehmoment (280 Nm ab 1800 bis 5000)
+            path.move(to: pt(1500, 220))
+            path.addLine(to: pt(1800, 280))
+            path.addLine(to: pt(5000, 280))
+            path.addLine(to: pt(6000, 220))
+            path.addLine(to: pt(6700, 160))
+
+            // Serie Leistung (200 PS @ 5100–6000)
+            path.move(to: pt(1500, 45))
+            path.addLine(to: pt(2800, 110))
+            path.addLine(to: pt(4000, 160))
+            path.addLine(to: pt(5100, 200))
+            path.addLine(to: pt(6000, 200))
+            path.addLine(to: pt(6700, 150))
         }
-        .stroke(Color.gray.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+        .stroke(Color.gray.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
     }
 }
 
+/// Stage 1 Drehmoment laut custom-chips Prüfbericht (Rot):
+/// 1750 U/min = 260 Nm, 2800 U/min = 392 Nm (Peak!), 4500 U/min = 352 Nm, 6300 U/min = 245 Nm
 private func Stage1TorquePath(width: CGFloat, height: CGFloat) -> Path {
     Path { path in
-        let left: CGFloat = 42
-        let plotW = width - 62
-        let bottom = height - 25
-        let plotH = bottom - 15
+        let left: CGFloat = 40
+        let plotW = width - 56
+        let bottom = height - 26
+        let plotH = bottom - 16
 
         func pt(_ rpm: Double, _ val: Double) -> CGPoint {
             let x = left + ((rpm - 1500.0) / 5500.0 * plotW)
@@ -278,22 +321,25 @@ private func Stage1TorquePath(width: CGFloat, height: CGFloat) -> Path {
             return CGPoint(x: x, y: y)
         }
 
-        path.move(to: pt(1500, 240))
-        path.addCurve(to: pt(2800, 395), control1: pt(1900, 310), control2: pt(2400, 385))
-        path.addLine(to: pt(3500, 395))
-        path.addLine(to: pt(4200, 390))
-        path.addCurve(to: pt(6000, 315), control1: pt(4800, 375), control2: pt(5500, 340))
-        path.addLine(to: pt(6500, 275))
-        path.addLine(to: pt(6700, 90))
+        path.move(to: pt(1750, 260))
+        path.addCurve(to: pt(2800, 392), control1: pt(2100, 310), control2: pt(2450, 385))
+        path.addLine(to: pt(3500, 370))
+        path.addLine(to: pt(4500, 352))
+        path.addCurve(to: pt(5500, 300), control1: pt(4900, 335), control2: pt(5200, 315))
+        path.addLine(to: pt(6300, 245))
+        path.addLine(to: pt(6700, 220))
+        path.addLine(to: pt(6800, 100))
     }
 }
 
+/// Stage 1 Leistung laut custom-chips Prüfbericht (Blau):
+/// 1750 U/min = 65 PS, 2800 U/min = 156 PS, 4500 U/min = 225 PS, 5500 U/min = 248 PS, 6300 U/min = 268,9 PS (Peak!)
 private func Stage1PowerPath(width: CGFloat, height: CGFloat) -> Path {
     Path { path in
-        let left: CGFloat = 42
-        let plotW = width - 62
-        let bottom = height - 25
-        let plotH = bottom - 15
+        let left: CGFloat = 40
+        let plotW = width - 56
+        let bottom = height - 26
+        let plotH = bottom - 16
 
         func pt(_ rpm: Double, _ val: Double) -> CGPoint {
             let x = left + ((rpm - 1500.0) / 5500.0 * plotW)
@@ -301,10 +347,13 @@ private func Stage1PowerPath(width: CGFloat, height: CGFloat) -> Path {
             return CGPoint(x: x, y: y)
         }
 
-        path.move(to: pt(1500, 52))
-        path.addCurve(to: pt(3500, 195), control1: pt(2000, 88), control2: pt(2800, 155))
-        path.addCurve(to: pt(5900, 268.9), control1: pt(4400, 242), control2: pt(5200, 262))
-        path.addLine(to: pt(6400, 258))
-        path.addLine(to: pt(6700, 85))
+        path.move(to: pt(1750, 65))
+        path.addCurve(to: pt(2800, 156), control1: pt(2100, 95), control2: pt(2450, 130))
+        path.addLine(to: pt(4500, 225))
+        path.addLine(to: pt(5500, 248))
+        path.addCurve(to: pt(6300, 268.9), control1: pt(5800, 258), control2: pt(6100, 266))
+        path.addLine(to: pt(6600, 265))
+        path.addLine(to: pt(6700, 255))
+        path.addLine(to: pt(6800, 95))
     }
 }

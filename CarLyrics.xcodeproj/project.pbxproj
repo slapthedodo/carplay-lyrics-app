@@ -250,6 +250,7 @@
 		97C1B02A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EA113DynoCalculator.swift; path = EA113DynoCalculator.swift; sourceTree = "<group>"; };
 		97C1B02B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPerformanceTimer.swift; path = OBDPerformanceTimer.swift; sourceTree = "<group>"; };
 		97C1B02C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDTCScanner.swift; path = OBDDTCScanner.swift; sourceTree = "<group>"; };
+		97C1B02D2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyLayoutStudioManager.swift; path = HandyLayoutStudioManager.swift; sourceTree = "<group>"; };
 
 		/* Cockpit Views */
 		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
@@ -335,6 +336,7 @@
 				97C1E04A2A000001, /* EA113DynoCalculator.swift */
 				97C1E04B2A000001, /* OBDPerformanceTimer.swift */
 				97C1E04C2A000001, /* OBDDTCScanner.swift */
+				97C1E04D2A000001, /* HandyLayoutStudioManager.swift */
 				97C1E0502A000001, /* CockpitUIComponents.swift */
 				97C1E0512A000001, /* NowPlayingCard.swift */
 				97C1E0522A000001, /* LyricsCard.swift */
@@ -463,6 +465,7 @@
 		97C1E04A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02A2A000001; };
 		97C1E04B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02B2A000001; };
 		97C1E04C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02C2A000001; };
+		97C1E04D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02D2A000001; };
 
 		/* Cockpit Views */
 		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
@@ -568,6 +571,7 @@
 				97C1B0092A000001, /* MotionManager.swift */
 				97C1B00A2A000001, /* BackgroundKeepAliveManager.swift */
 				97C1B00B2A000001, /* SpotifyManager.swift */
+				97C1B02D2A000001, /* HandyLayoutStudioManager.swift */
 				97C1F0102A000001, /* OBD */
 			);
 			name = Services;
