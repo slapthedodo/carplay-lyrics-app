@@ -14,7 +14,6 @@ public enum PerformanceRunState: String {
     case aborted   = "Abgebrochen"
 }
 
-@MainActor
 public final class OBDPerformanceTimer: ObservableObject {
     public static let shared = OBDPerformanceTimer()
 
@@ -129,7 +128,6 @@ public final class OBDPerformanceTimer: ObservableObject {
         }
     }
 
-    @MainActor
     public func manualArm() {
         state = .armed
         currentElapsedTime = 0.0
@@ -138,7 +136,6 @@ public final class OBDPerformanceTimer: ObservableObject {
         stoppedAtZeroTimestamp = CFAbsoluteTimeGetCurrent()
     }
 
-    @MainActor
     public func reset() {
         state = .idle
         currentElapsedTime = 0.0
