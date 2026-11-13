@@ -25,7 +25,23 @@ extension OBDManager {
     ///         "PROTO:X||CMD" = Protokoll wechseln zu X, dann CMD senden
     internal static let oilTempProbeMethods: [OilTempProbeStatus] = [
 
-        // ── 1. SAE Standard PID 015C ────────────────────────────────────────
+        // ── 1. VW TP 2.0 Tacho (Adresse 0x17 + MWB 050) ★★★ ─────────────────
+        // Öffnet VW TP 2.0 Kanal via CAN-ID 0x200 zum Kombiinstrument (0x17),
+        // liest Messwertblock 50 (Ölsensor G266) direkt aus dem Tacho!
+        OilTempProbeStatus(
+            methodName: "VW TP 2.0 Tacho (0x17 + MWB 50 ★★★)",
+            command: "TP20:17:32"
+        ),
+
+        // ── 2. VW TP 2.0 Motor (Adresse 0x01 + MWB 134) ★★★ ─────────────────
+        // Öffnet VW TP 2.0 Kanal via CAN-ID 0x200 zum Motorsteuergerät (0x01),
+        // liest Messwertblock 134 (Feld 1 = Öltemperatur G266)!
+        OilTempProbeStatus(
+            methodName: "VW TP 2.0 Motor (0x01 + MWB 134 ★★★)",
+            command: "TP20:01:86"
+        ),
+
+        // ── 3. SAE Standard PID 015C ────────────────────────────────────────
         OilTempProbeStatus(
             methodName: "OBD Standard 015C (SAE J1979)",
             command: "015C"
@@ -269,6 +285,11 @@ extension OBDManager {
     private func probeOilTempMethod(_ method: OilTempProbeStatus) async -> OilTempProbeResult {
         let cmd = method.command
 
+        // Spezialfall: VW TP 2.0 Handshake (z.B. "TP20:17:32" oder "TP20:01:86")
+        if cmd.hasPrefix("TP20:") {
+            return await probeWithVWTP20(method)
+        }
+
         // Spezialfall: Protokoll-Wechsel (z.B. "PROTO:5||015C")
         if cmd.hasPrefix("PROTO:") {
             return await probeWithProtocolSwitch(method)
@@ -352,6 +373,104 @@ extension OBDManager {
             parsedValue: parsed,
             success: parsed != nil,
             isNoData: compact.contains("NODATA") || compact.contains("NO DATA")
+        )
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MARK: VW TP 2.0 Handshake (Kombiinstrument 0x17 / Motor 0x01)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    @MainActor
+    private func probeWithVWTP20(_ method: OilTempProbeStatus) async -> OilTempProbeResult {
+        let parts = method.command.components(separatedBy: ":")
+        guard parts.count == 3 else {
+            return OilTempProbeResult(rawResponse: "Formatfehler", parsedValue: nil, success: false, isNoData: false)
+        }
+        let dest = parts[1].uppercased()   // "17" (Tacho) oder "01" (Motor)
+        let block = parts[2].uppercased()  // "32" (MWB 50) oder "86" (MWB 134)
+
+        logSystem("   [TP2.0] Starte VW TP 2.0 Handshake für Modul 0x\(dest)…")
+
+        // 1. ELM327 für Raw CAN vorbereiten (Auto Formatting AUS)
+        _ = await sendSingleOBDCommand("ATCAF0", timeout: 1.5)
+        _ = await sendSingleOBDCommand("ATAL", timeout: 1.5)
+        _ = await sendSingleOBDCommand("ATCSM1", timeout: 1.5)
+
+        // 2. Header auf VW Gateway (0x200) setzen
+        _ = await sendSingleOBDCommand("ATSH200", timeout: 1.5)
+
+        // 3. Empfangsfilter für Modul-Antwort (200 + Dest)
+        let rxFilter = "2" + dest // z.B. 217 für Tacho 17, 201 für Motor 01
+        _ = await sendSingleOBDCommand("ATCRA\(rxFilter)", timeout: 1.5)
+
+        // 4. Kanalaufbau-Befehl senden: [Dest] C0 00 10 00 03 01
+        let setupCmd = "\(dest)C00010000301"
+        let setupResp = await sendSingleOBDCommand(setupCmd, timeout: 2.5)
+        logSystem("   [TP2.0] Gateway Setup: \(setupCmd) → \(setupResp)")
+
+        let cleanSetup = setupResp.replacingOccurrences(of: " ", with: "")
+                                  .replacingOccurrences(of: "\r", with: "")
+                                  .replacingOccurrences(of: "\n", with: "")
+                                  .uppercased()
+
+        // Prüfung: Antwort muss D0 enthalten (Kanalbestätigung)
+        guard cleanSetup.contains("D0") else {
+            // Restore defaults
+            _ = await sendSingleOBDCommand("ATCAF1", timeout: 1.0)
+            _ = await sendSingleOBDCommand("ATAR", timeout: 1.0)
+            _ = await sendSingleOBDCommand("ATSH7DF", timeout: 1.0)
+            let isNoData = cleanSetup.contains("NODATA") || cleanSetup.contains("NO DATA") || cleanSetup.contains("?")
+            return OilTempProbeResult(rawResponse: setupResp, parsedValue: nil, success: false, isNoData: isNoData)
+        }
+
+        logSystem("   [TP2.0] ✅ Kanal offen! Antwort: \(cleanSetup)")
+
+        // 5. Dynamische Tx / Rx CAN-IDs ermitteln
+        var txID = "740"
+        var rxID = "300"
+
+        if let d0Range = cleanSetup.range(of: "D0") {
+            let afterD0 = String(cleanSetup[d0Range.upperBound...])
+            if afterD0.count >= 8 {
+                let rxL = String(afterD0.prefix(2))
+                let rxH = String(afterD0.dropFirst(2).prefix(2))
+                let txL = String(afterD0.dropFirst(4).prefix(2))
+                let txH = String(afterD0.dropFirst(6).prefix(2))
+
+                if let rxVal = UInt16(rxH + rxL, radix: 16), rxVal > 0 {
+                    rxID = String(format: "%X", rxVal)
+                }
+                if let txVal = UInt16(txH + txL, radix: 16), txVal > 0 {
+                    txID = String(format: "%X", txVal)
+                }
+            }
+        }
+        logSystem("   [TP2.0] Dynamische CAN-IDs: Tx=0x\(txID), Rx=0x\(rxID)")
+
+        // 6. Header auf dynamische Tx-ID und Empfangsfilter auf Rx-ID
+        _ = await sendSingleOBDCommand("ATSH\(txID)", timeout: 1.5)
+        _ = await sendSingleOBDCommand("ATCRA\(rxID)", timeout: 1.5)
+
+        // 7. KWP2000 MWB Anfrage senden: 10 02 21 [Block]
+        let kwpCmd = "100221\(block)"
+        let kwpResp = await sendSingleOBDCommand(kwpCmd, timeout: 2.5)
+        logSystem("   [TP2.0] KWP2000 MWB \(block): \(kwpCmd) → \(kwpResp)")
+
+        // 8. Restore defaults
+        _ = await sendSingleOBDCommand("ATCAF1", timeout: 1.0)
+        _ = await sendSingleOBDCommand("ATAR", timeout: 1.0)
+        _ = await sendSingleOBDCommand("ATSH7DF", timeout: 1.0)
+
+        // 9. Auswerten
+        let parsed = parseOilTempFromResponse(kwpResp, pid: "21" + block)
+                  ?? decodeVAGMeasuringBlock(kwpResp.replacingOccurrences(of: " ", with: ""))
+        let compactKwp = kwpResp.uppercased()
+
+        return OilTempProbeResult(
+            rawResponse: kwpResp,
+            parsedValue: parsed,
+            success: parsed != nil,
+            isNoData: compactKwp.contains("NODATA") || compactKwp.contains("NO DATA") || compactKwp.contains("?")
         )
     }
 

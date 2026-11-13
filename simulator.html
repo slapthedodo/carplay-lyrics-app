@@ -1851,14 +1851,17 @@
 
         function simulateOilProbe() {
             const el = document.getElementById('probeResults');
-            el.innerHTML = '<div style="color:var(--yellow); padding:6px 0;">Teste Methoden...</div>';
+            el.innerHTML = '<div style="color:var(--yellow); padding:6px 0;">Teste VW TP 2.0 Handshake (CAN 0x200)...</div>';
             setTimeout(() => {
                 el.innerHTML = `
                     <div style="color:var(--green); font-weight:bold;">
-                        2. KWP2000 MWB 134 + 1089 (OBDeleven): 84°C [ERFOLG! ✓]
+                        1. VW TP 2.0 Tacho (0x17 + MWB 50): 84°C [ERFOLG! ✓]
+                    </div>
+                    <div style="font-size:9.5px; color:var(--text-sub); margin-top:4px;">
+                        Gateway Setup 17C00010000301 → 00D0... Kanal offen! MWB 50 Geber G266 gelesen.
                     </div>
                 `;
-                document.getElementById('valOil').innerText = '84°C (KWP2000)';
+                document.getElementById('valOil').innerText = '84°C (TP 2.0)';
                 document.getElementById('handyGridOil').innerText = '84°C';
                 document.getElementById('islandOil').innerText = 'ÖL 84°C';
             }, 800);
