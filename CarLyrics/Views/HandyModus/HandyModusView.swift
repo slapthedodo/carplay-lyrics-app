@@ -136,6 +136,15 @@ public struct HandyModusView: View {
                                         mainGaugesRow
                                     }
 
+                                    // ── 3b. Live WinDyn Prüfstand Widget ───────────────────
+                                    FreeformStudioItem(id: "w_dyno", title: "Live Dyno Stand") {
+                                        HandyModusDynoMiniCard(obd: obd) {
+                                            withAnimation(.easeInOut(duration: 0.25)) {
+                                                portraitMode = .dyno
+                                            }
+                                        }
+                                    }
+
                                     // ── 4. G-Kräfte Panel ────────────────────────────────
                                     FreeformStudioItem(id: "w_gforce", title: "G-Kräfte Radar") {
                                         HandyModusGForcePanel(motion: motion)
@@ -155,6 +164,7 @@ public struct HandyModusView: View {
                                 }
                                 .padding(.horizontal, 14)
                             }
+                            .scrollDisabled(studio.isEditModeActive && !studio.isScrollModeInStudio)
                         }
                     }
                 }
@@ -260,33 +270,52 @@ public struct HandyModusView: View {
     }
 
     private var studioControlBar: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "pencil.and.ruler.fill")
                 .foregroundStyle(.cyan)
-                .font(.system(size: 12))
-            Text("Studio: Frei bewegen & ziehen")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
+                .font(.system(size: 11))
+
+            // Modus-Umschalter: Verschieben vs. Scrollen
+            Button {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    studio.isScrollModeInStudio.toggle()
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: studio.isScrollModeInStudio ? "hand.draw.fill" : "arrow.up.and.down.and.arrow.left.and.right")
+                    Text(studio.isScrollModeInStudio ? "Scroll-Modus" : "Anordnen")
+                }
+                .font(.system(size: 10, weight: .black, design: .rounded))
+                .foregroundStyle(studio.isScrollModeInStudio ? .black : .cyan)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3.5)
+                .background(studio.isScrollModeInStudio ? Color.yellow : Color.cyan.opacity(0.18), in: Capsule())
+            }
+
             Spacer()
+
             Button("Reset") {
                 withAnimation { studio.resetAll() }
             }
-            .font(.caption2.bold())
+            .font(.system(size: 10, weight: .bold))
             .foregroundStyle(.orange)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3.5)
             .background(Color.orange.opacity(0.15), in: Capsule())
 
             Button("Fertig") {
-                withAnimation { studio.isEditModeActive = false }
+                withAnimation {
+                    studio.selectedWidgetId = nil
+                    studio.isEditModeActive = false
+                }
             }
-            .font(.caption2.bold())
+            .font(.system(size: 10, weight: .bold))
             .foregroundStyle(.green)
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.vertical, 3.5)
             .background(Color.green.opacity(0.15), in: Capsule())
         }
-        .padding(8)
+        .padding(6)
         .background(Color.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.cyan.opacity(0.3), lineWidth: 1))
         .padding(.horizontal, 14)
@@ -446,59 +475,3 @@ public struct HandyModusView: View {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MARK: Kaltstart-Überlastung Warn-Overlay (Rot blinkend)
-// ─────────────────────────────────────────────────────────────────────────────
-
-public struct ColdEngineOverloadFlashOverlay: View {
-    public let title: String
-    public let detail: String
-    @State private var isBlinking = false
-
-    public init(title: String, detail: String) {
-        self.title = title
-        self.detail = detail
-    }
-
-    public var body: some View {
-        ZStack(alignment: .top) {
-            // Rot blinkende Rand-Vignette
-            Rectangle()
-                .strokeBorder(Color.red.opacity(isBlinking ? 0.95 : 0.25), lineWidth: 10)
-                .background(Color.red.opacity(isBlinking ? 0.20 : 0.04))
-                .ignoresSafeArea()
-
-            // Alarm-Banner oben
-            HStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 24, weight: .black))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.bounce, value: isBlinking)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(size: 13, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text(detail)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.95))
-                }
-                Spacer()
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.red.opacity(0.95))
-                    .shadow(color: .red.opacity(0.8), radius: 20)
-            )
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-        }
-        .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.35).repeatForever(autoreverses: true)) {
-                isBlinking = true
-            }
-        }
-    }
-}

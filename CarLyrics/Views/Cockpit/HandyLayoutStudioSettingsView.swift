@@ -11,7 +11,7 @@ public struct HandyLayoutStudioSettingsView: View {
 
     @AppStorage("carlyrics_studio_edit_mode") private var isEditModeActive: Bool = false
     @AppStorage("carlyrics_boost_bar_style")  private var boostBarStyle: String = "standard"
-    @AppStorage("carlyrics_widget_order")     private var widgetOrderRaw: String = "w_lyrics,w_gauges,w_gforce,w_stats"
+    @AppStorage("carlyrics_widget_order")     private var widgetOrderRaw: String = "w_lyrics,w_gauges,w_dyno,w_gforce,w_stats"
 
     @State private var copiedSuccess: Bool = false
     @State private var undoSuccess: Bool = false
@@ -22,7 +22,8 @@ public struct HandyLayoutStudioSettingsView: View {
     }
 
     private var widgets: [String] {
-        widgetOrderRaw.components(separatedBy: ",").filter { !$0.isEmpty && $0 != "w_gt3" }
+        let list = widgetOrderRaw.components(separatedBy: ",").filter { !$0.isEmpty && $0 != "w_gt3" }
+        return list.contains("w_dyno") ? list : list + ["w_dyno"]
     }
 
     private func widgetTitle(_ id: String) -> (title: String, icon: String, subtitle: String) {
@@ -31,6 +32,8 @@ public struct HandyLayoutStudioSettingsView: View {
             return ("Spotify CarPlay Lyrics", "music.note.list", "Synchronisierte Live-Songtexte")
         case "w_gauges":
             return ("Haupt-Gauges (3er Reihe)", "speedometer", "RPM, Ladedruck & Öltemperatur")
+        case "w_dyno":
+            return ("Live Dyno Stand", "waveform.path.ecg", "SuperFlow WinDyn™ 1:1 Prüfstand")
         case "w_gforce":
             return ("G-Kräfte 2D Radar", "circle.dashed", "Quer- & Längsbeschleunigung HUD")
         case "w_stats":
@@ -269,7 +272,7 @@ public struct HandyLayoutStudioSettingsView: View {
 
     private func resetToDefault() {
         saveToHistory()
-        widgetOrderRaw = "w_lyrics,w_gauges,w_gforce,w_stats"
+        widgetOrderRaw = "w_lyrics,w_gauges,w_dyno,w_gforce,w_stats"
         boostBarStyle = "standard"
         HandyLayoutStudioManager.shared.resetAll()
     }
