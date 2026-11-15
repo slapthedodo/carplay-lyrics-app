@@ -39,17 +39,27 @@ jobs:
 
       - name: Package CarLyrics IPA
         run: |
+          # 1. Package full IPA with extensions (preserving symlinks with -y, stripping extended attributes)
           rm -rf Payload
           mkdir -p Payload
-          cp -r build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app Payload/
-          zip -r CarLyrics.ipa Payload
+          cp -R build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app Payload/
+          xattr -cr Payload 2>/dev/null || true
+          find Payload -name ".DS_Store" -delete 2>/dev/null || true
+          zip -qry CarLyrics.ipa Payload
+
+          # 2. Package lightweight IPA without PlugIns (ideal for free Apple IDs / Sideloadly / AltStore)
+          rm -rf Payload/CarLyrics.app/PlugIns
+          codesign --force --deep --sign - Payload/CarLyrics.app 2>/dev/null || true
+          zip -qry CarLyrics-NoExtensions.ipa Payload
           rm -rf Payload
 
       - name: Upload CarLyrics IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CarLyrics-iOS-App
-          path: CarLyrics.ipa
+          path: |
+            CarLyrics.ipa
+            CarLyrics-NoExtensions.ipa
           retention-days: 14
 
       - name: Create or Update GitHub Release for Direct IPA Download
@@ -60,7 +70,9 @@ jobs:
           name: CarLyrics Latest Release
           draft: false
           prerelease: false
+          overwrite_files: true
           files: |
             CarLyrics.ipa
+            CarLyrics-NoExtensions.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

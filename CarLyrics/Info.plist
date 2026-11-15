@@ -17,6 +17,9 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
 
+    <key>CFBundleDisplayName</key>
+    <string>CarLyrics</string>
+
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
 
@@ -24,7 +27,13 @@
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>$(MARKETING_VERSION)</string>
+
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
 
     <!-- ───── Custom URL Scheme (Spotify Callback) ───── -->
     <key>CFBundleURLTypes</key>
@@ -68,9 +77,9 @@
 
     <!-- ───── Bluetooth (OBD-II Dongle) ───── -->
     <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>CarLyrics benötigt Bluetooth, um Live-Motordaten von deinem OBD-II-Adapter (ELM327) auszulesen.</string>
+    <string>CarLyrics benoetigt Bluetooth, um Live-Motordaten von deinem OBD-II-Adapter (ELM327) auszulesen.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
-    <string>CarLyrics verbindet sich mit deinem OBD-II-Adapter für Live-Telemetrie.</string>
+    <string>CarLyrics verbindet sich mit deinem OBD-II-Adapter fuer Live-Telemetrie.</string>
 
     <!-- ───── Background Modes ───── -->
     <!--
