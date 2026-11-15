@@ -15,7 +15,6 @@ public enum PerformanceRunState: String {
     case aborted   = "Abgebrochen"
 }
 
-@MainActor
 public final class OBDPerformanceTimer: ObservableObject {
     public static let shared = OBDPerformanceTimer()
 
@@ -191,10 +190,8 @@ public final class OBDPerformanceTimer: ObservableObject {
     private func startDisplayTicker() {
         stopDisplayTicker()
         displayTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self = self, let start = self.startTimestamp, self.state == .running else { return }
-                self.currentElapsedTime = CFAbsoluteTimeGetCurrent() - start
-            }
+            guard let self = self, let start = self.startTimestamp, self.state == .running else { return }
+            self.currentElapsedTime = CFAbsoluteTimeGetCurrent() - start
         }
         if let timer = displayTimer {
             RunLoop.main.add(timer, forMode: .common)
