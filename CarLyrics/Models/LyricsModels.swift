@@ -284,11 +284,12 @@ public enum TelemetrySharedStore {
     public static let lrcFileName  = "lyrics_lines.json"
 
     private static var sharedDefaults: UserDefaults? {
-        UserDefaults(suiteName: appGroupId)
+        UserDefaults(suiteName: appGroupId) ?? UserDefaults.standard
     }
 
     private static var containerURL: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
+            ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
     }
 
     // ─────────────────────────────────────────────────────────────────────

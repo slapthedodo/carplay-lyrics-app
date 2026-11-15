@@ -43,6 +43,7 @@ jobs:
           rm -rf Payload
           mkdir -p Payload
           cp -R build_carlyrics/Build/Products/Release-iphoneos/CarLyrics.app Payload/
+          chmod -R 755 Payload
           xattr -cr Payload 2>/dev/null || true
           find Payload -name ".DS_Store" -delete 2>/dev/null || true
           zip -qry CarLyrics.ipa Payload
