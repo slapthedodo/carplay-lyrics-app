@@ -36,42 +36,68 @@ public final class EA113DynoCalculator: ObservableObject {
         self.peakNm = savedNm > 0 ? savedNm : 392
     }
 
-    /// Aktualisiert Leistung & Drehmoment basierend auf MAF (g/s), Drehzahl (RPM) und Ladedruck (bar)
+    /// Aktualisiert Leistung & Drehmoment basierend auf MAF (g/s), Drehzahl (RPM), Ladedruck, Gaspedal und Motorlast
     @MainActor
-    public func update(maf: Double?, rpm: Int, boostBar: Double?) {
+    public func update(maf: Double?, rpm: Int, boostBar: Double?, throttle: Int? = nil, engineLoad: Int? = nil) {
         guard rpm > 700 else {
             livePS = 0
             liveNm = 0
             return
         }
 
+        let expected = EA113DynoCalculator.expectedWinDynValues(at: Double(rpm))
+
+        // Volllast-Erkennung (WOT):
+        // Hohe Drosselklappe (>75%), hohe Motorlast (>80%), Ladedruck > 0.8 bar oder starker MAF-Durchsatz (>100 g/s)
+        let isWOT = (throttle != nil && throttle! >= 75) ||
+                    (engineLoad != nil && engineLoad! >= 80) ||
+                    (boostBar != nil && boostBar! >= 0.80) ||
+                    (maf != nil && maf! >= 105.0)
+
         let calculatedPS: Double
+        let calculatedNm: Double
 
-        if let mafVal = maf, mafVal > 3.0 {
-            // Physikalische EA113 Formel: PS ≈ MAF * 1.25 (bei WOT)
-            let basePS = mafVal * 1.25
+        if let mafVal = maf, mafVal > 4.0 {
+            // Soll-Luftmasse laut EA113 Stage 1 Prüfbericht für diese Drehzahl
+            let expectedMAF = max(20.0, expected.ps / 1.25)
+            // Tatsächlicher Durchsatz im Verhältnis zum Prüfstands-Soll
+            let airflowRatio = min(1.15, max(0.15, mafVal / expectedMAF))
 
-            if let boost = boostBar, boost > 0.1 {
-                let boostFactor = min(1.15, max(0.9, 1.0 + (boost - 1.2) * 0.15))
-                calculatedPS = basePS * boostFactor
+            if isWOT {
+                // Bei Volllast: Luftmasse bestimmt, wie nah man an der 100% Stage-1 Kurve liegt
+                let wotPerformanceRatio = min(1.08, max(0.85, airflowRatio))
+                calculatedPS = expected.ps * wotPerformanceRatio
+                calculatedNm = expected.nm * wotPerformanceRatio
             } else {
-                calculatedPS = basePS
+                // Teillast: Proportionale Skalierung
+                let partLoadRatio = min(0.95, max(0.12, airflowRatio))
+                calculatedPS = expected.ps * partLoadRatio
+                calculatedNm = expected.nm * partLoadRatio
             }
-        } else if let boost = boostBar, boost > 0.05 {
-            let pressureRatio = 1.0 + boost
-            let rpmRatio = Double(rpm) / 6000.0
-            calculatedPS = 115.0 * pressureRatio * min(1.0, rpmRatio * 1.1)
+        } else if isWOT {
+            // Fallback wenn MAF kurz aussetzt: Volllast liefert die volle Stage-1 Kurve
+            calculatedPS = expected.ps
+            calculatedNm = expected.nm
         } else {
-            calculatedPS = Double(rpm) / 350.0
+            // Cruising / Standgas
+            let loadRatio = Double(engineLoad ?? throttle ?? 20) / 100.0
+            calculatedPS = max(10.0, expected.ps * loadRatio * 0.45)
+            calculatedNm = (calculatedPS * 7023.5) / max(Double(rpm), 800.0)
         }
-
-        let calculatedNm = (calculatedPS * 7023.5) / max(Double(rpm), 800.0)
 
         let clampedPS = min(310.0, max(0.0, calculatedPS))
         let clampedNm = min(440.0, max(0.0, calculatedNm))
 
-        smoothedPS = (smoothedPS * 0.65) + (clampedPS * 0.35)
-        smoothedNm = (smoothedNm * 0.65) + (clampedNm * 0.35)
+        // Asymmetrischer Schnell-Filter:
+        // Bei Beschleunigung (Leistungsanstieg): 85% neu, 15% alt -> Sofortiges Ansprechen ohne Latenz!
+        // Bei Gaswegnahme: 30% neu, 70% alt -> Weiches, natürliches Ausfedern
+        if clampedPS >= smoothedPS {
+            smoothedPS = (smoothedPS * 0.15) + (clampedPS * 0.85)
+            smoothedNm = (smoothedNm * 0.15) + (clampedNm * 0.85)
+        } else {
+            smoothedPS = (smoothedPS * 0.70) + (clampedPS * 0.30)
+            smoothedNm = (smoothedNm * 0.70) + (clampedNm * 0.30)
+        }
 
         livePS = Int(round(smoothedPS))
         liveNm = Int(round(smoothedNm))

@@ -241,7 +241,13 @@ extension OBDManager {
 
         // 14. Virtual Dyno Aktualisierung (Stage 1 Leistung & Drehmoment)
         Task { @MainActor in
-            EA113DynoCalculator.shared.update(maf: liveMAF, rpm: liveRPM, boostBar: liveBoostBar)
+            EA113DynoCalculator.shared.update(
+                maf: liveMAF,
+                rpm: liveRPM,
+                boostBar: liveBoostBar,
+                throttle: throttlePosition,
+                engineLoad: liveEngineLoad
+            )
         }
 
         // Thermische EGT-Glättung und Kaltstart-Überlastungsprüfung
