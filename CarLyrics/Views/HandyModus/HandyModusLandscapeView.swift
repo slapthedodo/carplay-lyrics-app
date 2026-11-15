@@ -187,17 +187,34 @@ public struct HandyModusLandscapeView: View {
         Group {
             switch layoutMode {
             case .cockpit:
-                // Tri-Zone: Left Powertrain & G-Radar (33.5%) | Center Speed/RPM (34%) | Right Lyrics (32.5%)
+                // Tri-Zone: Left Powertrain & G-Radar (30%) | Center Speed/RPM (36%) | Right Lyrics + Dyno (34%)
+                let leftW = width * 0.30
+                let centerW = width * 0.36
+                let rightW = width * 0.34
+                let vGap: CGFloat = 6
+                let lyricsH = max(90, (height - vGap) * 0.44)
+                let dynoH = max(110, height - lyricsH - vGap)
+
                 HStack(spacing: 0) {
-                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
+                    WidescreenPowertrainPod(obd: obd, motion: motion, width: leftW, height: height)
 
                     divider(height: height)
 
-                    WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
+                    WidescreenTachoConsole(obd: obd, width: centerW, height: height)
 
                     divider(height: height)
 
-                    WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
+                    // Right Column: Top Lyrics + Bottom Dyno Widget (im blauen Bereich)
+                    VStack(spacing: vGap) {
+                        WidescreenLyricsConsole(observer: observer, width: rightW, height: lyricsH)
+
+                        WidescreenDynoPod(obd: obd, width: rightW, height: dynoH) {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                layoutMode = .dyno
+                            }
+                        }
+                    }
+                    .frame(width: rightW, height: height)
                 }
 
             case .lyrics:

@@ -228,8 +228,10 @@ public struct WidescreenPowertrainPod: View {
                     // Header: Text + Nullpunkt-Button direkt rechts daneben
                     HStack(spacing: 5) {
                         Text("G-KRAFT")
-                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .font(.system(size: 8.5, weight: .black, design: .rounded))
                             .foregroundStyle(purple)
+
+                        Spacer()
 
                         Button {
                             motion.calibrate()
@@ -248,12 +250,10 @@ public struct WidescreenPowertrainPod: View {
                             .background(purple.opacity(0.18), in: Capsule())
                         }
                         .disabled(motion.isCalibrating)
-
-                        Spacer(minLength: 0)
                     }
 
                     Text(motion.currentGFormatted)
-                        .font(.system(size: min(22, height * 0.11), weight: .black, design: .monospaced))
+                        .font(.system(size: min(24, height * 0.12), weight: .black, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
 
                     HStack(spacing: 4) {
@@ -265,6 +265,7 @@ public struct WidescreenPowertrainPod: View {
                                 .font(.system(size: 7.5, weight: .bold))
                                 .foregroundStyle(.orange.opacity(0.85))
                         }
+                        Spacer()
                     }
 
                     HStack(spacing: 6) {
@@ -277,7 +278,9 @@ public struct WidescreenPowertrainPod: View {
                             .foregroundStyle(.white.opacity(0.35))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity)
             .padding(.top, 2)
         }
         .padding(.horizontal, 6)
@@ -305,7 +308,7 @@ public struct WidescreenPowertrainPod: View {
                 ZStack(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: 3.5)
                         .fill(Color.white.opacity(0.08))
-                        .frame(width: 18, height: barHeight)
+                        .frame(width: 20, height: barHeight)
                         .overlay(
                             VStack(spacing: 0) {
                                 ForEach(0..<4) { _ in
@@ -323,28 +326,28 @@ public struct WidescreenPowertrainPod: View {
                                 startPoint: .bottom, endPoint: .top
                             )
                         )
-                        .frame(width: 18, height: max(5, barHeight * CGFloat(ratio)))
+                        .frame(width: 20, height: max(5, barHeight * CGFloat(ratio)))
                         .shadow(color: color.opacity(0.80), radius: 6)
                         .animation(.interactiveSpring(response: 0.16), value: ratio)
                 }
 
-                // Digital Readout
+                // Digital Readout (prominent and filling available space)
                 VStack(alignment: .leading, spacing: 2) {
                     Spacer(minLength: 0)
                     Text(valueStr)
-                        .font(.system(size: 15, weight: .black, design: .monospaced))
+                        .font(.system(size: 20, weight: .black, design: .monospaced))
                         .foregroundStyle(color)
-                        .minimumScaleFactor(0.75)
+                        .minimumScaleFactor(0.70)
                         .lineLimit(1)
 
                     Text(unit)
-                        .font(.system(size: 6.5, weight: .black, design: .rounded))
+                        .font(.system(size: 7, weight: .black, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(.white.opacity(0.35))
                         .lineLimit(1)
                     Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 7)

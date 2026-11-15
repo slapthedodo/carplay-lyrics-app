@@ -125,14 +125,7 @@ public struct HandyModusView: View {
                                     // ── 2. Haupt-Gauges (RPM + Ladedruck + Öltemp) ───────
                                     mainGaugesRow
 
-                                    // ── 3. Live WinDyn Prüfstand Widget ─────────────────────
-                                    HandyModusDynoMiniCard(obd: obd) {
-                                        withAnimation(.easeInOut(duration: 0.25)) {
-                                            portraitMode = .dyno
-                                        }
-                                    }
-
-                                    // ── 4. G-Kräfte Panel ──────────────────────────────────
+                                    // ── 3. G-Kräfte Panel ──────────────────────────────────
                                     HandyModusGForcePanel(motion: motion)
 
                                     // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────

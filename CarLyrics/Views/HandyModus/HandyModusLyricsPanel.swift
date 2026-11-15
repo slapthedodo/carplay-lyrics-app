@@ -267,10 +267,10 @@ public struct WidescreenLyricsConsole: View {
 
             Spacer(minLength: 2)
 
-            // ── 3. 3-Line Cinematic Lyrics Teleprompter ───────────────────────
-            VStack(alignment: .leading, spacing: 4) {
-                // Previous Line (Past)
-                if !observer.previousLine.isEmpty {
+            // ── 3. Cinematic Lyrics Teleprompter ─────────────────────────────
+            VStack(alignment: .leading, spacing: 3) {
+                // Previous Line (only if tall enough)
+                if height >= 160 && !observer.previousLine.isEmpty {
                     Text(observer.previousLine)
                         .font(.system(size: min(11, height * 0.075), weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.28))
@@ -278,11 +278,11 @@ public struct WidescreenLyricsConsole: View {
                 }
 
                 // Active Current Line (Hero Glow)
-                Text(observer.currentLine.isEmpty ? "♪" : observer.currentLine)
-                    .font(.system(size: min(19, height * 0.14), weight: .black, design: .rounded))
+                Text(observer.currentLine.isEmpty ? "♪ Keine Wiedergabe" : observer.currentLine)
+                    .font(.system(size: min(16, height * 0.16), weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                    .shadow(color: .cyan.opacity(0.80), radius: 12)
-                    .lineLimit(2)
+                    .shadow(color: .cyan.opacity(0.80), radius: 10)
+                    .lineLimit(height < 140 ? 1 : 2)
                     .id(observer.currentLine)
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -293,7 +293,7 @@ public struct WidescreenLyricsConsole: View {
                 // Next Line (Upcoming)
                 if !observer.nextLine.isEmpty {
                     Text(observer.nextLine)
-                        .font(.system(size: min(11, height * 0.075), weight: .semibold, design: .rounded))
+                        .font(.system(size: min(10, height * 0.09), weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.35))
                         .lineLimit(1)
                 }
@@ -301,11 +301,19 @@ public struct WidescreenLyricsConsole: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
 
-            Spacer(minLength: 2)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
     }
 
     @ViewBuilder

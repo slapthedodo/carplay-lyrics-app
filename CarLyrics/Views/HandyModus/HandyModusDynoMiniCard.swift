@@ -256,3 +256,175 @@ private func Stage1MiniPowerFill(left: CGFloat, right: CGFloat, top: CGFloat, bo
         path.closeSubpath()
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: - WidescreenDynoPod
+// Kompaktes Live-Dyno Widget für das Widescreen-Cockpit (Rechte Spalte unten)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct WidescreenDynoPod: View {
+    @ObservedObject public var obd: OBDManager
+    @ObservedObject private var dyno = EA113DynoCalculator.shared
+    public var width: CGFloat
+    public var height: CGFloat
+    public var onOpenFullscreen: (() -> Void)? = nil
+
+    public init(obd: OBDManager, width: CGFloat, height: CGFloat, onOpenFullscreen: (() -> Void)? = nil) {
+        self.obd = obd
+        self.width = width
+        self.height = height
+        self.onOpenFullscreen = onOpenFullscreen
+    }
+
+    private let redTorque = Color(red: 1.0, green: 0.23, blue: 0.19)
+    private let bluePower = Color(red: 0.12, green: 0.58, blue: 1.0)
+    private let cyanGlow  = Color(red: 0.0, green: 0.94, blue: 1.0)
+
+    public var body: some View {
+        let currentRPM = Double(obd.liveRPM)
+        let isUnder1700 = currentRPM < 1700
+        let displayNm = isUnder1700 ? dyno.peakNm : (dyno.liveNm > 0 ? dyno.liveNm : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).nm)))
+        let displayPS = isUnder1700 ? dyno.peakPS : (dyno.livePS > 0 ? dyno.livePS : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).ps)))
+
+        VStack(spacing: 4) {
+            // ── 1. Header & Live Badges in ONE unified row ───────────────────
+            HStack(spacing: 6) {
+                // Title + Icon
+                HStack(spacing: 4) {
+                    Image(systemName: "gauge.with.needle.fill")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(cyanGlow)
+
+                    Text("DYNO V3.2")
+                        .font(.system(size: 9.5, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+
+                Spacer(minLength: 4)
+
+                // Nm Badge (Rot)
+                HStack(spacing: 3) {
+                    Circle().fill(redTorque).frame(width: 4, height: 4)
+                    Text("\(displayNm) Nm")
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(redTorque.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(redTorque.opacity(0.35), lineWidth: 0.8))
+
+                // PS Badge (Blau)
+                HStack(spacing: 3) {
+                    Circle().fill(bluePower).frame(width: 4, height: 4)
+                    Text("\(displayPS) PS")
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(bluePower.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(bluePower.opacity(0.35), lineWidth: 0.8))
+
+                // Fullscreen button
+                if let open = onOpenFullscreen {
+                    Button(action: open) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(cyanGlow)
+                            .padding(4)
+                            .background(cyanGlow.opacity(0.12), in: Circle())
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+
+            // ── 2. SuperFlow WinDyn Live Graph ───────────────────────────────
+            GeometryReader { geo in
+                let w = geo.size.width
+                let h = geo.size.height
+                let left: CGFloat = 18
+                let right = w - 6
+                let top: CGFloat = 4
+                let bottom = h - 6
+                let plotW = max(10, right - left)
+                let plotH = max(10, bottom - top)
+
+                ZStack(alignment: .topLeading) {
+                    // Raster
+                    Canvas { context, _ in
+                        for i in 0...3 {
+                            let y = bottom - (CGFloat(i) / 3.0 * plotH)
+                            var p = Path()
+                            p.move(to: CGPoint(x: left, y: y))
+                            p.addLine(to: CGPoint(x: right, y: y))
+                            context.stroke(p, with: .color(Color.white.opacity(0.06)), lineWidth: 0.6)
+                        }
+                    }
+
+                    // Füllung Drehmoment
+                    Stage1MiniTorqueFill(left: left, right: right, top: top, bottom: bottom, plotW: plotW, plotH: plotH)
+                        .fill(LinearGradient(colors: [redTorque.opacity(0.25), redTorque.opacity(0.02)], startPoint: .top, endPoint: .bottom))
+
+                    // Füllung Leistung
+                    Stage1MiniPowerFill(left: left, right: right, top: top, bottom: bottom, plotW: plotW, plotH: plotH)
+                        .fill(LinearGradient(colors: [bluePower.opacity(0.22), bluePower.opacity(0.01)], startPoint: .top, endPoint: .bottom))
+
+                    // Linien
+                    Stage1MiniTorqueStroke(left: left, right: right, top: top, bottom: bottom, plotW: plotW, plotH: plotH)
+                        .stroke(redTorque, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                        .shadow(color: redTorque.opacity(0.5), radius: 3)
+
+                    Stage1MiniPowerStroke(left: left, right: right, top: top, bottom: bottom, plotW: plotW, plotH: plotH)
+                        .stroke(bluePower, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
+                        .shadow(color: bluePower.opacity(0.5), radius: 3)
+
+                    // Live Sweep & Punkte
+                    let nmRPM = isUnder1700 ? 2800.0 : currentRPM
+                    let psRPM = isUnder1700 ? 6300.0 : currentRPM
+
+                    let nmX = left + (((max(1500, min(7000, nmRPM)) - 1500.0) / 5500.0) * plotW)
+                    let nmY = bottom - (min(450.0, Double(displayNm)) / 450.0 * plotH)
+
+                    let psX = left + (((max(1500, min(7000, psRPM)) - 1500.0) / 5500.0) * plotW)
+                    let psY = bottom - (min(450.0, Double(displayPS)) / 450.0 * plotH)
+
+                    if !isUnder1700 {
+                        let sweepX = left + (((max(1500, min(7000, currentRPM)) - 1500.0) / 5500.0) * plotW)
+                        Path { p in
+                            p.move(to: CGPoint(x: sweepX, y: top))
+                            p.addLine(to: CGPoint(x: sweepX, y: bottom))
+                        }
+                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, dash: [3, 2]))
+                    }
+
+                    // Nm Punkt (Rot)
+                    Circle()
+                        .fill(redTorque)
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 1.2))
+                        .shadow(color: redTorque, radius: 4)
+                        .position(x: nmX, y: nmY)
+
+                    // PS Punkt (Blau)
+                    Circle()
+                        .fill(bluePower)
+                        .frame(width: 7, height: 7)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 1.2))
+                        .shadow(color: bluePower, radius: 4)
+                        .position(x: psX, y: psY)
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: width, height: height)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+}
