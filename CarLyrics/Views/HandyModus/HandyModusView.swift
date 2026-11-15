@@ -106,17 +106,13 @@ public struct HandyModusView: View {
                         // ── 1b. Mode-Picker (Cockpit | Lyrics | Dyno) ───────────
                         modePickerBar
 
-                        if studio.isEditModeActive {
-                            studioControlBar
-                        }
-
                         if portraitMode == .dyno {
                             HandyModusDynoView(obd: obd, isPresented: .constant(true), showCloseButton: false)
                                 .frame(maxHeight: .infinity)
                         } else if portraitMode == .lyrics {
                             ScrollView(showsIndicators: false) {
                                 VStack(spacing: 14) {
-                                    FreeformStudioItem(id: "w_lyrics", title: "Lyrics Panel") {
+                                    ModularStudioCanvasItem(id: "w_lyrics", title: "Lyrics Panel") {
                                         HandyModusLyricsPanel(observer: observer)
                                     }
                                 }
@@ -126,18 +122,30 @@ public struct HandyModusView: View {
                         } else {
                             ScrollView(showsIndicators: false) {
                                 VStack(spacing: 14) {
-                                    // ── 2. Lyrics Panel (Frei anordnen & resizen) ───────────
-                                    FreeformStudioItem(id: "w_lyrics", title: "Spotify Lyrics") {
+                                    // ── 1. Lyrics Panel (Frei anordnen & resizen) ───────────
+                                    ModularStudioCanvasItem(id: "w_lyrics", title: "Spotify Lyrics") {
                                         HandyModusLyricsPanel(observer: observer)
                                     }
 
-                                    // ── 3. Haupt-Gauges: RPM + Ladedruck + Öltemp ──────────
-                                    FreeformStudioItem(id: "w_gauges", title: "Haupt-Gauges (3er)") {
-                                        mainGaugesRow
+                                    // ── 2. Ladedruck-Balken (Quer/Hoch/Arc frei anpassbar) ──
+                                    ModularStudioCanvasItem(id: "w_boost", title: "Ladedruck-Balken") {
+                                        ModularBoostWidget(
+                                            boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil
+                                        )
                                     }
 
-                                    // ── 3b. Live WinDyn Prüfstand Widget ───────────────────
-                                    FreeformStudioItem(id: "w_dyno", title: "Live Dyno Stand") {
+                                    // ── 3. Drehzahlmesser (RPM) ────────────────────────────
+                                    ModularStudioCanvasItem(id: "w_rpm", title: "Drehzahlmesser") {
+                                        RPMTachometerView(rpm: obd.liveRPM, size: 150)
+                                    }
+
+                                    // ── 4. Öltemperatur Geber ──────────────────────────────
+                                    ModularStudioCanvasItem(id: "w_oil", title: "Öltemperatur") {
+                                        OilTempRingView(tempC: obd.effectiveOilTemp, size: 115)
+                                    }
+
+                                    // ── 5. Live WinDyn Prüfstand Widget ─────────────────────
+                                    ModularStudioCanvasItem(id: "w_dyno", title: "Live Dyno Stand") {
                                         HandyModusDynoMiniCard(obd: obd) {
                                             withAnimation(.easeInOut(duration: 0.25)) {
                                                 portraitMode = .dyno
@@ -145,20 +153,20 @@ public struct HandyModusView: View {
                                         }
                                     }
 
-                                    // ── 4. G-Kräfte Panel ────────────────────────────────
-                                    FreeformStudioItem(id: "w_gforce", title: "G-Kräfte Radar") {
+                                    // ── 6. G-Kräfte Panel ──────────────────────────────────
+                                    ModularStudioCanvasItem(id: "w_gforce", title: "G-Kräfte Radar") {
                                         HandyModusGForcePanel(motion: motion)
                                     }
 
-                                    // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
-                                    FreeformStudioItem(id: "w_stats", title: "Telemetrie Stats") {
+                                    // ── 7. Stats-Grid (8 Kacheln) ───────────────────────────
+                                    ModularStudioCanvasItem(id: "w_stats", title: "Telemetrie Stats") {
                                         HandyModusStatsBar(obd: obd, motion: motion)
                                     }
 
-                                    // ── 6. Widget-Erklärung (einmalig) ──────────────────────
+                                    // ── 8. Widget-Erklärung (einmalig) ──────────────────────
                                     widgetExplanationBanner
 
-                                    // ── 7. Kalibrierung & Warmup-Footer ─────────────────────
+                                    // ── 9. Kalibrierung & Warmup-Footer ─────────────────────
                                     footerControls
                                         .padding(.bottom, max(safeHardwareInsets.bottom, geo.safeAreaInsets.bottom, 34))
                                 }
@@ -170,6 +178,12 @@ public struct HandyModusView: View {
                 }
             }
             .ignoresSafeArea()
+        }
+        .safeAreaInset(edge: .bottom) {
+            if studio.isEditModeActive {
+                ModularStudioInspectorBar(isLandscape: false)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .navigationBarHidden(true)
         .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
@@ -266,58 +280,6 @@ public struct HandyModusView: View {
         .padding(3)
         .background(Color.white.opacity(0.06), in: Capsule())
         .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
-        .padding(.horizontal, 14)
-    }
-
-    private var studioControlBar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "pencil.and.ruler.fill")
-                .foregroundStyle(.cyan)
-                .font(.system(size: 11))
-
-            // Modus-Umschalter: Verschieben vs. Scrollen
-            Button {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                    studio.isScrollModeInStudio.toggle()
-                }
-            } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: studio.isScrollModeInStudio ? "hand.draw.fill" : "arrow.up.and.down.and.arrow.left.and.right")
-                    Text(studio.isScrollModeInStudio ? "Scroll-Modus" : "Anordnen")
-                }
-                .font(.system(size: 10, weight: .black, design: .rounded))
-                .foregroundStyle(studio.isScrollModeInStudio ? .black : .cyan)
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3.5)
-                .background(studio.isScrollModeInStudio ? Color.yellow : Color.cyan.opacity(0.18), in: Capsule())
-            }
-
-            Spacer()
-
-            Button("Reset") {
-                withAnimation { studio.resetAll() }
-            }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(.orange)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3.5)
-            .background(Color.orange.opacity(0.15), in: Capsule())
-
-            Button("Fertig") {
-                withAnimation {
-                    studio.selectedWidgetId = nil
-                    studio.isEditModeActive = false
-                }
-            }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(.green)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3.5)
-            .background(Color.green.opacity(0.15), in: Capsule())
-        }
-        .padding(6)
-        .background(Color.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.cyan.opacity(0.3), lineWidth: 1))
         .padding(.horizontal, 14)
     }
 

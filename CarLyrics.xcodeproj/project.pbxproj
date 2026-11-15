@@ -288,6 +288,9 @@
 		97C1B0682A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PorscheGT3TorqueWidget.swift; path = PorscheGT3TorqueWidget.swift; sourceTree = "<group>"; };
 		97C1B0692A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusDynoMiniCard.swift; path = HandyModusDynoMiniCard.swift; sourceTree = "<group>"; };
 		97C1B06A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ColdEngineOverloadFlashOverlay.swift; path = ColdEngineOverloadFlashOverlay.swift; sourceTree = "<group>"; };
+		97C1B06B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularBoostWidget.swift; path = ModularBoostWidget.swift; sourceTree = "<group>"; };
+		97C1B06C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularStudioCanvasItem.swift; path = ModularStudioCanvasItem.swift; sourceTree = "<group>"; };
+		97C1B06D2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularStudioInspectorBar.swift; path = ModularStudioInspectorBar.swift; sourceTree = "<group>"; };
 
 		/* Pedal & Tutorial Views */
 		97C1B0702A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PedalVisualizerView.swift; path = PedalVisualizerView.swift; sourceTree = "<group>"; };
@@ -370,6 +373,9 @@
 				97C1E0882A000001, /* PorscheGT3TorqueWidget.swift */
 				97C1E0892A000001, /* HandyModusDynoMiniCard.swift */
 				97C1E08A2A000001, /* ColdEngineOverloadFlashOverlay.swift */
+				97C1E08B2A000001, /* ModularBoostWidget.swift */
+				97C1E08C2A000001, /* ModularStudioCanvasItem.swift */
+				97C1E08D2A000001, /* ModularStudioInspectorBar.swift */
 				97C1E0902A000001, /* PedalVisualizerView.swift */
 				97C1E0912A000001, /* KupplungTutorialView.swift */
 			);
@@ -507,6 +513,9 @@
 		97C1E0882A000001 = { isa = PBXBuildFile; fileRef = 97C1B0682A000001; };
 		97C1E0892A000001 = { isa = PBXBuildFile; fileRef = 97C1B0692A000001; };
 		97C1E08A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06A2A000001; };
+		97C1E08B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06B2A000001; };
+		97C1E08C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06C2A000001; };
+		97C1E08D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06D2A000001; };
 
 		/* Pedal & Tutorial Views */
 		97C1E0902A000001 = { isa = PBXBuildFile; fileRef = 97C1B0702A000001; };
@@ -674,6 +683,9 @@
 				97C1B0682A000001, /* PorscheGT3TorqueWidget.swift */
 				97C1B0692A000001, /* HandyModusDynoMiniCard.swift */
 				97C1B06A2A000001, /* ColdEngineOverloadFlashOverlay.swift */
+				97C1B06B2A000001, /* ModularBoostWidget.swift */
+				97C1B06C2A000001, /* ModularStudioCanvasItem.swift */
+				97C1B06D2A000001, /* ModularStudioInspectorBar.swift */
 			);
 			name = HandyModus;
 			path = HandyModus;

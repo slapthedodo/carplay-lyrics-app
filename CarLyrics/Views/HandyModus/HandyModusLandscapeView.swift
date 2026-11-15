@@ -20,6 +20,8 @@ public struct HandyModusLandscapeView: View {
     @AppStorage("carlyrics_landscape_layout_mode")
     private var layoutMode: LandscapeLayoutMode = .cockpit
 
+    @ObservedObject private var studio = HandyLayoutStudioManager.shared
+
     public init(observer: MusicObserver,
                 obd:      OBDManager,
                 motion:   MotionManager,
@@ -88,13 +90,21 @@ public struct HandyModusLandscapeView: View {
                 mainCockpitStage(width: usableW, height: mainStageH)
 
                 // ── 3. Bottom MoTeC Telemetry Flight-Bar ──────────────────────
-                WidescreenTelemetryRibbon(obd: obd, motion: motion, width: usableW, height: flightBarH)
+                ModularStudioCanvasItem(id: "w_ls_bottom", title: "MoTeC Flight-Bar", isLandscape: true) {
+                    WidescreenTelemetryRibbon(obd: obd, motion: motion, width: usableW, height: flightBarH)
+                }
             }
             .padding(.leading, leadPad)
             .padding(.trailing, trailPad)
             .padding(.top, topPad)
             .padding(.bottom, bottomPad)
             .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if studio.isEditModeActive {
+                ModularStudioInspectorBar(isLandscape: true)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .id(orientationID)
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -189,15 +199,21 @@ public struct HandyModusLandscapeView: View {
             case .cockpit:
                 // Tri-Zone: Left Powertrain & G-Radar (33.5%) | Center Speed/RPM (34%) | Right Lyrics (32.5%)
                 HStack(spacing: 0) {
-                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
+                    ModularStudioCanvasItem(id: "w_ls_left", title: "Links (Antrieb)", isLandscape: true) {
+                        WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
+                    }
 
                     divider(height: height)
 
-                    WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
+                    ModularStudioCanvasItem(id: "w_ls_center", title: "Mitte (Tacho)", isLandscape: true) {
+                        WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
+                    }
 
                     divider(height: height)
 
-                    WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
+                    ModularStudioCanvasItem(id: "w_ls_right", title: "Rechts (Lyrics)", isLandscape: true) {
+                        WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
+                    }
                 }
 
             case .lyrics:

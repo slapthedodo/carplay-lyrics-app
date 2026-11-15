@@ -91,11 +91,31 @@ public struct HandyLayoutStudioSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Picker("Ladedruck Stil", selection: $boostBarStyle) {
-                            Text("Standard (10pt)").tag("standard")
-                            Text("Fett (22pt Gradient)").tag("thick")
-                            Text("Schlank (5pt)").tag("thin")
+                        Picker("Ladedruck Stil", selection: Binding(
+                            get: { boostBarStyle },
+                            set: { newVal in
+                                boostBarStyle = newVal
+                                switch newVal {
+                                case "standard":
+                                    HandyLayoutStudioManager.shared.updateBoostConfig { $0.orientation = .horizontal; $0.thickness = .medium }
+                                case "thick":
+                                    HandyLayoutStudioManager.shared.updateBoostConfig { $0.orientation = .horizontal; $0.thickness = .thick }
+                                case "thin":
+                                    HandyLayoutStudioManager.shared.updateBoostConfig { $0.orientation = .horizontal; $0.thickness = .thin }
+                                case "vertical":
+                                    HandyLayoutStudioManager.shared.updateBoostConfig { $0.orientation = .vertical; $0.thickness = .thick }
+                                case "arc":
+                                    HandyLayoutStudioManager.shared.updateBoostConfig { $0.orientation = .arc }
+                                default:
+                                    break
+                                }
+                            }
+                        )) {
+                            Text("Quer").tag("standard")
+                            Text("Quer Dick").tag("thick")
+                            Text("Quer Dünn").tag("thin")
                             Text("Vertikal").tag("vertical")
+                            Text("Rund (Arc)").tag("arc")
                         }
                         .pickerStyle(.segmented)
 
@@ -272,32 +292,18 @@ public struct HandyLayoutStudioSettingsView: View {
 
     private func resetToDefault() {
         saveToHistory()
-        widgetOrderRaw = "w_lyrics,w_gauges,w_dyno,w_gforce,w_stats"
+        widgetOrderRaw = "w_lyrics,w_boost,w_rpm,w_oil,w_dyno,w_gforce,w_stats"
         boostBarStyle = "standard"
-        HandyLayoutStudioManager.shared.resetAll()
+        HandyLayoutStudioManager.shared.resetAll(isLandscape: false)
+        HandyLayoutStudioManager.shared.resetAll(isLandscape: true)
     }
 
     private func copyLayoutJSON() {
-        let jsonDict: [String: Any] = [
-            "vehicle": "VW Golf 5 GTI EA113 Stage 1",
-            "widgetsOrder": widgets,
-            "boostBarStyle": boostBarStyle,
-            "editModeActive": isEditModeActive,
-            "transforms": HandyLayoutStudioManager.shared.transforms.mapValues { [
-                "x": $0.x,
-                "y": $0.y,
-                "widthOffset": $0.widthOffset,
-                "heightOffset": $0.heightOffset
-            ] },
-            "timestamp": ISO8601DateFormatter().string(from: Date())
-        ]
-        if let data = try? JSONSerialization.data(withJSONObject: jsonDict, options: .prettyPrinted),
-           let str = String(data: data, encoding: .utf8) {
-            UIPasteboard.general.string = str
-            copiedSuccess = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                copiedSuccess = false
-            }
+        let str = HandyLayoutStudioManager.shared.exportJSON()
+        UIPasteboard.general.string = str
+        copiedSuccess = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            copiedSuccess = false
         }
     }
 
