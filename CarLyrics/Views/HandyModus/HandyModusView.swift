@@ -17,7 +17,6 @@ public struct HandyModusView: View {
     @ObservedObject public var obd      : OBDManager
     @ObservedObject public var motion   : MotionManager
     @ObservedObject public var warmup   : WarmupManager
-    @ObservedObject private var studio  = HandyLayoutStudioManager.shared
 
     // Keep screen awake while this tab is visible
     @State private var idleTimerDisabled = false
@@ -103,42 +102,6 @@ public struct HandyModusView: View {
                         statusStrip
                             .padding(.top, max(safeHardwareInsets.top, geo.safeAreaInsets.top, 56))
 
-                        // ── 1a. Studio-Modus Banner (Nur wenn aktiv: Direkt beenden!) ──
-                        if studio.isEditModeActive {
-                            HStack(spacing: 8) {
-                                Image(systemName: "pencil.and.ruler.fill")
-                                    .foregroundStyle(.cyan)
-                                    .font(.system(size: 11))
-                                Text("Studio-Modus aktiv")
-                                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.white)
-
-                                Spacer()
-
-                                Button {
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                        studio.selectedWidgetId = nil
-                                        studio.isEditModeActive = false
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                        Text("Fertig")
-                                    }
-                                    .font(.system(size: 10.5, weight: .black, design: .rounded))
-                                    .foregroundStyle(.black)
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 4)
-                                    .background(Color.green, in: Capsule())
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 5)
-                            .background(Color.black.opacity(0.85), in: Capsule())
-                            .overlay(Capsule().stroke(Color.cyan.opacity(0.4), lineWidth: 1))
-                            .padding(.horizontal, 14)
-                        }
-
                         // ── 1b. Mode-Picker (Cockpit | Lyrics | Dyno) ───────────
                         modePickerBar
 
@@ -148,9 +111,7 @@ public struct HandyModusView: View {
                         } else if portraitMode == .lyrics {
                             ScrollView(showsIndicators: false) {
                                 VStack(spacing: 14) {
-                                    ModularStudioCanvasItem(id: "w_lyrics", title: "Lyrics Panel") {
-                                        HandyModusLyricsPanel(observer: observer)
-                                    }
+                                    HandyModusLyricsPanel(observer: observer)
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.bottom, max(safeHardwareInsets.bottom, geo.safeAreaInsets.bottom, 34))
@@ -158,34 +119,24 @@ public struct HandyModusView: View {
                         } else {
                             ScrollView(showsIndicators: false) {
                                 VStack(spacing: 14) {
-                                    // ── 1. Lyrics Panel (Frei anordnen & resizen) ───────────
-                                    ModularStudioCanvasItem(id: "w_lyrics", title: "Spotify Lyrics") {
-                                        HandyModusLyricsPanel(observer: observer)
-                                    }
+                                    // ── 1. Lyrics Panel ─────────────────────────────────
+                                    HandyModusLyricsPanel(observer: observer)
 
-                                    // ── 2. Haupt-Gauges (RPM + Ladedruck + Öltemp) ──────────
-                                    ModularStudioCanvasItem(id: "w_gauges", title: "Haupt-Gauges (3er)") {
-                                        mainGaugesRow
-                                    }
+                                    // ── 2. Haupt-Gauges (RPM + Ladedruck + Öltemp) ───────
+                                    mainGaugesRow
 
                                     // ── 3. Live WinDyn Prüfstand Widget ─────────────────────
-                                    ModularStudioCanvasItem(id: "w_dyno", title: "Live Dyno Stand") {
-                                        HandyModusDynoMiniCard(obd: obd) {
-                                            withAnimation(.easeInOut(duration: 0.25)) {
-                                                portraitMode = .dyno
-                                            }
+                                    HandyModusDynoMiniCard(obd: obd) {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            portraitMode = .dyno
                                         }
                                     }
 
                                     // ── 4. G-Kräfte Panel ──────────────────────────────────
-                                    ModularStudioCanvasItem(id: "w_gforce", title: "G-Kräfte Radar") {
-                                        HandyModusGForcePanel(motion: motion)
-                                    }
+                                    HandyModusGForcePanel(motion: motion)
 
                                     // ── 5. Stats-Grid (8 Kacheln) ───────────────────────────
-                                    ModularStudioCanvasItem(id: "w_stats", title: "Telemetrie Stats") {
-                                        HandyModusStatsBar(obd: obd, motion: motion)
-                                    }
+                                    HandyModusStatsBar(obd: obd, motion: motion)
 
                                     // ── 6. Widget-Erklärung (einmalig) ──────────────────────
                                     widgetExplanationBanner
@@ -196,18 +147,11 @@ public struct HandyModusView: View {
                                 }
                                 .padding(.horizontal, 14)
                             }
-                            .scrollDisabled(studio.isEditModeActive && !studio.isScrollModeInStudio)
                         }
                     }
                 }
             }
             .ignoresSafeArea()
-        }
-        .safeAreaInset(edge: .bottom) {
-            if studio.isEditModeActive {
-                ModularStudioInspectorBar(isLandscape: false)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .navigationBarHidden(true)
         .toolbar(isTabBarVisible ? .visible : .hidden, for: .tabBar)
@@ -353,22 +297,18 @@ public struct HandyModusView: View {
             // Öltemp Ring (links)
             VStack(spacing: 4) {
                 OilTempRingView(tempC: obd.effectiveOilTemp, size: 110)
-                    .studioBar(id: "w_gauges")
                 Text(obd.hasOilTempPID ? "ÖL DIREKT" : "ÖL MODELL (EST)")
                     .font(.system(size: 7.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.35))
-                    .studioText(id: "w_gauges")
             }
             .frame(maxWidth: .infinity)
 
             // RPM Tacho (Mitte, größer)
             VStack(spacing: 4) {
                 RPMTachometerView(rpm: obd.liveRPM, size: 155)
-                    .studioBar(id: "w_gauges")
                 Text(obd.isEnabled && obd.connectionState == .connected ? "LIVE OBD" : "SIMULATION")
                     .font(.system(size: 7.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.3))
-                    .studioText(id: "w_gauges")
             }
             .frame(maxWidth: .infinity)
 
@@ -378,11 +318,9 @@ public struct HandyModusView: View {
                     boost: obd.isEnabled && obd.connectionState == .connected ? obd.liveBoostBar : nil,
                     size: 110
                 )
-                .studioBar(id: "w_gauges")
                 Text(obd.liveMAP != nil ? "MAP DIREKT" : "MAF BERECHN.")
                     .font(.system(size: 7.5, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.3))
-                    .studioText(id: "w_gauges")
             }
             .frame(maxWidth: .infinity)
         }

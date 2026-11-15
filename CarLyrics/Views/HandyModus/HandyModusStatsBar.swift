@@ -21,26 +21,22 @@ struct StatTile: View {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(warning ? .red : color)
-                .studioBar(id: "w_stats")
 
             Text(value)
                 .font(.system(size: 18, weight: .black, design: .monospaced))
                 .foregroundStyle(warning ? .red : color)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
-                .studioText(id: "w_stats")
 
             Text(unit)
                 .font(.system(size: 7.5, weight: .bold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.4))
                 .lineLimit(1)
-                .studioText(id: "w_stats")
 
             Text(label)
                 .font(.system(size: 7, weight: .medium))
                 .foregroundStyle(.white.opacity(0.3))
                 .lineLimit(1)
-                .studioText(id: "w_stats")
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)

@@ -231,13 +231,8 @@ Am 18.10.2026 um 14:20 Uhr wurde die Verbindung mit dem Golf 5 GTI (Bosch MED9.1
 ### C. HandyModus (Querformat)
 * `HandyModusLandscapeView.swift` nutzt `GeometryReader` ohne ScrollView – exakt eingepasstes Vollbild (Links 45% Gauges & G-Ball, Rechts 55% Lyrics & Stats).
 
-### D. Fahrschule / 3D-Kupplungstutorial
-* `KupplungTutorialView.swift` ist in den Einstellungen (`SettingsTabView.swift`) als Sheet integriert.
-* 3D-Canvas mit konsistenter Blickrichtung von schräg links auf die Welle. Rechte Welle ragt sauber nach rechts aus der Nabe heraus.
-* **Dynamische Trägheits-Beschleunigung (Fahrschul-Physik):** Die rechte Scheibe (Auto/Räder) dreht sich nicht starr mit der Schieberegler-Position, sondern beschleunigt bei gehaltenem Schleifpunkt über die Zeit schrittweise hoch (`autoSpeedRatio`: 0 % -> 100 %).
-* **Reibungs-Glühen:** Am Schleifpunkt leuchtet der Übergang orange, solange Schlupf herrscht. Sobald die Geschwindigkeiten angeglichen sind (100%), erlischt das Reibungsglühen.
-* **Kupplungsschnalz- & Abwürg-Schutz:** Zu schnelles Loslassen (>90 %/s) oder vorzeitiges Einkuppeln bei stehendem Auto (<35% Drehzahl) ohne ausreichend Gas würgt den Motor realistisch ab ("ABGEWÜRGT! 😬").
-* Zum Neustarten muss die Kupplung erst wieder komplett durchgetreten werden (<10%).
+### D. Fahrschule / Layout Studio Status
+* Fahrschule / 3D-Kupplungstutorial und Layout Studio wurden vollständig entfernt, um native 100% flüssige Touch- & Scroll-Interaktion ohne Gesten-Konflikte zu gewährleisten.
 
 ---
 

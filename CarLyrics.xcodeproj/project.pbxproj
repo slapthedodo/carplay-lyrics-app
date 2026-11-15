@@ -250,7 +250,6 @@
 		97C1B02A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EA113DynoCalculator.swift; path = EA113DynoCalculator.swift; sourceTree = "<group>"; };
 		97C1B02B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDPerformanceTimer.swift; path = OBDPerformanceTimer.swift; sourceTree = "<group>"; };
 		97C1B02C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDTCScanner.swift; path = OBDDTCScanner.swift; sourceTree = "<group>"; };
-		97C1B02D2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyLayoutStudioManager.swift; path = HandyLayoutStudioManager.swift; sourceTree = "<group>"; };
 
 		/* Cockpit Views */
 		97C1B0302A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CockpitUIComponents.swift; path = CockpitUIComponents.swift; sourceTree = "<group>"; };
@@ -263,7 +262,6 @@
 		97C1B0372A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SpotifySetupSheet.swift; path = SpotifySetupSheet.swift; sourceTree = "<group>"; };
 		97C1B0382A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OilTempTachoSettingsView.swift; path = OilTempTachoSettingsView.swift; sourceTree = "<group>"; };
 		97C1B0392A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDragTimerCard.swift; path = OBDDragTimerCard.swift; sourceTree = "<group>"; };
-		97C1B03A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyLayoutStudioSettingsView.swift; path = HandyLayoutStudioSettingsView.swift; sourceTree = "<group>"; };
 
 		/* Diagnostic Workbench Views */
 		97C1B0402A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OBDDiagnosticWorkbenchView.swift; path = OBDDiagnosticWorkbenchView.swift; sourceTree = "<group>"; };
@@ -288,13 +286,6 @@
 		97C1B0682A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PorscheGT3TorqueWidget.swift; path = PorscheGT3TorqueWidget.swift; sourceTree = "<group>"; };
 		97C1B0692A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HandyModusDynoMiniCard.swift; path = HandyModusDynoMiniCard.swift; sourceTree = "<group>"; };
 		97C1B06A2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ColdEngineOverloadFlashOverlay.swift; path = ColdEngineOverloadFlashOverlay.swift; sourceTree = "<group>"; };
-		97C1B06B2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularBoostWidget.swift; path = ModularBoostWidget.swift; sourceTree = "<group>"; };
-		97C1B06C2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularStudioCanvasItem.swift; path = ModularStudioCanvasItem.swift; sourceTree = "<group>"; };
-		97C1B06D2A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModularStudioInspectorBar.swift; path = ModularStudioInspectorBar.swift; sourceTree = "<group>"; };
-
-		/* Pedal & Tutorial Views */
-		97C1B0702A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PedalVisualizerView.swift; path = PedalVisualizerView.swift; sourceTree = "<group>"; };
-		97C1B0712A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KupplungTutorialView.swift; path = KupplungTutorialView.swift; sourceTree = "<group>"; };
 
 		/* Widget target files */
 		97C1C0012A000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CarLyricsWidgetBundle.swift; path = CarLyricsWidgetBundle.swift; sourceTree = "<group>"; };
@@ -341,7 +332,6 @@
 				97C1E04A2A000001, /* EA113DynoCalculator.swift */
 				97C1E04B2A000001, /* OBDPerformanceTimer.swift */
 				97C1E04C2A000001, /* OBDDTCScanner.swift */
-				97C1E04D2A000001, /* HandyLayoutStudioManager.swift */
 				97C1E0502A000001, /* CockpitUIComponents.swift */
 				97C1E0512A000001, /* NowPlayingCard.swift */
 				97C1E0522A000001, /* LyricsCard.swift */
@@ -352,7 +342,6 @@
 				97C1E0572A000001, /* SpotifySetupSheet.swift */
 				97C1E0582A000001, /* OilTempTachoSettingsView.swift */
 				97C1E0592A000001, /* OBDDragTimerCard.swift */
-				97C1E05A2A000001, /* HandyLayoutStudioSettingsView.swift */
 				97C1E0602A000001, /* OBDDiagnosticWorkbenchView.swift */
 				97C1E0612A000001, /* OBDStatusBarHeader.swift */
 				97C1E0622A000001, /* OBDMethodProbeSection.swift */
@@ -373,11 +362,6 @@
 				97C1E0882A000001, /* PorscheGT3TorqueWidget.swift */
 				97C1E0892A000001, /* HandyModusDynoMiniCard.swift */
 				97C1E08A2A000001, /* ColdEngineOverloadFlashOverlay.swift */
-				97C1E08B2A000001, /* ModularBoostWidget.swift */
-				97C1E08C2A000001, /* ModularStudioCanvasItem.swift */
-				97C1E08D2A000001, /* ModularStudioInspectorBar.swift */
-				97C1E0902A000001, /* PedalVisualizerView.swift */
-				97C1E0912A000001, /* KupplungTutorialView.swift */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -475,7 +459,6 @@
 		97C1E04A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02A2A000001; };
 		97C1E04B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02B2A000001; };
 		97C1E04C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02C2A000001; };
-		97C1E04D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B02D2A000001; };
 
 		/* Cockpit Views */
 		97C1E0502A000001 = { isa = PBXBuildFile; fileRef = 97C1B0302A000001; };
@@ -488,7 +471,6 @@
 		97C1E0572A000001 = { isa = PBXBuildFile; fileRef = 97C1B0372A000001; };
 		97C1E0582A000001 = { isa = PBXBuildFile; fileRef = 97C1B0382A000001; };
 		97C1E0592A000001 = { isa = PBXBuildFile; fileRef = 97C1B0392A000001; };
-		97C1E05A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B03A2A000001; };
 
 		/* Diagnostic Workbench */
 		97C1E0602A000001 = { isa = PBXBuildFile; fileRef = 97C1B0402A000001; };
@@ -513,13 +495,6 @@
 		97C1E0882A000001 = { isa = PBXBuildFile; fileRef = 97C1B0682A000001; };
 		97C1E0892A000001 = { isa = PBXBuildFile; fileRef = 97C1B0692A000001; };
 		97C1E08A2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06A2A000001; };
-		97C1E08B2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06B2A000001; };
-		97C1E08C2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06C2A000001; };
-		97C1E08D2A000001 = { isa = PBXBuildFile; fileRef = 97C1B06D2A000001; };
-
-		/* Pedal & Tutorial Views */
-		97C1E0902A000001 = { isa = PBXBuildFile; fileRef = 97C1B0702A000001; };
-		97C1E0912A000001 = { isa = PBXBuildFile; fileRef = 97C1B0712A000001; };
 
 		97C1E0202A000001 = { isa = PBXBuildFile; fileRef = 97C1B00D2A000001; };
 
@@ -586,7 +561,6 @@
 				97C1B0092A000001, /* MotionManager.swift */
 				97C1B00A2A000001, /* BackgroundKeepAliveManager.swift */
 				97C1B00B2A000001, /* SpotifyManager.swift */
-				97C1B02D2A000001, /* HandyLayoutStudioManager.swift */
 				97C1F0102A000001, /* OBD */
 			);
 			name = Services;
@@ -620,8 +594,6 @@
 			isa = PBXGroup;
 			children = (
 				97C1B0022A000001, /* ContentView.swift */
-				97C1B0702A000001, /* PedalVisualizerView.swift */
-				97C1B0712A000001, /* KupplungTutorialView.swift */
 				97C1F0112A000001, /* Cockpit */
 				97C1F0122A000001, /* DiagnosticWorkbench */
 				97C1F0142A000001, /* HandyModus */
@@ -644,7 +616,6 @@
 				97C1B0372A000001, /* SpotifySetupSheet.swift */
 				97C1B0382A000001, /* OilTempTachoSettingsView.swift */
 				97C1B0392A000001, /* OBDDragTimerCard.swift */
-				97C1B03A2A000001, /* HandyLayoutStudioSettingsView.swift */
 			);
 			name = Cockpit;
 			path = Cockpit;
@@ -683,9 +654,6 @@
 				97C1B0682A000001, /* PorscheGT3TorqueWidget.swift */
 				97C1B0692A000001, /* HandyModusDynoMiniCard.swift */
 				97C1B06A2A000001, /* ColdEngineOverloadFlashOverlay.swift */
-				97C1B06B2A000001, /* ModularBoostWidget.swift */
-				97C1B06C2A000001, /* ModularStudioCanvasItem.swift */
-				97C1B06D2A000001, /* ModularStudioInspectorBar.swift */
 			);
 			name = HandyModus;
 			path = HandyModus;

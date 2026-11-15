@@ -20,8 +20,6 @@ public struct HandyModusLandscapeView: View {
     @AppStorage("carlyrics_landscape_layout_mode")
     private var layoutMode: LandscapeLayoutMode = .cockpit
 
-    @ObservedObject private var studio = HandyLayoutStudioManager.shared
-
     public init(observer: MusicObserver,
                 obd:      OBDManager,
                 motion:   MotionManager,
@@ -90,21 +88,13 @@ public struct HandyModusLandscapeView: View {
                 mainCockpitStage(width: usableW, height: mainStageH)
 
                 // ── 3. Bottom MoTeC Telemetry Flight-Bar ──────────────────────
-                ModularStudioCanvasItem(id: "w_ls_bottom", title: "MoTeC Flight-Bar", isLandscape: true) {
-                    WidescreenTelemetryRibbon(obd: obd, motion: motion, width: usableW, height: flightBarH)
-                }
+                WidescreenTelemetryRibbon(obd: obd, motion: motion, width: usableW, height: flightBarH)
             }
             .padding(.leading, leadPad)
             .padding(.trailing, trailPad)
             .padding(.top, topPad)
             .padding(.bottom, bottomPad)
             .frame(width: geo.size.width, height: geo.size.height)
-        }
-        .safeAreaInset(edge: .bottom) {
-            if studio.isEditModeActive {
-                ModularStudioInspectorBar(isLandscape: true)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
         }
         .id(orientationID)
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -178,32 +168,13 @@ public struct HandyModusLandscapeView: View {
             .background(Color.white.opacity(0.06), in: Capsule())
             .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
 
-            // Right: Keep Screen Awake + Fertig wenn Edit-Modus aktiv
-            HStack(spacing: 4) {
-                if studio.isEditModeActive {
-                    Button {
-                        withAnimation {
-                            studio.selectedWidgetId = nil
-                            studio.isEditModeActive = false
-                        }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: "checkmark.circle.fill").font(.system(size: 7.5))
-                            Text("FERTIG").font(.system(size: 7.5, weight: .black))
-                        }
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 6).padding(.vertical, 2.5)
-                        .background(Color.green, in: Capsule())
-                    }
-                }
-
-                HStack(spacing: 3) {
-                    Image(systemName: "moon.zzz.fill").font(.system(size: 7.5)).foregroundStyle(.yellow)
-                    Text("AWAKE").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
-                }
-                .padding(.horizontal, 6).padding(.vertical, 2.5)
-                .background(Color.yellow.opacity(0.12), in: Capsule())
+            // Right: Keep Screen Awake
+            HStack(spacing: 3) {
+                Image(systemName: "moon.zzz.fill").font(.system(size: 7.5)).foregroundStyle(.yellow)
+                Text("AWAKE").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
             }
+            .padding(.horizontal, 6).padding(.vertical, 2.5)
+            .background(Color.yellow.opacity(0.12), in: Capsule())
         }
         .frame(width: width, height: height)
     }
@@ -218,21 +189,15 @@ public struct HandyModusLandscapeView: View {
             case .cockpit:
                 // Tri-Zone: Left Powertrain & G-Radar (33.5%) | Center Speed/RPM (34%) | Right Lyrics (32.5%)
                 HStack(spacing: 0) {
-                    ModularStudioCanvasItem(id: "w_ls_left", title: "Links (Antrieb)", isLandscape: true) {
-                        WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
-                    }
+                    WidescreenPowertrainPod(obd: obd, motion: motion, width: width * 0.335, height: height)
 
                     divider(height: height)
 
-                    ModularStudioCanvasItem(id: "w_ls_center", title: "Mitte (Tacho)", isLandscape: true) {
-                        WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
-                    }
+                    WidescreenTachoConsole(obd: obd, width: width * 0.340, height: height)
 
                     divider(height: height)
 
-                    ModularStudioCanvasItem(id: "w_ls_right", title: "Rechts (Lyrics)", isLandscape: true) {
-                        WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
-                    }
+                    WidescreenLyricsConsole(observer: observer, width: width * 0.325, height: height)
                 }
 
             case .lyrics:

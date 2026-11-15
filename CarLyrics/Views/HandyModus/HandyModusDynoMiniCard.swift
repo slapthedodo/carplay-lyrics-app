@@ -57,7 +57,6 @@ public struct HandyModusDynoMiniCard: View {
                     }
                 }
             }
-            .studioText(id: "w_dyno")
 
             // ── Twin Live Badges (Rot Nm / Blau PS) ──
             let currentRPM = Double(obd.liveRPM)
@@ -98,7 +97,6 @@ public struct HandyModusDynoMiniCard: View {
                 .background(bluePower.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(bluePower.opacity(0.35), lineWidth: 1))
             }
-            .studioText(id: "w_dyno")
 
             // ── Mini Prüfstand SVG Graph ──
             GeometryReader { geo in
@@ -178,7 +176,6 @@ public struct HandyModusDynoMiniCard: View {
                 }
             }
             .frame(height: 90)
-            .studioBar(id: "w_dyno")
         }
         .padding(12)
         .background(
