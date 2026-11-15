@@ -218,11 +218,13 @@ public struct OilTempTachoSettingsView: View {
                                 desc: "VW Gateway-Handshake via CAN 0x200! Liest Tacho-Geber G266.")
                             MethodInfoRow(num: 2, name: "VW TP 2.0 Motor (0x01 + MWB 134) ★★★",
                                 desc: "VW Gateway-Handshake via CAN 0x200! Liest Motor-MWB 134.")
-                            MethodInfoRow(num: 3, name: "OBD Standard PID 015C",
+                            MethodInfoRow(num: 3, name: "Cluster UDS (0x714 + DID 202F) ★★★",
+                                desc: "UDS-Direktabfrage Tacho (für weiße MFAs / Facelift).")
+                            MethodInfoRow(num: 4, name: "OBD Standard PID 015C",
                                 desc: "SAE-Standard.")
-                            MethodInfoRow(num: 2, name: "KWP2000 MWB 134 + 1089 ★★★",
+                            MethodInfoRow(num: 5, name: "KWP2000 MWB 134 + 1089 ★★★",
                                 desc: "OBDeleven & VCDS Methode! Liest Block 134 (Geber G266 Öltemperatur).")
-                            MethodInfoRow(num: 3, name: "KWP2000 MWB 134 direkt",
+                            MethodInfoRow(num: 6, name: "KWP2000 MWB 134 direkt",
                                 desc: "Block 134 ohne Session-Wechsel.")
                             MethodInfoRow(num: 4, name: "KWP2000 MWB 005 + 1089",
                                 desc: "Block 005 Motorbetriebsdaten inkl. Öltemp.")

@@ -41,7 +41,14 @@ extension OBDManager {
             command: "TP20:01:86"
         ),
 
-        // ── 3. SAE Standard PID 015C ────────────────────────────────────────
+        // ── 3. Cluster UDS Tacho (Adresse 0x714 + DID 0x202F ★★★) ───────────
+        // Für weiße MFAs / Tachos mit UDS: Tx=0x714, Rx=0x77E, DID=0x202F (Öltemperatur)
+        OilTempProbeStatus(
+            methodName: "Cluster UDS (0x714 + DID 202F ★★★)",
+            command: "ATSH714||ATCRA77E||22202F"
+        ),
+
+        // ── 4. SAE Standard PID 015C ────────────────────────────────────────
         OilTempProbeStatus(
             methodName: "OBD Standard 015C (SAE J1979)",
             command: "015C"
@@ -391,10 +398,11 @@ extension OBDManager {
 
         logSystem("   [TP2.0] Starte VW TP 2.0 Handshake für Modul 0x\(dest)…")
 
-        // 1. ELM327 für Raw CAN vorbereiten (Auto Formatting AUS)
+        // 1. ELM327 für Raw CAN vorbereiten (Auto Formatting AUS, Active Mode)
+        _ = await sendSingleOBDCommand("ATSP6", timeout: 1.5)
         _ = await sendSingleOBDCommand("ATCAF0", timeout: 1.5)
         _ = await sendSingleOBDCommand("ATAL", timeout: 1.5)
-        _ = await sendSingleOBDCommand("ATCSM1", timeout: 1.5)
+        _ = await sendSingleOBDCommand("ATCSM0", timeout: 1.5) // Silent Monitor AUS (aktives Senden + ACKs)
 
         // 2. Header auf VW Gateway (0x200) setzen
         _ = await sendSingleOBDCommand("ATSH200", timeout: 1.5)
@@ -404,7 +412,7 @@ extension OBDManager {
         _ = await sendSingleOBDCommand("ATCRA\(rxFilter)", timeout: 1.5)
 
         // 4. Kanalaufbau-Befehl senden: [Dest] C0 00 10 00 03 01
-        let setupCmd = "\(dest)C00010000301"
+        let setupCmd = "\(dest) C0 00 10 00 03 01"
         let setupResp = await sendSingleOBDCommand(setupCmd, timeout: 2.5)
         logSystem("   [TP2.0] Gateway Setup: \(setupCmd) → \(setupResp)")
 
@@ -451,17 +459,31 @@ extension OBDManager {
         _ = await sendSingleOBDCommand("ATSH\(txID)", timeout: 1.5)
         _ = await sendSingleOBDCommand("ATCRA\(rxID)", timeout: 1.5)
 
-        // 7. KWP2000 MWB Anfrage senden: 10 02 21 [Block]
-        let kwpCmd = "100221\(block)"
-        let kwpResp = await sendSingleOBDCommand(kwpCmd, timeout: 2.5)
-        logSystem("   [TP2.0] KWP2000 MWB \(block): \(kwpCmd) → \(kwpResp)")
+        // 7. TP 2.0 Parameter-Aushandlung (Opcode A0)
+        let paramResp = await sendSingleOBDCommand("A0 0F 8A FF 32 FF 00", timeout: 2.0)
+        logSystem("   [TP2.0] Parameter Setup: A0 → \(paramResp)")
 
-        // 8. Restore defaults
+        // 8. KWP2000 MWB Anfrage senden: 10 02 21 [Block]
+        // Opcode 10 = Single Frame / First Frame in TP 2.0, 02 = 2 Bytes Länge, 21 = ReadLocalId
+        var kwpResp = await sendSingleOBDCommand("10 02 21 \(block)", timeout: 2.5)
+        logSystem("   [TP2.0] KWP2000 MWB \(block): 10 02 21 \(block) → \(kwpResp)")
+
+        let cleanKwp = kwpResp.replacingOccurrences(of: " ", with: "").uppercased()
+        if cleanKwp.contains("7F21") || cleanKwp.contains("NODATA") || cleanKwp.contains("NO DATA") {
+            // Falls Modul vor MWB-Auslese eine Session benötigt (StartDiagnosticSession 10 89)
+            logSystem("   [TP2.0] Teste Diagnose-Session (10 89)…")
+            _ = await sendSingleOBDCommand("10 02 10 89", timeout: 2.0)
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            kwpResp = await sendSingleOBDCommand("10 02 21 \(block)", timeout: 2.5)
+            logSystem("   [TP2.0] KWP2000 MWB \(block) nach Session: → \(kwpResp)")
+        }
+
+        // 9. Restore defaults
         _ = await sendSingleOBDCommand("ATCAF1", timeout: 1.0)
         _ = await sendSingleOBDCommand("ATAR", timeout: 1.0)
         _ = await sendSingleOBDCommand("ATSH7DF", timeout: 1.0)
 
-        // 9. Auswerten
+        // 10. Auswerten
         let parsed = parseOilTempFromResponse(kwpResp, pid: "21" + block)
                   ?? decodeVAGMeasuringBlock(kwpResp.replacingOccurrences(of: " ", with: ""))
         let compactKwp = kwpResp.uppercased()
@@ -638,6 +660,7 @@ extension OBDManager {
 
         // ── Mode 22 DIDs: Gezieltes Pattern-Matching ────────────────────────
         let knownDIDs = [
+            "62202F",   // VAG UDS Tacho (Cluster 0x714, DID 0x202F)
             "621106",   // Torque Pro Favorit für MED9.1
             "62115C",   // VAG primär
             "6211BE",   // VAG UDS
@@ -702,7 +725,7 @@ extension OBDManager {
 
         // VAG Mode 22 Antworten (falls durch anderen Code ausgelöst)
         let mode22Patterns = [
-            "621106", "62115C", "6211BE", "621152", "621C1F",
+            "62202F", "621106", "62115C", "6211BE", "621152", "621C1F",
             "621140", "622002", "62F43C", "62F450", "62F435"
         ]
         for pattern in mode22Patterns {
