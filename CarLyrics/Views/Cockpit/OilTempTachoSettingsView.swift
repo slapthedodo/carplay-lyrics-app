@@ -83,7 +83,7 @@ public struct OilTempTachoSettingsView: View {
                             .font(.headline)
                             .foregroundStyle(orangeColor)
 
-                        Text("Versucht die echte Öltemperatur direkt vom Steuergerät (Bosch MED9.1) zu lesen – mit 6 verschiedenen Methoden als Fallback. Viel besser als die errechnete Schätzung!")
+                        Text("Versucht die echte Öltemperatur direkt vom Steuergerät (Bosch MED9.1) zu lesen – mit \(OBDManager.oilTempProbeMethods.count) verschiedenen Methoden als Fallback. Viel besser als die errechnete Schätzung!")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
