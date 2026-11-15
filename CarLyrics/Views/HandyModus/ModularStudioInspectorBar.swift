@@ -1,5 +1,6 @@
 // MARK: - ModularStudioInspectorBar.swift
-// Schwebende Studio-Steuerleiste mit Nudge D-Pad, Scale-Steppern & Ladedruck-Settings
+// Schwebende Studio-Steuerleiste mit 1er-Schritt D-Pad, Sub-Target Steuerung (Gesamt/Balken/Text),
+// Widget-Katalog (Add/Remove) und immer sichtbarem "Fertig"-Button
 // ─────────────────────────────────────────────────────────────────────────────
 
 import SwiftUI
@@ -9,6 +10,7 @@ public struct ModularStudioInspectorBar: View {
     public var isLandscape: Bool = false
     @ObservedObject private var studio = HandyLayoutStudioManager.shared
     @State private var showExportAlert: Bool = false
+    @State private var showCatalogSheet: Bool = false
 
     public init(isLandscape: Bool = false) {
         self.isLandscape = isLandscape
@@ -34,15 +36,18 @@ public struct ModularStudioInspectorBar: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 18)
-                .fill(Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.95))
+                .fill(Color(red: 0.08, green: 0.10, blue: 0.14).opacity(0.96))
                 .overlay(
                     RoundedRectangle(cornerRadius: 18)
                         .stroke(Color.cyan.opacity(0.35), lineWidth: 1.2)
                 )
-                .shadow(color: Color.black.opacity(0.7), radius: 14, y: 4)
+                .shadow(color: Color.black.opacity(0.75), radius: 14, y: 4)
         )
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
+        .sheet(isPresented: $showCatalogSheet) {
+            StudioWidgetCatalogSheet(isLandscape: isLandscape)
+        }
         .alert("Layout-JSON kopiert!", isPresented: $showExportAlert) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -56,68 +61,120 @@ public struct ModularStudioInspectorBar: View {
 
     private func selectedWidgetInspector(id: String, transform: WidgetFreeformTransform) -> some View {
         VStack(spacing: 8) {
-            // Header: Titel + Schließen
-            HStack {
-                HStack(spacing: 5) {
+            // Header: Titel + SubTarget Switcher + Löschen + Fertig
+            HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     Circle().fill(Color.cyan).frame(width: 6, height: 6)
-                    Text("Widget: \(widgetDisplayName(id))")
+                    Text(widgetDisplayName(id))
                         .font(.system(size: 11, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
+                        .lineLimit(1)
                 }
 
                 Spacer()
 
-                Text("X:\(Int(transform.x)) Y:\(Int(transform.y))")
-                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.cyan)
+                // Sub-Target Picker (Gesamt | Balken | Text)
+                HStack(spacing: 2) {
+                    ForEach(StudioEditSubTarget.allCases) { sub in
+                        Button {
+                            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                studio.activeSubTarget = sub
+                            }
+                        } label: {
+                            HStack(spacing: 2) {
+                                Image(systemName: sub.icon)
+                                    .font(.system(size: 7.5, weight: .bold))
+                                Text(sub.rawValue)
+                                    .font(.system(size: 8.5, weight: studio.activeSubTarget == sub ? .black : .bold))
+                            }
+                            .foregroundStyle(studio.activeSubTarget == sub ? .black : .white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(
+                                studio.activeSubTarget == sub ? Color.cyan : Color.white.opacity(0.10),
+                                in: Capsule()
+                            )
+                        }
+                    }
+                }
+                .padding(2)
+                .background(Color.white.opacity(0.06), in: Capsule())
 
+                // Widget entfernen
                 Button {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                        studio.setWidgetVisible(id: id, isLandscape: isLandscape, isVisible: false)
                         studio.selectedWidgetId = nil
                     }
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.red)
+                        .padding(5)
+                        .background(Color.red.opacity(0.18), in: Circle())
                 }
+
+                // Fertig (immer sichtbar zum direkten Schließen)
+                Button("Fertig") {
+                    withAnimation {
+                        studio.selectedWidgetId = nil
+                        studio.isEditModeActive = false
+                    }
+                }
+                .font(.system(size: 10, weight: .black))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.green, in: Capsule())
             }
 
             // D-Pad Nudge & Scale Zeile
-            HStack(spacing: 12) {
-                // Fein-Justierung D-Pad (Nudge)
-                HStack(spacing: 4) {
-                    nudgeButton(icon: "arrow.left", dx: -6, dy: 0, id: id)
-                    VStack(spacing: 4) {
-                        nudgeButton(icon: "arrow.up", dx: 0, dy: -6, id: id)
-                        nudgeButton(icon: "arrow.down", dx: 0, dy: 6, id: id)
+            HStack(spacing: 10) {
+                // Fein-Justierung D-Pad (1er-Koordinatenschritte!)
+                HStack(spacing: 3) {
+                    nudgeButton(icon: "arrow.left", dx: -1, dy: 0, id: id)
+                    VStack(spacing: 3) {
+                        nudgeButton(icon: "arrow.up", dx: 0, dy: -1, id: id)
+                        nudgeButton(icon: "arrow.down", dx: 0, dy: 1, id: id)
                     }
-                    nudgeButton(icon: "arrow.right", dx: 6, dy: 0, id: id)
+                    nudgeButton(icon: "arrow.right", dx: 1, dy: 0, id: id)
                 }
 
-                Divider().frame(height: 30).background(Color.white.opacity(0.15))
+                // Koordinaten & Skala Anzeige
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(subTargetCoordsText(transform))
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.cyan)
+                    Text("Schritt: 1 pt")
+                        .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.4))
+                }
+                .frame(minWidth: 70, alignment: .leading)
 
-                // Skalierung Stepper
-                HStack(spacing: 6) {
+                Divider().frame(height: 28).background(Color.white.opacity(0.15))
+
+                // Skalierung Stepper (±5%)
+                HStack(spacing: 4) {
                     Button {
-                        studio.setScale(id: id, isLandscape: isLandscape, scale: transform.scale - 0.08)
+                        studio.stepScale(id: id, isLandscape: isLandscape, delta: -0.05)
                     } label: {
-                        Image(systemName: "minus.magnifyingglass")
-                            .font(.system(size: 12, weight: .black))
-                            .frame(width: 28, height: 28)
+                        Image(systemName: "minus")
+                            .font(.system(size: 11, weight: .black))
+                            .frame(width: 26, height: 26)
                             .background(Color.white.opacity(0.10), in: Circle())
                     }
 
-                    Text("\(Int(round(transform.scale * 100)))%")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    Text(subTargetScaleText(transform))
+                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                         .foregroundStyle(.white)
-                        .frame(width: 44)
+                        .frame(width: 42)
 
                     Button {
-                        studio.setScale(id: id, isLandscape: isLandscape, scale: transform.scale + 0.08)
+                        studio.stepScale(id: id, isLandscape: isLandscape, delta: 0.05)
                     } label: {
-                        Image(systemName: "plus.magnifyingglass")
-                            .font(.system(size: 12, weight: .black))
-                            .frame(width: 28, height: 28)
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .black))
+                            .frame(width: 26, height: 26)
                             .background(Color.white.opacity(0.10), in: Circle())
                     }
                 }
@@ -125,69 +182,16 @@ public struct ModularStudioInspectorBar: View {
                 Spacer()
 
                 // Einzel-Reset
-                Button("Zentrieren") {
+                Button("Reset") {
                     withAnimation {
-                        studio.resetWidget(id: id, isLandscape: isLandscape)
+                        studio.resetSubTarget(id: id, isLandscape: isLandscape)
                     }
                 }
                 .font(.system(size: 9.5, weight: .bold))
                 .foregroundStyle(.orange)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 4)
                 .background(Color.orange.opacity(0.18), in: Capsule())
-            }
-
-            // Spezial-Optionen wenn Ladedruck-Balken gewählt ist
-            if id == "w_boost" {
-                VStack(spacing: 6) {
-                    // Ausrichtung: Quer / Hochkant / Rund
-                    HStack(spacing: 4) {
-                        Text("Stil:")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.5))
-                        ForEach(BoostWidgetOrientation.allCases, id: \.self) { ori in
-                            Button {
-                                studio.updateBoostConfig { $0.orientation = ori }
-                            } label: {
-                                Text(ori.rawValue)
-                                    .font(.system(size: 9.5, weight: .bold))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 3.5)
-                                    .background(
-                                        studio.boostConfig.orientation == ori ? Color.orange : Color.white.opacity(0.08),
-                                        in: Capsule()
-                                    )
-                                    .foregroundStyle(studio.boostConfig.orientation == ori ? .black : .white)
-                            }
-                        }
-                    }
-
-                    // Dicke: Dünn / Normal / Dick / Massiv
-                    if studio.boostConfig.orientation != .arc {
-                        HStack(spacing: 4) {
-                            Text("Dicke:")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.5))
-                            ForEach(BoostWidgetThickness.allCases, id: \.self) { thick in
-                                Button {
-                                    studio.updateBoostConfig { $0.thickness = thick }
-                                } label: {
-                                    Text(thick.rawValue)
-                                        .font(.system(size: 9, weight: .bold))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(
-                                            studio.boostConfig.thickness == thick ? Color.cyan : Color.white.opacity(0.08),
-                                            in: Capsule()
-                                        )
-                                        .foregroundStyle(studio.boostConfig.thickness == thick ? .black : .white)
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding(6)
-                .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
             }
         }
     }
@@ -197,10 +201,26 @@ public struct ModularStudioInspectorBar: View {
             studio.nudge(id: id, isLandscape: isLandscape, dx: dx, dy: dy)
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 9.5, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
                 .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+
+    private func subTargetCoordsText(_ t: WidgetFreeformTransform) -> String {
+        switch studio.activeSubTarget {
+        case .whole: return "X:\(Int(t.x)) Y:\(Int(t.y))"
+        case .bar:   return "B-X:\(Int(t.barOffsetX)) B-Y:\(Int(t.barOffsetY))"
+        case .text:  return "T-X:\(Int(t.textOffsetX)) T-Y:\(Int(t.textOffsetY))"
+        }
+    }
+
+    private func subTargetScaleText(_ t: WidgetFreeformTransform) -> String {
+        switch studio.activeSubTarget {
+        case .whole: return "\(Int(round(t.scale * 100)))%"
+        case .bar:   return "\(Int(round(t.barScale * 100)))%"
+        case .text:  return "\(Int(round(t.textScale * 100)))%"
         }
     }
 
@@ -219,13 +239,28 @@ public struct ModularStudioInspectorBar: View {
                 HStack(spacing: 4) {
                     Image(systemName: studio.isScrollModeInStudio ? "hand.draw.fill" : "arrow.up.and.down.and.arrow.left.and.right")
                         .font(.system(size: 10, weight: .bold))
-                    Text(studio.isScrollModeInStudio ? "Scroll-Modus" : "Anordnungs-Modus")
+                    Text(studio.isScrollModeInStudio ? "Scrollen" : "Anordnen")
                         .font(.system(size: 10, weight: .black, design: .rounded))
                 }
                 .foregroundStyle(studio.isScrollModeInStudio ? .black : .cyan)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(studio.isScrollModeInStudio ? Color.yellow : Color.cyan.opacity(0.2), in: Capsule())
+            }
+
+            // Widget Hinzufügen / Katalog
+            Button {
+                showCatalogSheet = true
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "plus.circle.fill")
+                    Text("+ Widget")
+                }
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.cyan)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.cyan.opacity(0.18), in: Capsule())
             }
 
             Spacer()
@@ -257,32 +292,135 @@ public struct ModularStudioInspectorBar: View {
             .padding(.vertical, 5)
             .background(Color.orange.opacity(0.15), in: Capsule())
 
-            // Studio Beenden
+            // Studio Beenden (immer vorhanden!)
             Button("Fertig") {
                 withAnimation {
                     studio.selectedWidgetId = nil
                     studio.isEditModeActive = false
                 }
             }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(.green)
-            .padding(.horizontal, 9)
+            .font(.system(size: 10, weight: .black))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Color.green.opacity(0.2), in: Capsule())
+            .background(Color.green, in: Capsule())
+            .shadow(color: Color.green.opacity(0.5), radius: 6)
         }
     }
 
     private func widgetDisplayName(_ id: String) -> String {
-        switch id {
-        case "w_boost":   return "Ladedruck-Balken"
-        case "w_rpm":     return "Drehzahlmesser"
-        case "w_speed":   return "Digital Speed / Tacho"
-        case "w_oil":     return "Öltemperatur"
-        case "w_dyno":    return "Live Prüfstand"
-        case "w_gforce":  return "G-Kräfte Radar"
-        case "w_lyrics":  return "Spotify Songtexte"
-        case "w_stats":   return "Telemetrie Stats"
-        default:          return id
+        let catalog = isLandscape ? HandyLayoutStudioManager.landscapeWidgetsCatalog : HandyLayoutStudioManager.portraitWidgetsCatalog
+        if let found = catalog.first(where: { $0.id == id }) {
+            return found.title
         }
+        return id
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: Studio Widget Catalog Sheet (Add / Remove Widgets)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public struct StudioWidgetCatalogSheet: View {
+    public var isLandscape: Bool = false
+    @ObservedObject private var studio = HandyLayoutStudioManager.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private var catalog: [StudioWidgetDefinition] {
+        isLandscape ? HandyLayoutStudioManager.landscapeWidgetsCatalog : HandyLayoutStudioManager.portraitWidgetsCatalog
+    }
+
+    public var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 0.06, green: 0.08, blue: 0.12).ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(catalog) { widget in
+                            let isVisible = studio.isWidgetVisible(id: widget.id, isLandscape: isLandscape)
+
+                            HStack(spacing: 12) {
+                                Image(systemName: widget.icon)
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(isVisible ? Color.cyan : Color.white.opacity(0.3))
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(widget.title)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundStyle(.white)
+                                    Text(widget.subtitle)
+                                        .font(.system(size: 10.5, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                if isVisible {
+                                    Button {
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                            studio.setWidgetVisible(id: widget.id, isLandscape: isLandscape, isVisible: false)
+                                            if studio.selectedWidgetId == widget.id {
+                                                studio.selectedWidgetId = nil
+                                            }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "checkmark")
+                                            Text("Aktiv")
+                                        }
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.green)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.green.opacity(0.18), in: Capsule())
+                                    }
+                                } else {
+                                    Button {
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                            studio.setWidgetVisible(id: widget.id, isLandscape: isLandscape, isVisible: true)
+                                            studio.selectedWidgetId = widget.id
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "plus")
+                                            Text("Hinzufügen")
+                                        }
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.black)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.cyan, in: Capsule())
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color.white.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .stroke(isVisible ? Color.cyan.opacity(0.3) : Color.white.opacity(0.08), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            .navigationTitle("Widgets verwalten")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Schließen") {
+                        dismiss()
+                    }
+                    .foregroundStyle(.cyan)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }

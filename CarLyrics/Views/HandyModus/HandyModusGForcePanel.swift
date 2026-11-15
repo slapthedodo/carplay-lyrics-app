@@ -72,6 +72,7 @@ public struct HandyModusGForcePanel: View {
                     .background(Color.orange.opacity(0.12), in: Capsule())
                 }
             }
+            .studioText(id: "w_gforce")
 
             HStack(spacing: 14) {
                 // GBall scope
@@ -86,6 +87,7 @@ public struct HandyModusGForcePanel: View {
                     Circle()
                         .fill(Color.black.opacity(0.4))
                 )
+                .studioBar(id: "w_gforce")
 
                 // Numeric readouts
                 VStack(alignment: .leading, spacing: 10) {
@@ -94,10 +96,12 @@ public struct HandyModusGForcePanel: View {
                     gReadout(label: "LATERAL", value: String(format: "%.2f G", abs(motion.gX)), color: purple.opacity(0.8))
                     gReadout(label: "LÄNGS",   value: String(format: "%.2f G", abs(motion.gY)), color: purple.opacity(0.8))
                 }
+                .studioText(id: "w_gforce")
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Badge gauge
                 GForceGaugeBadge(currentG: motion.currentG, maxG: motion.maxG, size: 95)
+                    .studioBar(id: "w_gforce")
             }
         }
         .padding(.horizontal, 16)

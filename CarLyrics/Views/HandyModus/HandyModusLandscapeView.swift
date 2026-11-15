@@ -178,13 +178,32 @@ public struct HandyModusLandscapeView: View {
             .background(Color.white.opacity(0.06), in: Capsule())
             .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
 
-            // Right: Keep Screen Awake
-            HStack(spacing: 3) {
-                Image(systemName: "moon.zzz.fill").font(.system(size: 7.5)).foregroundStyle(.yellow)
-                Text("AWAKE").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
+            // Right: Keep Screen Awake + Fertig wenn Edit-Modus aktiv
+            HStack(spacing: 4) {
+                if studio.isEditModeActive {
+                    Button {
+                        withAnimation {
+                            studio.selectedWidgetId = nil
+                            studio.isEditModeActive = false
+                        }
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "checkmark.circle.fill").font(.system(size: 7.5))
+                            Text("FERTIG").font(.system(size: 7.5, weight: .black))
+                        }
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 6).padding(.vertical, 2.5)
+                        .background(Color.green, in: Capsule())
+                    }
+                }
+
+                HStack(spacing: 3) {
+                    Image(systemName: "moon.zzz.fill").font(.system(size: 7.5)).foregroundStyle(.yellow)
+                    Text("AWAKE").font(.system(size: 7.5, weight: .bold)).foregroundStyle(.yellow.opacity(0.85))
+                }
+                .padding(.horizontal, 6).padding(.vertical, 2.5)
+                .background(Color.yellow.opacity(0.12), in: Capsule())
             }
-            .padding(.horizontal, 6).padding(.vertical, 2.5)
-            .background(Color.yellow.opacity(0.12), in: Capsule())
         }
         .frame(width: width, height: height)
     }
