@@ -89,6 +89,9 @@ public struct OBDPerformanceCard: View {
                                 .font(.headline)
                                 .foregroundStyle(.green)
                             Spacer()
+                            Toggle("", isOn: $timer.isEnabled)
+                                .labelsHidden()
+                                .tint(.green)
                             if timer.isDedicatedSpeedPollingRequired {
                                 Text("⚡ HIGH-SPEED PRIO")
                                     .font(.system(size: 9, weight: .black))

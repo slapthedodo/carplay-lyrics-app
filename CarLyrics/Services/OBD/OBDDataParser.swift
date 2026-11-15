@@ -210,7 +210,7 @@ extension OBDManager {
             if after.count >= 2, let val = UInt8(after.prefix(2), radix: 16) {
                 let speed = Int(val)
                 liveSpeed = speed
-                Task { @MainActor in
+                MainActor.assumeIsolated {
                     OBDPerformanceTimer.shared.updateSpeed(speed)
                 }
             }

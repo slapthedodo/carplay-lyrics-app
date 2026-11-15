@@ -54,13 +54,17 @@ extension OBDManager {
         pollWatchdogTimer = nil
 
         let delay: Double
-        switch focusMode {
-        case .pedalOnly:
-            delay = 0.015 // 15ms ultraschnell für flüssige Pedal- & Ganganzeige
-        case .minimal:
-            delay = 0.080 // 80ms für Kupplungs-Tutorial
-        case .standard:
-            delay = 0.015 // 15ms blitzschneller Takt für CAN-Bus (spart 30ms pro Abfrage!)
+        if OBDPerformanceTimer.shared.isDedicatedSpeedPollingRequired {
+            delay = 0.005 // 5ms minimale Pause für maximale 0–100 Abtastrate (bis zu 35 Hz)!
+        } else {
+            switch focusMode {
+            case .pedalOnly:
+                delay = 0.015 // 15ms ultraschnell für flüssige Pedal- & Ganganzeige
+            case .minimal:
+                delay = 0.080 // 80ms für Kupplungs-Tutorial
+            case .standard:
+                delay = 0.015 // 15ms blitzschneller Takt für CAN-Bus (spart 30ms pro Abfrage!)
+            }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -94,7 +98,7 @@ extension OBDManager {
             if OBDPerformanceTimer.shared.isDedicatedSpeedPollingRequired {
                 sendCommandRaw("010D")
                 pollWatchdogTimer?.invalidate()
-                pollWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+                pollWatchdogTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: false) { [weak self] _ in
                     self?.pollNextPID()
                 }
                 return
