@@ -173,7 +173,7 @@ public struct WidescreenPowertrainPod: View {
     public var body: some View {
         let cardH = max(112, min(136, height * 0.39))
         let barH = cardH - 46
-        let radarSize = min(126, height * 0.43)
+        let radarSize = min(104, height * 0.36)
 
         return VStack(spacing: 6) {
             // ── Section 1: Twin Precision Instrument Cards (Boost & Oil) ─────
@@ -213,7 +213,7 @@ public struct WidescreenPowertrainPod: View {
                 .padding(.horizontal, 4)
 
             // ── Section 2: G-Force Friction Radar & Values ───────────────────
-            HStack(spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
                 GBallView(
                     x: motion.normalizedX,
                     y: motion.normalizedY,
@@ -224,37 +224,42 @@ public struct WidescreenPowertrainPod: View {
                 .background(Circle().fill(Color.black.opacity(0.50)))
                 .overlay(Circle().stroke(purple.opacity(0.35), lineWidth: 1.5))
 
-                VStack(alignment: .leading, spacing: 3) {
-                    // Header: Text + Nullpunkt-Button direkt rechts daneben
-                    HStack(spacing: 5) {
+                VStack(alignment: .leading, spacing: 2) {
+                    // Header: Text + Nullpunkt-Button sauber nebeneinander ohne Zeilenumbruch
+                    HStack(spacing: 4) {
                         Text("G-KRAFT")
                             .font(.system(size: 8.5, weight: .black, design: .rounded))
                             .foregroundStyle(purple)
 
-                        Spacer()
+                        Spacer(minLength: 2)
 
                         Button {
                             motion.calibrate()
                         } label: {
-                            HStack(spacing: 2) {
+                            HStack(spacing: 2.5) {
                                 if motion.isCalibrating {
                                     ProgressView().scaleEffect(0.5).tint(purple)
                                     Text("1s…").font(.system(size: 7, weight: .bold, design: .monospaced)).foregroundStyle(purple)
                                 } else {
                                     Image(systemName: "scope").font(.system(size: 7.5, weight: .bold)).foregroundStyle(purple)
-                                    Text("Nullpunkt").font(.system(size: 7.5, weight: .bold, design: .rounded)).foregroundStyle(purple)
+                                    Text("Nullpunkt")
+                                        .font(.system(size: 7.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(purple)
+                                        .lineLimit(1)
                                 }
                             }
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
                             .background(purple.opacity(0.18), in: Capsule())
                         }
+                        .fixedSize()
                         .disabled(motion.isCalibrating)
                     }
 
                     Text(motion.currentGFormatted)
-                        .font(.system(size: min(24, height * 0.12), weight: .black, design: .monospaced))
+                        .font(.system(size: min(22, height * 0.11), weight: .black, design: .monospaced))
                         .foregroundStyle(gColor(motion.currentG, maxG: motion.maxG))
+                        .padding(.top, -1)
 
                     HStack(spacing: 4) {
                         Text("PEAK: \(motion.peakGFormatted)")
@@ -268,7 +273,7 @@ public struct WidescreenPowertrainPod: View {
                         Spacer()
                     }
 
-                    HStack(spacing: 6) {
+                    HStack(spacing: 5) {
                         Text("LAT: \(String(format: "%.2fG", abs(motion.gX)))")
                             .font(.system(size: 8, weight: .bold, design: .monospaced))
                             .foregroundStyle(purple.opacity(0.80))
@@ -281,7 +286,7 @@ public struct WidescreenPowertrainPod: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity)
-            .padding(.top, 2)
+            .padding(.top, 1)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)

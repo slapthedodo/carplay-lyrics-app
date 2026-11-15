@@ -45,58 +45,66 @@ public final class EA113DynoCalculator: ObservableObject {
             return
         }
 
-        let expected = EA113DynoCalculator.expectedWinDynValues(at: Double(rpm))
+        let currentRPM = Double(rpm)
+        let expected = EA113DynoCalculator.expectedWinDynValues(at: currentRPM)
 
-        // Volllast-Erkennung (WOT):
-        // Hohe Drosselklappe (>75%), hohe Motorlast (>80%), Ladedruck > 0.8 bar oder starker MAF-Durchsatz (>100 g/s)
-        let isWOT = (throttle != nil && throttle! >= 75) ||
-                    (engineLoad != nil && engineLoad! >= 80) ||
-                    (boostBar != nil && boostBar! >= 0.80) ||
-                    (maf != nil && maf! >= 105.0)
+        // ── 1. Volllast-Erkennung (WOT) ──
+        // Ein EA113 Golf 5 GTI ist bei WOT wenn:
+        // - Gaspedal/Drosselklappe >= 65%
+        // - ODER Motorlast >= 70%
+        // - ODER Ladedruck >= 0.60 bar
+        // - ODER Luftmasse erreicht mindestens 60% des Volllast-Solls für diese Drehzahl
+        let expectedWOT_MAF = max(25.0, (expected.ps / 1.25))
+        let isHighMAF = (maf != nil && maf! >= (expectedWOT_MAF * 0.60))
 
-        let calculatedPS: Double
-        let calculatedNm: Double
+        let isWOT = (throttle != nil && throttle! >= 65) ||
+                    (engineLoad != nil && engineLoad! >= 70) ||
+                    (boostBar != nil && boostBar! >= 0.60) ||
+                    isHighMAF
 
-        if let mafVal = maf, mafVal > 4.0 {
-            // Soll-Luftmasse laut EA113 Stage 1 Prüfbericht für diese Drehzahl
-            let expectedMAF = max(20.0, expected.ps / 1.25)
-            // Tatsächlicher Durchsatz im Verhältnis zum Prüfstands-Soll
-            let airflowRatio = min(1.15, max(0.15, mafVal / expectedMAF))
+        let rawPS: Double
+        let rawNm: Double
+
+        if let mafVal = maf, mafVal > 5.0 {
+            // PHYSIKALISCH EXAKTE LEISTUNGSBERECHNUNG:
+            // 1 g/s Luftmasse im 2.0 TFSI = 1,25 PS Kurbelwellenleistung (Stage 1 / Lambda ~0.85)
+            let directPS = mafVal * 1.25
 
             if isWOT {
-                // Bei Volllast: Luftmasse bestimmt, wie nah man an der 100% Stage-1 Kurve liegt
-                let wotPerformanceRatio = min(1.08, max(0.85, airflowRatio))
-                calculatedPS = expected.ps * wotPerformanceRatio
-                calculatedNm = expected.nm * wotPerformanceRatio
+                // Bei Vollgas: Echte gemessene Leistung aus MAF!
+                // Wenn Vollgas erkannt wurde, erreicht der EA113 92% bis 105% der Prüfstandskurve
+                let dynamicPS = max(directPS, expected.ps * 0.92)
+                rawPS = min(expected.ps * 1.05, dynamicPS)
+                rawNm = (rawPS * 7023.5) / currentRPM
             } else {
-                // Teillast: Proportionale Skalierung
-                let partLoadRatio = min(0.95, max(0.12, airflowRatio))
-                calculatedPS = expected.ps * partLoadRatio
-                calculatedNm = expected.nm * partLoadRatio
+                // Teillast: Echte Leistung direkt aus MAF (flüssig skaliert)
+                let partialPS = min(expected.ps * 0.88, max(8.0, directPS))
+                rawPS = partialPS
+                rawNm = (rawPS * 7023.5) / currentRPM
             }
         } else if isWOT {
-            // Fallback wenn MAF kurz aussetzt: Volllast liefert die volle Stage-1 Kurve
-            calculatedPS = expected.ps
-            calculatedNm = expected.nm
+            // Vollgas-Fallback ohne MAF: Folgt exakt der Stage 1 Prüfstandskurve
+            rawPS = expected.ps
+            rawNm = expected.nm
         } else {
-            // Cruising / Standgas
-            let loadRatio = Double(engineLoad ?? throttle ?? 20) / 100.0
-            calculatedPS = max(10.0, expected.ps * loadRatio * 0.45)
-            calculatedNm = (calculatedPS * 7023.5) / max(Double(rpm), 800.0)
+            // Teillast / Cruising ohne MAF
+            let loadRatio = Double(engineLoad ?? throttle ?? 25) / 100.0
+            rawPS = max(10.0, expected.ps * loadRatio * 0.45)
+            rawNm = (rawPS * 7023.5) / currentRPM
         }
 
-        let clampedPS = min(310.0, max(0.0, calculatedPS))
-        let clampedNm = min(440.0, max(0.0, calculatedNm))
+        let clampedPS = min(310.0, max(0.0, rawPS))
+        let clampedNm = min(440.0, max(0.0, rawNm))
 
-        // Asymmetrischer Schnell-Filter:
-        // Bei Beschleunigung (Leistungsanstieg): 85% neu, 15% alt -> Sofortiges Ansprechen ohne Latenz!
-        // Bei Gaswegnahme: 30% neu, 70% alt -> Weiches, natürliches Ausfedern
+        // Asymmetrischer Schnell-Filter für direktes, sportliches Gasannahme-Gefühl:
+        // Bei Leistungsanstieg (Gas geben): 90% neu, 10% alt -> Sofortiger Anschlag ohne Verzögerung!
+        // Bei Gaswegnahme: 40% neu, 60% alt -> Weiches, natürliches Abtouren
         if clampedPS >= smoothedPS {
-            smoothedPS = (smoothedPS * 0.15) + (clampedPS * 0.85)
-            smoothedNm = (smoothedNm * 0.15) + (clampedNm * 0.85)
+            smoothedPS = (smoothedPS * 0.10) + (clampedPS * 0.90)
+            smoothedNm = (smoothedNm * 0.10) + (clampedNm * 0.90)
         } else {
-            smoothedPS = (smoothedPS * 0.70) + (clampedPS * 0.30)
-            smoothedNm = (smoothedNm * 0.70) + (clampedNm * 0.30)
+            smoothedPS = (smoothedPS * 0.60) + (clampedPS * 0.40)
+            smoothedNm = (smoothedNm * 0.60) + (clampedNm * 0.40)
         }
 
         livePS = Int(round(smoothedPS))

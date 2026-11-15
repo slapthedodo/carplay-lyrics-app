@@ -64,35 +64,51 @@ public struct HandyModusDynoMiniCard: View {
             let displayNm = isUnder1700 ? dyno.peakNm : (dyno.liveNm > 0 ? dyno.liveNm : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).nm)))
             let displayPS = isUnder1700 ? dyno.peakPS : (dyno.livePS > 0 ? dyno.livePS : Int(round(EA113DynoCalculator.expectedWinDynValues(at: currentRPM).ps)))
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
+                // RPM Badge (Cyan)
+                HStack(spacing: 4) {
+                    Circle().fill(cyanGlow).frame(width: 5, height: 5)
+                    Text("RPM")
+                        .font(.system(size: 8, weight: .black))
+                        .foregroundStyle(cyanGlow.opacity(0.8))
+                    Spacer()
+                    Text(obd.liveRPM > 0 ? "\(obd.liveRPM)" : "--")
+                        .font(.system(size: 11.5, weight: .black, design: .monospaced))
+                        .foregroundStyle(.white)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(cyanGlow.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(cyanGlow.opacity(0.35), lineWidth: 1))
+
                 // Drehmoment Badge (Rot)
-                HStack(spacing: 5) {
-                    Circle().fill(redTorque).frame(width: 6, height: 6)
+                HStack(spacing: 4) {
+                    Circle().fill(redTorque).frame(width: 5, height: 5)
                     Text(isUnder1700 ? "PEAK" : "LIVE")
                         .font(.system(size: 8, weight: .black))
                         .foregroundStyle(redTorque.opacity(0.8))
                     Spacer()
                     Text("\(displayNm) Nm")
-                        .font(.system(size: 13, weight: .black, design: .monospaced))
+                        .font(.system(size: 11.5, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(redTorque.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(redTorque.opacity(0.35), lineWidth: 1))
 
                 // Leistung Badge (Blau)
-                HStack(spacing: 5) {
-                    Circle().fill(bluePower).frame(width: 6, height: 6)
+                HStack(spacing: 4) {
+                    Circle().fill(bluePower).frame(width: 5, height: 5)
                     Text(isUnder1700 ? "PEAK" : "LIVE")
                         .font(.system(size: 8, weight: .black))
                         .foregroundStyle(bluePower.opacity(0.8))
                     Spacer()
                     Text("\(displayPS) PS")
-                        .font(.system(size: 13, weight: .black, design: .monospaced))
+                        .font(.system(size: 11.5, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 5)
                 .background(bluePower.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(bluePower.opacity(0.35), lineWidth: 1))
@@ -102,15 +118,15 @@ public struct HandyModusDynoMiniCard: View {
             GeometryReader { geo in
                 let w = geo.size.width
                 let h = geo.size.height
-                let left: CGFloat = 24
-                let right = w - 10
-                let top: CGFloat = 8
+                let left: CGFloat = 20
+                let right = w - 8
+                let top: CGFloat = 6
                 let bottom = h - 14
                 let plotW = right - left
                 let plotH = bottom - top
 
                 ZStack(alignment: .topLeading) {
-                    // Raster
+                    // Horizontales Raster
                     Canvas { context, _ in
                         for i in 0...3 {
                             let y = bottom - (CGFloat(i) / 3.0 * plotH)
@@ -119,6 +135,21 @@ public struct HandyModusDynoMiniCard: View {
                             p.addLine(to: CGPoint(x: right, y: y))
                             context.stroke(p, with: .color(Color.white.opacity(0.06)), lineWidth: 0.6)
                         }
+                    }
+
+                    // Vertikales RPM Raster & Skala (2k, 3k, 4k, 5k, 6k, 7k)
+                    ForEach([2000, 3000, 4000, 5000, 6000, 7000], id: \.self) { rpmVal in
+                        let tickX = left + (((CGFloat(rpmVal) - 1500.0) / 5500.0) * plotW)
+                        Path { p in
+                            p.move(to: CGPoint(x: tickX, y: top))
+                            p.addLine(to: CGPoint(x: tickX, y: bottom))
+                        }
+                        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+
+                        Text("\(rpmVal / 1000)k")
+                            .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.35))
+                            .position(x: tickX, y: h - 6)
                     }
 
                     // Füllung unter Drehmoment-Kurve (Rot Gradient)
@@ -140,22 +171,20 @@ public struct HandyModusDynoMiniCard: View {
                         .shadow(color: bluePower.opacity(0.5), radius: 4)
 
                     // Live Sweep & Punkte
-                    let nmRPM = isUnder1700 ? 2800.0 : currentRPM
-                    let psRPM = isUnder1700 ? 6300.0 : currentRPM
+                    let sweepX = left + (((max(1500, min(7000, currentRPM)) - 1500.0) / 5500.0) * plotW)
+                    let nmX = isUnder1700 ? left + (((2800.0 - 1500.0) / 5500.0) * plotW) : sweepX
+                    let psX = isUnder1700 ? left + (((6300.0 - 1500.0) / 5500.0) * plotW) : sweepX
 
-                    let nmX = left + (((max(1500, min(7000, nmRPM)) - 1500.0) / 5500.0) * plotW)
                     let nmY = bottom - (min(450.0, Double(displayNm)) / 450.0 * plotH)
-
-                    let psX = left + (((max(1500, min(7000, psRPM)) - 1500.0) / 5500.0) * plotW)
                     let psY = bottom - (min(450.0, Double(displayPS)) / 450.0 * plotH)
 
                     if !isUnder1700 {
-                        let sweepX = left + (((max(1500, min(7000, currentRPM)) - 1500.0) / 5500.0) * plotW)
                         Path { p in
                             p.move(to: CGPoint(x: sweepX, y: top))
                             p.addLine(to: CGPoint(x: sweepX, y: bottom))
                         }
-                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.2, dash: [3, 2]))
+                        .stroke(cyanGlow, style: StrokeStyle(lineWidth: 1.5, dash: [4, 2]))
+                        .shadow(color: cyanGlow.opacity(0.7), radius: 4)
                     }
 
                     // Roter Punkt
@@ -288,40 +317,54 @@ public struct WidescreenDynoPod: View {
 
         VStack(spacing: 4) {
             // ── 1. Header & Live Badges in ONE unified row ───────────────────
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 // Title + Icon
-                HStack(spacing: 4) {
+                HStack(spacing: 3.5) {
                     Image(systemName: "gauge.with.needle.fill")
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(cyanGlow)
 
                     Text("DYNO V3.2")
-                        .font(.system(size: 9.5, weight: .black, design: .monospaced))
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
 
-                Spacer(minLength: 4)
+                Spacer(minLength: 2)
+
+                // Live RPM Badge (Cyan - High Visibility!)
+                HStack(spacing: 2.5) {
+                    Image(systemName: "speedometer")
+                        .font(.system(size: 7.5, weight: .bold))
+                        .foregroundStyle(cyanGlow)
+                    Text(obd.liveRPM > 0 ? "\(obd.liveRPM) U/min" : "STANDBY")
+                        .font(.system(size: 8.5, weight: .black, design: .monospaced))
+                        .foregroundStyle(cyanGlow)
+                }
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2.5)
+                .background(cyanGlow.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(cyanGlow.opacity(0.40), lineWidth: 0.8))
 
                 // Nm Badge (Rot)
-                HStack(spacing: 3) {
+                HStack(spacing: 2.5) {
                     Circle().fill(redTorque).frame(width: 4, height: 4)
                     Text("\(displayNm) Nm")
-                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 5)
                 .padding(.vertical, 2.5)
                 .background(redTorque.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(redTorque.opacity(0.35), lineWidth: 0.8))
 
                 // PS Badge (Blau)
-                HStack(spacing: 3) {
+                HStack(spacing: 2.5) {
                     Circle().fill(bluePower).frame(width: 4, height: 4)
                     Text("\(displayPS) PS")
-                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
                         .foregroundStyle(.white)
                 }
-                .padding(.horizontal, 6)
+                .padding(.horizontal, 5)
                 .padding(.vertical, 2.5)
                 .background(bluePower.opacity(0.18), in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(bluePower.opacity(0.35), lineWidth: 0.8))
@@ -339,19 +382,19 @@ public struct WidescreenDynoPod: View {
             }
             .padding(.horizontal, 4)
 
-            // ── 2. SuperFlow WinDyn Live Graph ───────────────────────────────
+            // ── 2. SuperFlow WinDyn Live Graph mit RPM-Skala ─────────────────
             GeometryReader { geo in
                 let w = geo.size.width
                 let h = geo.size.height
-                let left: CGFloat = 18
+                let left: CGFloat = 16
                 let right = w - 6
                 let top: CGFloat = 4
-                let bottom = h - 6
+                let bottom = h - 14
                 let plotW = max(10, right - left)
                 let plotH = max(10, bottom - top)
 
                 ZStack(alignment: .topLeading) {
-                    // Raster
+                    // Horizontales Raster
                     Canvas { context, _ in
                         for i in 0...3 {
                             let y = bottom - (CGFloat(i) / 3.0 * plotH)
@@ -360,6 +403,21 @@ public struct WidescreenDynoPod: View {
                             p.addLine(to: CGPoint(x: right, y: y))
                             context.stroke(p, with: .color(Color.white.opacity(0.06)), lineWidth: 0.6)
                         }
+                    }
+
+                    // Vertikales RPM Raster & Skala (2k, 3k, 4k, 5k, 6k, 7k)
+                    ForEach([2000, 3000, 4000, 5000, 6000, 7000], id: \.self) { rpmVal in
+                        let tickX = left + (((CGFloat(rpmVal) - 1500.0) / 5500.0) * plotW)
+                        Path { p in
+                            p.move(to: CGPoint(x: tickX, y: top))
+                            p.addLine(to: CGPoint(x: tickX, y: bottom))
+                        }
+                        .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+
+                        Text("\(rpmVal / 1000)k")
+                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Color.white.opacity(0.35))
+                            .position(x: tickX, y: h - 6)
                     }
 
                     // Füllung Drehmoment
@@ -380,22 +438,21 @@ public struct WidescreenDynoPod: View {
                         .shadow(color: bluePower.opacity(0.5), radius: 3)
 
                     // Live Sweep & Punkte
-                    let nmRPM = isUnder1700 ? 2800.0 : currentRPM
-                    let psRPM = isUnder1700 ? 6300.0 : currentRPM
+                    let sweepX = left + (((max(1500, min(7000, currentRPM)) - 1500.0) / 5500.0) * plotW)
+                    let nmX = isUnder1700 ? left + (((2800.0 - 1500.0) / 5500.0) * plotW) : sweepX
+                    let psX = isUnder1700 ? left + (((6300.0 - 1500.0) / 5500.0) * plotW) : sweepX
 
-                    let nmX = left + (((max(1500, min(7000, nmRPM)) - 1500.0) / 5500.0) * plotW)
                     let nmY = bottom - (min(450.0, Double(displayNm)) / 450.0 * plotH)
-
-                    let psX = left + (((max(1500, min(7000, psRPM)) - 1500.0) / 5500.0) * plotW)
                     let psY = bottom - (min(450.0, Double(displayPS)) / 450.0 * plotH)
 
                     if !isUnder1700 {
-                        let sweepX = left + (((max(1500, min(7000, currentRPM)) - 1500.0) / 5500.0) * plotW)
+                        // Luminous Live RPM Cursor
                         Path { p in
                             p.move(to: CGPoint(x: sweepX, y: top))
                             p.addLine(to: CGPoint(x: sweepX, y: bottom))
                         }
-                        .stroke(Color.white, style: StrokeStyle(lineWidth: 1.0, dash: [3, 2]))
+                        .stroke(cyanGlow, style: StrokeStyle(lineWidth: 1.5, dash: [4, 2]))
+                        .shadow(color: cyanGlow.opacity(0.7), radius: 4)
                     }
 
                     // Nm Punkt (Rot)

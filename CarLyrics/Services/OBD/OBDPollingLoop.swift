@@ -105,23 +105,23 @@ extension OBDManager {
             }
 
             // High-Speed Priority Interleaving für EA113 2.0 TFSI (Bosch MED9.1):
-            // Schnelle Werte (Ladedruck via MAP/MAF & Drehzahl) bekommen 75% der Bandbreite!
+            // Schnelle Werte (Ladedruck/MAF, Drehzahl & Drosselklappe) bekommen 75% der Bandbreite!
             let fastPIDs: [String]
             if hasCheckedMAPPID && !hasMAPPID {
-                // MED9.1 nutzt MAF (0110) für Ladedruck + 010C (RPM)
-                fastPIDs = ["0110", "010C"]
+                // MED9.1 nutzt MAF (0110) + 010C (RPM) + 0111 (Gaspedal/Drosselklappe für Dyno)
+                fastPIDs = ["0110", "010C", "0111"]
             } else if hasCheckedMAPPID && hasMAPPID {
                 // Echtes MAP (010B) vorhanden
-                fastPIDs = ["010B", "010C"]
+                fastPIDs = ["010B", "010C", "0111"]
             } else {
-                // Noch nicht geprüft: MAP, MAF und RPM abfragen
-                fastPIDs = ["010B", "0110", "010C"]
+                // Noch nicht geprüft: MAP, MAF, RPM und Gaspedal abfragen
+                fastPIDs = ["010B", "0110", "010C", "0111"]
             }
 
             var slowPIDs: [String] = [
                 "010D", // Geschwindigkeit km/h
-                "0105", // Kühlmittel °C (steigt nur sehr langsam)
                 "0104", // Motorlast %
+                "0105", // Kühlmittel °C (steigt nur sehr langsam)
                 "010F"  // Ansaugluft IAT °C
             ]
 
